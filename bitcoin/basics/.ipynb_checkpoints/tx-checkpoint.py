@@ -219,8 +219,8 @@ class Tx:
             cmds = tx_in.script_sig.cmds[-1]
             print(f"commands redeemscript: {cmds.hex()}")
             # prepend the length of the RedeemScript using encode_varint
-            raw_redeem = encode_varint(len(cmds)) + cmds
-            #raw_redeem = cmds
+            #raw_redeem = encode_varint(len(cmds)) + cmds
+            raw_redeem = cmds
             # parse the RedeemScript
             RedScript = Script.parse(BytesIO(raw_redeem))
             
