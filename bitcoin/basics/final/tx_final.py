@@ -372,27 +372,7 @@ class Tx:
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
-    def sign_input_multisig(self, input_index, private_key_list, redeem_script):
-        '''Signs the input using the private key'''
-        # get the signature hash (z)
-        z = self.sig_hash(input_index, redeem_script)
-        # get der signature of z from private key
-        ders = [private_key.sign(z).der() for private_key in private_key_list]
-        # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
-        sigs = [der + SIGHASH_ALL.to_bytes(1, 'big') for der in ders ]
-        # calculate the sec
-        secs = [private_key.point.sec() for private_key in private_key_list]
-        # initialize a new script with [sig, sec] as the cmds
-        commands = [0]
-        for sec in secs: commands.append(sec)
-        commands.append(redeem_script)
-        print(commands)
-        script_sig = Script(commands)
-        #print(script_sig)
-        # change input's script_sig to new script
-        self.tx_ins[input_index].script_sig = script_sig
-        # return whether sig is valid using self.verify_input
-        return self.verify_input(input_index)
+   
 
     def is_coinbase(self):
         '''Returns whether this transaction is a coinbase transaction or not'''
