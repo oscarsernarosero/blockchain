@@ -412,6 +412,7 @@ class TxIn:
         else:
             self.script_sig = script_sig
         self.sequence = sequence
+        self.witness = [self.script_sig,]
 
     def __repr__(self):
         return '{}:{}'.format(

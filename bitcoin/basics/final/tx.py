@@ -86,6 +86,7 @@ class Tx:
         self._hash_prevouts = None
         self._hash_sequence = None
         self._hash_outputs = None
+        print(self.tx_ins[0])
 
     def __repr__(self):
         tx_ins = ''
@@ -463,6 +464,7 @@ class TxIn:
         else:
             self.script_sig = script_sig
         self.sequence = sequence
+        self.witness = b'\x00'
 
     def __repr__(self):
         return '{}:{}'.format(

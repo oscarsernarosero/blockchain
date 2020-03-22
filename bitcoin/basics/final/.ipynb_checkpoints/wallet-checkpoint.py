@@ -1,9 +1,21 @@
+"""
+This module is coded entirely by Oscar Serna.
+This code makes use of the code written by Jimmy Song in the book Programming Bitcoin.
+This code only tries to build on Jimmi Song's code and take it to the next step as 
+suggested by him in chapter 14 of his book.
+
+This is just an educational-purpose code. The author does not take any responsibility
+on any losses caused by the use of this code.
+"""
 from ecc import PrivateKey, S256Point, Signature
 from script import p2pkh_script, p2sh_script, Script
 from helper import decode_base58, SIGHASH_ALL, h160_to_p2pkh_address, hash160, h160_to_p2sh_address
 from tx import TxIn, TxOut, Tx, TxFetcher
 
 class Account():
+    """
+    To create account use from_phrase() method.
+    """
     
     def __init__(self, _privkey):
         """
@@ -21,7 +33,7 @@ class Account():
     def from_phrase(cls,phrase, endian="big"):
         """
         phrase must be in bytes.
-        endian can be either "big" or "little"
+        endian can be either "big" or "little". Change later to boolean "bignendian"
         Returns an account using the phrase chosen which is converted to an Integer
         """
         if endian not in ["big","little"]:
@@ -38,13 +50,23 @@ class Account():
 
 
 class MultSigAccount():
+    """
+    To create account use from_phrases() method.
+    """
     
     def __init__(self,m, n,  _privkeys):
         """
         Initialize the account with a private key in Integer form.
+        m: the minumin amount of signatures required to spend the money.
+        n: total amount of signatures that can be used to sign transactions.
+        Note: Therefore:
+        a- m has to be less or equal to n.
+        b- n has to be equal to the length of the array _privkeys
+        Also:
+        c- n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
         """
         if n != len(_privkeys):
-            raise Exception("m must be equal to the amount of private keys")
+            raise Exception("n must be equal to the amount of private keys")
         if m < 1 or m > 16 or n < 1 or n > 16:
             raise Exception("m and n must be between 1 and 16")
         if m > n:
