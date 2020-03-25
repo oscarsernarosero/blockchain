@@ -64,6 +64,17 @@ def decode_base58(s):
         raise ValueError('bad address: {} {}'.format(checksum, hash256(combined[:-4])[:4]))
     return combined[1:-4]
 
+def decode_base58_extended(s):
+    num = 0
+    for c in s:
+        num *= 58
+        num += BASE58_ALPHABET.index(c)
+    combined = num.to_bytes(82, byteorder='big')
+    checksum = combined[-4:]
+    if hash256(combined[:-4])[:4] != checksum:
+        raise ValueError('bad address: {} {}'.format(checksum, hash256(combined[:-4])[:4]))
+    return combined[:-4]
+
 
 def little_endian_to_int(b):
     '''little_endian_to_int takes byte sequence as a little-endian number.
