@@ -41,7 +41,7 @@ class Xtended_privkey:
         else: 
             hardened=False
             msg=pub_key + i.to_bytes(4,"big") 
-​
+
         I= hmac.new(
                     key = self.chain_code,
                     msg=msg,
@@ -140,4 +140,4 @@ class Xtended_privkey:
         privkey = s.read(32)
         return cls(depth=depth, fingerprint=fingerprint, index=index, 
                    chain_code = chain_code, private_key=privkey, testnet=testnet)
-​
+
