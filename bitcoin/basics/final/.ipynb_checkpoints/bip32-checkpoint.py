@@ -23,7 +23,9 @@ class Xtended_privkey:
         self.chain_code = chain_code
         self.private_key = private_key
         self.private_key_wif = PrivateKey(child_privkey_int).wif()
-        self.xtended_key = None
+        self.xtended_key = self.get_xtended_key()
+        self.xtended_public_key = self.extended_public_key()
+        
         
     def __repr__(cls):
         return cls.get_xtended_key()
@@ -66,6 +68,7 @@ class Xtended_privkey:
         
         child_depth = (int.from_bytes(self.depth,"big")+1).to_bytes(1,"big")
         
+        self.extended_public_key()
         return Xtended_privkey(child_depth, child_fingerprint, i.to_bytes(4,"big"), 
                    child_chain_code, child_privkey_int.to_bytes(32,"big"),testnet = self.testnet)
         
@@ -98,8 +101,12 @@ class Xtended_privkey:
                 begin = index
                 start = True
                 
-        index = int(path_string[begin:])
-        child = child.get_child_xtended_key(int(char))
+        if hardened:
+            index = int(path_string[begin:-1])+2**31
+            hardened = False
+        else:
+            index = int(path_string[begin:])
+        child = child.get_child_xtended_key(int(index))
         return child
     
     
@@ -111,6 +118,19 @@ class Xtended_privkey:
         
         pre_ser = version+self.depth+self.fingerprint+self.index+self.chain_code+b'\x00'+self.private_key
         return encode_base58_checksum(pre_ser)
+    
+    #@classmethod
+    def get_xtended_public_key(self):
+        return self.extended_public_key()
+        
+        
+    def extended_public_key(self):
+        pub_key =  PrivateKey(int.from_bytes(self.private_key,"big")).point.sec()
+        x_pub_key = Xtended_pubkey(self.depth, self.fingerprint, self.index, 
+                   self.chain_code, pub_key,testnet = self.testnet)
+        self.xtended_public_key = x_pub_key
+        return x_pub_key
+        
     
     
     @classmethod
@@ -128,9 +148,9 @@ class Xtended_privkey:
         testnet = None
         s = BytesIO(decode_base58_extended(xpk_string))
         version = s.read(4)
-        if version == "04358394": 
+        if version == b"\x04\x35\x83\x94": 
             testnet = True
-        elif version == "0488ade4": 
+        elif version == b"\x04\x88\xad\xe4": 
                 testnet = False
         depth = s.read(1)
         fingerprint = s.read(4)
@@ -141,3 +161,127 @@ class Xtended_privkey:
         return cls(depth=depth, fingerprint=fingerprint, index=index, 
                    chain_code = chain_code, private_key=privkey, testnet=testnet)
 
+    
+class Xtended_pubkey:
+    
+    def __init__(self, depth, fingerprint, index, chain_code, public_key, testnet = False):
+        """
+        All data must be bytes
+        """
+        self.testnet = testnet
+        self.version = None
+        self.depth = depth
+        self.fingerprint = fingerprint
+        self.index = index
+        self.chain_code = chain_code
+        self.public_key = public_key
+        self.xtended_key = None
+        
+        
+    def __repr__(cls):
+        return cls.get_xtended_key()
+    
+    
+    def get_child_xtended_key(self, i):
+       
+        child_fingerprint = hash160(self.public_key)[:4]
+     
+        if i >= 2**31: 
+            hardened=True
+            raise Exception ("Extended public keys not possible for hardened keys")
+        else: 
+            hardened=False
+            msg=self.public_key + i.to_bytes(4,"big") 
+
+        I= hmac.new(
+                    key = self.chain_code,
+                    msg=msg,
+                    digestmod=sha512).digest()
+        
+        I_L, I_R = I[:32], I[32:]
+        
+        #Check if I_L is grater than N
+        if int.from_bytes(I_L,"big")>=N : 
+            return self.get_child_xtended_key(self,i+1)
+        
+        child_public_key = (PrivateKey(int.from_bytes(I_L,"big")).point + S256Point.parse(self.public_key)).sec()
+        
+        #check if public key is on the curve
+        if child_public_key is None:
+            return self.get_child_xtended_key(self,i+1)
+                           
+        child_chain_code = I_R
+        
+        child_depth = (int.from_bytes(self.depth,"big")+1).to_bytes(1,"big")
+        
+        return Xtended_pubkey(child_depth, child_fingerprint, i.to_bytes(4,"big"), 
+                   child_chain_code, child_public_key,testnet = self.testnet)
+        
+        
+        
+    def get_child_from_path(self,path_string):
+        child = self
+        start = False
+        begin = 0
+        hardened = False
+        for index,char in enumerate(path_string):
+            
+            if char == 'm' and index==0:
+                continue
+            elif char == '/':
+                if start:
+                    if hardened:
+                        index = int(path_string[begin:index-1])+2**31
+                        hardened = False
+                    else:
+                        index = int(path_string[begin:index])
+                        
+                    #######Child creation happens here #######
+                    child = child.get_child_xtended_key(index)
+                    start = False
+                    
+                continue
+            elif char == "H" or char == "h":
+                hardened = True
+                continue
+                
+            elif not start:
+                begin = index
+                start = True
+                
+        #Last child created     
+        if hardened:
+            index = int(path_string[begin:-1])+2**31
+            hardened = False
+        else:
+            index = int(path_string[begin:])
+        child = child.get_child_xtended_key(int(index))
+        return child
+    
+    
+    def get_xtended_key(self):
+        if self.testnet:
+            version= 0x043587cf.to_bytes(4,"big")
+        else:
+            version= 0x0488b21e.to_bytes(4,"big")
+        
+        pre_ser = version+self.depth+self.fingerprint+self.index+self.chain_code+self.public_key
+        return encode_base58_checksum(pre_ser)
+        
+    
+    @classmethod
+    def parse(cls,xpk_string):
+        testnet = None
+        s = BytesIO(decode_base58_extended(xpk_string))
+        version = s.read(4)
+        if version == b'\x04\x35\x87\xcf': 
+            testnet = True
+        elif version == b'\x04\x88\xb2\x1e': 
+                testnet = False
+        depth = s.read(1)
+        fingerprint = s.read(4)
+        index= s.read(4)
+        chain_code = s.read(32)
+        pubkey = s.read(33)
+        return cls(depth=depth, fingerprint=fingerprint, index=index, 
+                   chain_code = chain_code, public_key=pubkey, testnet=testnet)
