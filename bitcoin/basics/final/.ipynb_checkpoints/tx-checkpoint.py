@@ -8,12 +8,13 @@ from ecc import PrivateKey
 from helper import (
     encode_varint,
     hash256,
+    hash160,
     int_to_little_endian,
     little_endian_to_int,
     read_varint,
     SIGHASH_ALL,
 )
-from script import p2pkh_script, Script
+from script import p2pkh_script, Script, p2wpkh_script
 
 
 class TxFetcher:
@@ -317,27 +318,39 @@ class Tx:
 
     def verify_input(self, input_index):
         '''Returns whether the input has a valid signature'''
+        p2sh_p2wpkh = False
         # get the relevant input
         tx_in = self.tx_ins[input_index]
         # grab the previous ScriptPubKey
         script_pubkey = tx_in.script_pubkey(testnet=self.testnet)
-        print(script_pubkey)
+        print(f"script_pubkey of tx IN: {script_pubkey}")
         # check to see if the ScriptPubkey is a p2sh using
         # Script.is_p2sh_script_pubkey()
         if script_pubkey.is_p2sh_script_pubkey():
-            # the last cmd in a p2sh is the RedeemScript
-            print(f"scriptPubKey: {script_pubkey}")
-            cmds = tx_in.script_sig.cmds[-1]
-            print(f"commands redeemscript: {cmds.hex()}")
+            print(f"tx_in.script_sig.cmds[0]: {tx_in.script_sig.cmds[0]}")
+            if len(tx_in.script_sig.cmds) == 1:
+                print("This is a nested P2WPKH")
+                p2sh_p2wpkh = True
+                cmds = tx_in.script_sig.cmds[0]
+            else:
+                # the last cmd in a p2sh is the RedeemScript
+                print(f"scriptPubKey: {script_pubkey}")
+                cmds = tx_in.script_sig.cmds[-1]
+                print(f"commands redeemscript: {cmds}")
+                
             # prepend the length of the RedeemScript using encode_varint
             raw_redeem = encode_varint(len(cmds)) + cmds
+            print(f"rawredeem: {raw_redeem}")
             #raw_redeem = cmds
             # parse the RedeemScript
             RedScript = Script.parse(BytesIO(raw_redeem))
+            
             if RedScript.is_p2wpkh_script_pubkey():
+                print(f"is_p2wpkh_script_pubkey")
                 z = self.sig_hash_bip143(input_index, RedScript)
                 witness = tx_in.witness
             elif RedScript.is_p2wsh_script_pubkey():
+                print(f"is_p2wsh_script_pubkey")
                 cmd = tx_in.witness[-1]
                 raw_witness = encode_varint(len(cmd)) + cmd
                 witness_script = Script.parse(BytesIO(raw_witness))
@@ -361,13 +374,17 @@ class Tx:
                 witness = tx_in.witness
             else:
                 z = self.sig_hash(input_index)
-                witness = None
+                witness = b'\x00'
             #RedScript = None
         # get the signature hash (z)
         # pass the RedeemScript to the sig_hash method
         #z = self.sig_hash(input_index, RedScript)
         # combine the current ScriptSig and the previous ScriptPubKey
-        combined = tx_in.script_sig + script_pubkey
+        if p2sh_p2wpkh:
+            combined = Script([encode_varint(len(tx_in.script_sig.cmds[0])) ,tx_in.script_sig.cmds[0]]) + script_pubkey
+            #combined = tx_in.script_sig + script_pubkey
+        else:
+            combined = tx_in.script_sig + script_pubkey
         print(f"\ncombined script{combined.cmds}\n")
         # evaluate the combined script
         return combined.evaluate(z, witness)
@@ -383,20 +400,40 @@ class Tx:
                 return False
         return True
 
-    def sign_input(self, input_index, private_key):
+    def sign_input(self, input_index, private_key,segwit=False):
         '''Signs the input using the private key'''
         # get the signature hash (z)
-        z = self.sig_hash(input_index)
+        if segwit:
+            z = self.sig_hash_bip143(input_index, Script([0, private_key.point.hash160()]) )
+        else:
+            z = self.sig_hash(input_index)
         # get der signature of z from private key
         der = private_key.sign(z).der()
         # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+            
         # calculate the sec
         sec = private_key.point.sec()
         # initialize a new script with [sig, sec] as the cmds
         script_sig = Script([sig, sec])
         # change input's script_sig to new script
-        self.tx_ins[input_index].script_sig = script_sig
+        print("\nABOUT TO SIGN INPUT\n")
+        if segwit:
+            #The witness is a serialization of all witness data of the transaction. Each txin is associated with a witness field. 
+            #A witness field starts with a var_int to indicate the number of stack items for the txin. It is followed by stack
+            #items, with each item starts with a var_int to indicate the length
+            # witness:      <signature> <pubkey> 
+            #wit = b'\x16' + encode_varint(len(sig)) + sig + b'\x14' + p2wpkh_script(private_key.point.hash160()).raw_serialize()
+            #but the serialization is taking care of that
+            #wit = [sig,p2wpkh_script(private_key.point.hash160()).raw_serialize()]
+            wit = [sig,sec]
+            self.tx_ins[input_index].witness = wit
+            #AND IF IT IS A NESTED P2SH-P2WPKH:
+            self.tx_ins[input_index].script_sig = Script([ Script([0, private_key.point.hash160()]).raw_serialize() ])
+            print(f"SIGNING INPUT: \nSCRIPT SIG:\n{self.tx_ins[input_index].script_sig} \nWIT: \n{wit}")
+            
+        else:
+            self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
