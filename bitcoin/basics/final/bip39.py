@@ -43,7 +43,7 @@ class Mnemonic:
     @classmethod
     def recover_from_words(self,mnemonic_list = None, entropy = 128,  passphrase=""):
         
-        return self.get_seed(mnemonic_list = mnemonic_list, passphrase = passphrase,MS=MS)
+        return self.get_seed(mnemonic_list = mnemonic_list, passphrase = passphrase)
       
         
     @classmethod

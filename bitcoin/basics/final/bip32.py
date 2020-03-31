@@ -22,7 +22,7 @@ class Xtended_privkey:
         self.index = index
         self.chain_code = chain_code
         self.private_key = private_key
-        self.private_key_wif = PrivateKey(child_privkey_int).wif()
+        self.private_key_wif = PrivateKey(int.from_bytes(private_key,"big")).wif()
         self.xtended_key = self.get_xtended_key()
         self.xtended_public_key = self.extended_public_key()
         
