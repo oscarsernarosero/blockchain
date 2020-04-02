@@ -458,7 +458,7 @@ class Tx:
         # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
         sigs = [der + SIGHASH_ALL.to_bytes(1, 'big') for der in ders ]
         # calculate the sec
-        secs = [private_key.point.sec() for private_key in private_key_list]
+        #secs = [private_key.point.sec() for private_key in private_key_list]
         # initialize a new script with [sig, sec] as the cmds
         commands = [0]
         for sig in sigs: commands.append(sig)
@@ -471,6 +471,66 @@ class Tx:
         self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
+    
+    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n):
+        '''Signs the input using the private key
+        n: n signatures that can sign transaction.
+        private_key: must be a PrivateKey object.
+        privkey_index: is the index of the private key according to the order of the public keys.
+        '''
+        # get the signature hash (z)
+        z = self.sig_hash(input_index, redeem_script)
+        # get der signature of z from private key
+        cmds = self.tx_ins[input_index].script_sig.cmds
+        if len(cmds) == 0:
+            #We create an array full of 0s with a lentgth of n+1. n is the number of possible private keys that can
+            #sign the transaction. This way we can place the signatures in the right order. We get rid of the unnecesarry
+            #0s later.
+            print(f"cmds is empty. Creating new set of commands")
+            cmds = [0]*(n)
+            #we also need to append at the end the serialized redeem script:
+            cmds.append(redeem_script.serialize()[1:])
+        der = private_key.sign(z).der()
+        # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
+        sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+        #we add 1 to the index because of the OP_0 bug.
+        cmds[privkey_index] = sig
+        
+        #commands.append(*redeem_script.cmds)
+        print(f"sign_input_multisig commands: {cmds}")
+        script_sig = Script(cmds)
+        #script_sig = cmds
+        # change input's script_sig to new script
+        self.tx_ins[input_index].script_sig = script_sig
+        # return whether sig is valid using self.verify_input
+        #return self.verify_input(input_index)
+        return True
+    
+    def verify_signatures(self, m):
+        
+        for input_index,tx_input in enumerate(self.tx_ins):
+            
+            cmds_copy = self.tx_ins[input_index].script_sig.cmds
+            #we get rid of the empty slots in the list of signatures
+            cmds = [x for x in cmds_copy if x != 0 ]
+            #we check how many items there are in the list of commands of the scrip_sig. 
+            #we substract 1 to this number because the last item is the redeem script and not a signature.
+            if (len(cmds)-1)<m:
+                print(f"There are only {len(cmds)-1} signatures, but {m} are required.")
+                return False
+            #If we have enough signatures, we go ahead and verify these, 
+            #but first, let's add the OP_0 at the beginning to pass the Off-by-1 bug.
+            cmds = [0] + cmds
+            script_sig = Script(cmds)
+            self.tx_ins[input_index].script_sig = script_sig
+            #If the cerification does not pass, we have to set script signature back to the original list form
+            if not self.verify_input(input_index):
+                self.tx_ins[input_index].script_sig = Script(cmds_copy)
+                #And then we return False
+                return False
+            #If it passes all the inputs and signatures then we can return True.
+            return True
+        
     
     def is_coinbase(self):
         '''Returns whether this transaction is a coinbase transaction or not'''
