@@ -34,21 +34,26 @@ class TxFetcher:
             response = requests.get(url)
             try:
                 raw = bytes.fromhex(response.text.strip())
+                print(f"RAW RESPONSE: {raw}")
             except ValueError:
                 raise ValueError('unexpected response: {}'.format(response.text))
             # make sure the tx we got matches to the hash we requested
             if raw[4] == 0:
-                raw = raw[:4] + raw[6:]
+                print(f"FIRST CASE: {raw[4] }")
+                #raw = raw[:4] + raw[6:]
                 tx = Tx.parse(BytesIO(raw), testnet=testnet)
                 tx.locktime = little_endian_to_int(raw[-4:])
             else:
+                print(f"SECOND CASE: {raw[4] }")
                 tx = Tx.parse(BytesIO(raw), testnet=testnet)
             if tx.segwit:
+                print(f"transaction IS SEGWIT")
                 computed = tx.id()
             else:
                 computed = hash256(raw)[::-1].hex()
             if computed != tx_id:
                 raise RuntimeError('server lied: {} vs {}'.format(computed, tx_id))
+            print(f"transaction passed: {computed}")
             cls.cache[tx_id] = tx
         cls.cache[tx_id].testnet = testnet
         return cls.cache[tx_id]
@@ -319,6 +324,7 @@ class Tx:
     def verify_input(self, input_index):
         '''Returns whether the input has a valid signature'''
         p2sh_p2wpkh = False
+        p2wpkh=False
         # get the relevant input
         tx_in = self.tx_ins[input_index]
         # grab the previous ScriptPubKey
@@ -364,6 +370,7 @@ class Tx:
         else:
             # ScriptPubkey might be a p2wpkh or p2wsh
             if script_pubkey.is_p2wpkh_script_pubkey():
+                p2wpkh = True
                 z = self.sig_hash_bip143(input_index)
                 witness = tx_in.witness
             elif script_pubkey.is_p2wsh_script_pubkey():
@@ -383,6 +390,8 @@ class Tx:
         if p2sh_p2wpkh:
             combined = Script([encode_varint(len(tx_in.script_sig.cmds[0])) ,tx_in.script_sig.cmds[0]]) + script_pubkey
             #combined = tx_in.script_sig + script_pubkey
+        elif p2wpkh:
+            combined = script_pubkey
         else:
             combined = tx_in.script_sig + script_pubkey
         print(f"\ncombined script{combined.cmds}\n")
@@ -400,7 +409,7 @@ class Tx:
                 return False
         return True
 
-    def sign_input(self, input_index, private_key,segwit=False):
+    def sign_input(self, input_index, private_key,segwit=False, p2sh = False):
         '''Signs the input using the private key'''
         # get the signature hash (z)
         if segwit:
@@ -429,9 +438,10 @@ class Tx:
             wit = [sig,sec]
             self.tx_ins[input_index].witness = wit
             #AND IF IT IS A NESTED P2SH-P2WPKH:
-            self.tx_ins[input_index].script_sig = Script([ Script([0, private_key.point.hash160()]).raw_serialize() ])
-            print(f"SIGNING INPUT: \nSCRIPT SIG:\n{self.tx_ins[input_index].script_sig} \nWIT: \n{wit}")
-            
+            if p2sh:
+                self.tx_ins[input_index].script_sig = Script([ Script([0, private_key.point.hash160()]).raw_serialize() ])
+                print(f"SIGNING INPUT: \nSCRIPT SIG:\n{self.tx_ins[input_index].script_sig} \nWIT: \n{wit}")
+            else: self.tx_ins[input_index].script_sig = None
         else:
             self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
@@ -532,7 +542,10 @@ class TxIn:
         # serialize prev_index, 4 bytes, little endian
         result += int_to_little_endian(self.prev_index, 4)
         # serialize the script_sig
-        result += self.script_sig.serialize()
+        if self.script_sig is None:
+            result += b'\x00'
+        else:
+            result += self.script_sig.serialize()
         # serialize sequence, 4 bytes, little endian
         result += int_to_little_endian(self.sequence, 4)
         return result

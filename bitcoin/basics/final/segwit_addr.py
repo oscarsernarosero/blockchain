@@ -121,3 +121,11 @@ def encode(hrp, witver, witprog):
     if decode(hrp, ret) == (None, None):
         return None
     return ret
+
+#anexation:
+def decode_bech32_addr(address):
+    decoded = bech32_decode(address)
+    str_pubkeyhash = ""
+    for char in decoded[1][1:]:
+        str_pubkeyhash += "{0:05b}".format(char)
+    return int(str_pubkeyhash,2)
