@@ -13,10 +13,17 @@ Currently only supporting Bitcoin.
 ### Achievments:
 
 -Eliptic Curve Criptography (secp256k1)
+
 -Transactions
+
 -Bip32
+
 -Bip39
+
+-Accounts
+
 -Segwit Compliant
+
 -Multi signature
 
 Some of the code here comes from the book Programming Bitcoin, so a big share of the credit goes to Jimmy Song (the author of the book).
