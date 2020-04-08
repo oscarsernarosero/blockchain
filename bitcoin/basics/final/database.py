@@ -19,11 +19,12 @@ class WalletDB(object):
     
     
     @staticmethod
-    def _new_utxo(tx, address,tx_id,out_index, amount):
+    def _new_utxo(tx, address,tx_id,out_index, amount,confirmed):
         local_index = tx.run( "MATCH (u:utxo) RETURN COUNT (u) ").single()[0] 
         result = tx.run("MATCH (n:address {address : $address}) "
-                        "CREATE p = (:utxo {address:$address, transaction_id:$tx_id, out_index:$out_index, local_index:$local_index, spent:false, amount:$amount})-[:BELONGS]->(n) "
-                        "RETURN p ", address=address, tx_id = tx_id, out_index = out_index, local_index=local_index,amount=amount)
+                        "CREATE p = (:utxo {address:$address, transaction_id:$tx_id, out_index:$out_index, local_index:$local_index, spent:false, amount:$amount, confirmed:$confirmed})-[:BELONGS]->(n) "
+                        "RETURN p ", address=address, tx_id = tx_id, out_index = out_index, 
+                        local_index=local_index,amount=amount,confirmed=confirmed)
         return result.single()
     
     
@@ -74,6 +75,27 @@ class WalletDB(object):
                         "WHERE NOT (unused_address)--() "
                         "RETURN  unused_address.address, unused_address.acc_index, unused_address.type ")
         return result.data()
+    
+    @staticmethod
+    def _get_all_addresses(tx):
+        result = tx.run("MATCH (addr:address) "
+                        "RETURN  addr.address, addr.acc_index, addr.type ")
+        return result.data()
+    
+    @staticmethod
+    def _exists_utxo(tx, tx_id, out_index, confirmed):
+        result = tx.run("MATCH (coin:utxo {transaction_id:$tx_id, out_index:$out_index}) "
+                        "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index)
+        data = result.data()
+        if len(data)>0:
+            data = result.data()
+            if data[0]["coin.confirmed"] != confirmed:
+                tx.run("MATCH (coin:utxo {transaction_id:$tx_id, out_index:$out_index}) "
+                       "SET coin.confirmed = $confirmed"
+                        "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index, confirmed=confirmed)
+            return True
+        else: return False
+            
 
 
 
@@ -83,9 +105,9 @@ class WalletDB(object):
             result = session.write_transaction(self._new_address, address,i,change_addr)
             print(result)
             
-    def new_utxo(self, address,tx_id,out_index,amount):
+    def new_utxo(self, address,tx_id,out_index,amount,confirmed):
         with self._driver.session() as session:
-            result = session.write_transaction(self._new_utxo, address,tx_id,out_index,amount)
+            result = session.write_transaction(self._new_utxo, address,tx_id,out_index,amount,confirmed)
             print(result)
             
     def new_tx(self, tx_id,utxo_local_index_list, outputs):
@@ -117,4 +139,13 @@ class WalletDB(object):
         with self._driver.session() as session:
             result = session.write_transaction(self._get_unused_addresses)
             return result
+        
+    def get_all_addresses(self):
+        with self._driver.session() as session:
+            result = session.write_transaction(self._get_all_addresses)
+            return result
             
+    def exists_utxo(self, tx_id, out_index, confirmed):
+        with self._driver.session() as session:
+            result = session.write_transaction(self._exists_utxo, tx_id, out_index, confirmed)
+            return result
