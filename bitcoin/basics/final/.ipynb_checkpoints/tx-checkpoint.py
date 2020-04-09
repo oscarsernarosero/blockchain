@@ -16,6 +16,8 @@ from helper import (
 )
 from script import p2pkh_script, Script, p2wpkh_script
 
+from blockcypher import get_transaction_details
+
 
 class TxFetcher:
     cache = {}
@@ -34,7 +36,6 @@ class TxFetcher:
             response = requests.get(url)
             try:
                 raw = bytes.fromhex(response.text.strip())
-                print(f"RAW RESPONSE: {raw}")
             except ValueError:
                 raise ValueError('unexpected response: {}'.format(response.text))
             # make sure the tx we got matches to the hash we requested
@@ -92,7 +93,7 @@ class Tx:
         self._hash_prevouts = None
         self._hash_sequence = None
         self._hash_outputs = None
-        print(self.tx_ins[0])
+        
 
     def __repr__(self):
         tx_ins = ''
@@ -207,12 +208,15 @@ class Tx:
         for tx_out in self.tx_outs:
             result += tx_out.serialize()
         for tx_in in self.tx_ins:  # <3>
-            result += int_to_little_endian(len(tx_in.witness), 1)
-            for item in tx_in.witness:
-                if type(item) == int:
-                    result += int_to_little_endian(item, 1)
-                else:
-                    result += encode_varint(len(item)) + item
+            if tx_in.witness is None:
+                result += b'\x00'
+            else:
+                result += int_to_little_endian(len(tx_in.witness), 1)
+                for item in tx_in.witness:
+                    if type(item) == int:
+                        result += int_to_little_endian(item, 1)
+                    else:
+                        result += encode_varint(len(item)) + item
         result += int_to_little_endian(self.locktime, 4)
         return result
 
@@ -272,6 +276,7 @@ class Tx:
         # hash256 the serialization
         h256 = hash256(s)
         # convert the result to an integer using int.from_bytes(x, 'big')
+        self.id = int.from_bytes(h256, 'big')
         return int.from_bytes(h256, 'big')
     
     def hash_prevouts(self):
@@ -314,11 +319,12 @@ class Tx:
         else:
             script_code = p2pkh_script(tx_in.script_pubkey(self.testnet).cmds[1]).serialize()
         s += script_code
-        s += int_to_little_endian(tx_in.value(), 8)
+        s += int_to_little_endian(tx_in.value(self.testnet), 8)
         s += int_to_little_endian(tx_in.sequence, 4)
         s += self.hash_outputs()
         s += int_to_little_endian(self.locktime, 4)
         s += int_to_little_endian(SIGHASH_ALL, 4)
+        self.id = int.from_bytes(hash256(s), 'big')
         return int.from_bytes(hash256(s), 'big')
 
     def verify_input(self, input_index):
@@ -437,13 +443,17 @@ class Tx:
             #wit = [sig,p2wpkh_script(private_key.point.hash160()).raw_serialize()]
             wit = [sig,sec]
             self.tx_ins[input_index].witness = wit
+            print(f"SIGNING INPUT Segwit: \nWitness:\n{wit} ")
             #AND IF IT IS A NESTED P2SH-P2WPKH:
             if p2sh:
                 self.tx_ins[input_index].script_sig = Script([ Script([0, private_key.point.hash160()]).raw_serialize() ])
                 print(f"SIGNING INPUT: \nSCRIPT SIG:\n{self.tx_ins[input_index].script_sig} \nWIT: \n{wit}")
-            else: self.tx_ins[input_index].script_sig = None
+            #else: self.tx_ins[input_index].script_sig = None
+            else: self.tx_ins[input_index].script_sig = Script()
         else:
             self.tx_ins[input_index].script_sig = script_sig
+            self.tx_ins[input_index].witness = None
+            print(f"SIGNING INPUT not segwit: \nSCRIPT SIG:\n{self.tx_ins[input_index].script_sig} ")
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
@@ -618,20 +628,33 @@ class TxIn:
         Returns the amount in satoshi
         '''
         # use self.fetch_tx to get the transaction
-        tx = self.fetch_tx(testnet=testnet)
+        #tx = self.fetch_tx(testnet=testnet)#ORIGINAL
         # get the output at self.prev_index
         # return the amount property
-        return tx.tx_outs[self.prev_index].amount
+        #return tx.tx_outs[self.prev_index].amount
+        if testnet: coin_sym = "btc-testnet"
+        else: coin_sym = "btc"
+        pretx = get_transaction_details(self.prev_tx.hex(),coin_symbol=coin_sym)
+        amount =  pretx["outputs"][self.prev_index]["value"]
+        return amount
 
     def script_pubkey(self, testnet=False):
         '''Get the ScriptPubKey by looking up the tx hash
         Returns a Script object
         '''
         # use self.fetch_tx to get the transaction
-        tx = self.fetch_tx(testnet=testnet)
+        #tx = self.fetch_tx(testnet=testnet)#ORIGINAL
         # get the output at self.prev_index
         # return the script_pubkey property
-        return tx.tx_outs[self.prev_index].script_pubkey
+        #return tx.tx_outs[self.prev_index].script_pubkey
+        if testnet: coin_sym = "btc-testnet"
+        else: coin_sym = "btc"
+        pretx = get_transaction_details(self.prev_tx.hex(),coin_symbol=coin_sym)
+        ser_script = pretx["outputs"][self.prev_index]["script"]
+        length = hex(int.from_bytes(encode_varint(len(ser_script)//2),"big"))[2:]
+        script_pubkey =  Script.parse(BytesIO(bytes.fromhex(length+ser_script)))
+        return script_pubkey
+        
 
 
 class TxOut:

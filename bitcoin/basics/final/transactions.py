@@ -18,7 +18,7 @@ import hashlib
 from bip32 import Xtended_privkey, Xtended_pubkey
 from bip39 import Mnemonic
 import segwit_addr
-
+from accounts import Account, MasterAccount
 
 
 class Transact:
@@ -45,7 +45,7 @@ class Transact:
         raise Exception( "output index not found")
 
     @classmethod
-    def get_amount_utxo(cls,outs_list, index):
+    def get_amount_utxo(self,outs_list, index):
         """
         Supporting method.
         receives the list of outputs from transaction and the index of 
@@ -100,6 +100,20 @@ class Transact:
         tx_size = len(my_tx.serialize().hex())
         #fee_per_byte = 8 # I changed from 2 to 10 after sending this transaction because it had really low appeal to miners.
         if multisig: tx_size*=2
+        fee = tx_size * fee_per_byte
+        print(f"fee: {fee}")
+        return fee
+    
+    @classmethod
+    def calculate_fee_w_master(self,utxo_list, my_tx, master_account, fee_per_byte = 10, segwit = False ):
+        """
+        privkey: can be just one or a list of private keys in the case of multisignature.
+        """
+        #tx = self.sign_w_master(utxo_list, my_tx, master_account, segwit)
+
+        #Let's calculate the fee and the change:
+        tx_size = len(my_tx.serialize().hex())*3
+        print(f"size of transaction without signatures: {tx_size//3}")
         fee = tx_size * fee_per_byte
         print(f"fee: {fee}")
         return fee
@@ -202,23 +216,45 @@ class Transaction(Transact):
         return tx_outs
                 
     @classmethod
-    def get_inputs(self,utxo_tx_id_list, sender_address, testnet):
-        return self.get_tx_ins_utxo(utxo_tx_id_list, sender_address, testnet)
+    def get_inputs(self,utxo_list):
+        
+        tx_ins = []
+
+        for _utxo in utxo_list:
+            tx_in = TxIn(bytes.fromhex(_utxo["coin.transaction_id"]) , _utxo["coin.out_index"])
+            tx_ins.append({"tx_in": tx_in, "utxo": _utxo["coin.amount"]})
+
+        return tx_ins
          
     
     @classmethod
-    def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list):
-        #CREATING THE TRANSACTION RIGHT HERE:
+    def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, change_account, utxos,receivingAddress_w_amount_list):
+        
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
         
         #CHECK THE FOLLOWING LINE LATER!! 
-        if sender_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:
-            fee = self.calculate_fee(1, tx_ins, tx_outs, 0, privkey=sender_account.privkey, 
+        if change_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:
+            fee = self.calculate_fee(1, tx_ins, tx_outs, 0, privkey=change_account.privkey, 
                                          redeem_script=None, testnet=testnet, segwit = segwit)
+            
             
             change = self.calculate_change(utxos, fee, [x[1] for x in receivingAddress_w_amount_list])
 
         else: raise Exception ("This is a multisignature transaction. Use MultiSigTransaction instead of Transaction.")
+        
+        my_tx.tx_outs[-1].amount = change
+        return fee, change, my_tx
+    
+    
+    @classmethod
+    def unsigned_tx_w_master(self,tx_ins, tx_outs, testnet, segwit, master_account, 
+                             utxos,receivingAddress_w_amount_list, utxo_list):
+        
+        my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
+       
+        fee = self.calculate_fee_w_master(utxo_list, my_tx, master_account)
+            
+        change = self.calculate_change(utxos, fee, [x[1] for x in receivingAddress_w_amount_list])
         
         my_tx.tx_outs[-1].amount = change
         return fee, change, my_tx
@@ -234,6 +270,34 @@ class Transaction(Transact):
         return True
     
     @classmethod
+    def sign_w_master(self, utxo_list, transaction, master_account, segwit):
+        
+        for tx_input in range(len(utxo_list)):
+            
+            addr_index = utxo_list[tx_input]["address.acc_index"]
+            print(f"Address trying to spend from: {utxo_list[tx_input]['coin.address']}")
+            if utxo_list[tx_input]["address.type"] == "change": change_addr = True
+            else: change_addr = False
+                
+            if change_addr:
+                signing_master_account = master_account.get_child_from_path(f"m/0H/1H/{addr_index}")
+                signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
+                                         signing_master_account.testnet)
+                segwit=True
+                print(signing_account.address)
+            else:
+                signing_master_account = master_account.get_child_from_path(f"m/0H/2H/{addr_index}")
+                signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2pkh",
+                                         signing_master_account.testnet)
+                segwit=False
+                print(signing_account.address)
+          
+            
+            if not transaction.sign_input(tx_input, signing_account.privkey, segwit=segwit, p2sh=False):
+                print("SIGNATURE FAILED")
+        return transaction
+    
+    @classmethod
     def create(self, utxo_tx_id_list, receivingAddress_w_amount_list, sender_account, fee=None, #Modify code to allow manual fee!!!
                  segwit=False):
         """
@@ -245,7 +309,7 @@ class Transaction(Transact):
         """
         testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         tx_outs = self.get_outputs(receivingAddress_w_amount_list, sender_account)
-        tx_ins_utxo = self.get_inputs(utxo_tx_id_list, sender_account.address, testnet)
+        tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
         fee, change, transaction = self.unsigned_tx(tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list)
@@ -254,6 +318,32 @@ class Transaction(Transact):
         else:
             raise Exception("Signature faliled") 
             
+    @classmethod
+    def create_from_master(self, utxo_list, receivingAddress_w_amount_list, master_account,change_account,
+                           fee=None, #Modify code to allow manual fee!!!
+                 segwit=False):
+        """
+        utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
+        receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
+        the amount to send to each address.
+        sender_account: must be an Account object.
+        If fee is specifyed, then the custom fee will be applied.
+        """
+        testnet = master_account.testnet
+        tx_outs = self.get_outputs(receivingAddress_w_amount_list, change_account)
+        tx_ins_utxo = self.get_inputs(utxo_list)
+        tx_ins = [x["tx_in"] for x in tx_ins_utxo]
+        utxos = [x["utxo"] for x in tx_ins_utxo]
+        fee, change, transaction = self.unsigned_tx_w_master(tx_ins, tx_outs, testnet, segwit, master_account, utxos,receivingAddress_w_amount_list, utxo_list)
+        if self.sign_w_master( utxo_list, transaction, master_account, segwit):
+            return Transaction(transaction, master_account, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit)
+        else:
+            raise Exception("Signature faliled") 
+     
+    
+    
+    
+    
             
 class MultiSigTransaction(Transaction):
     

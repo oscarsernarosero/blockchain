@@ -75,9 +75,9 @@ class Script:
     @classmethod
     def parse(cls, s):
         # get the length of the entire field
-        print(s)
+        #print(s)
         length = read_varint(s)
-        print(f"length script: {length}")
+        #print(f"length script: {length}")
         # initialize the cmds array
         cmds = []
         # initialize the number of bytes we've read to 0
@@ -90,7 +90,7 @@ class Script:
             count += 1
             # convert the current byte to an integer
             current_byte = current[0]
-            print(f"current_byte : {current_byte}")
+            #print(f"current_byte : {current_byte}")
             # if the current byte is between 1 and 75 inclusive
             if current_byte >= 1 and current_byte <= 75:
                 # we have an cmd set n to be the current byte
@@ -112,7 +112,7 @@ class Script:
             else:
                 # we have an opcode. set the current byte to op_code
                 op_code = current_byte
-                print(f"op_code : {op_code}")
+                #print(f"op_code : {op_code}")
                 # add the op_code to the list of cmds
                 cmds.append(op_code)
         if count != length:

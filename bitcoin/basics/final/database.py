@@ -52,7 +52,7 @@ class WalletDB(object):
         result = tx.run("MATCH p = (u)<-[:SPENT]-(:TxOut {id:$tx_id}) "
                         "SET u.spent=true "
                         "RETURN p ", tx_id=tx_id)
-        return result.consume()
+        return result.data()
     
     
     @staticmethod
@@ -65,8 +65,8 @@ class WalletDB(object):
     
     @staticmethod
     def _look_for_coins(tx):
-        result = tx.run("MATCH (coin:utxo {spent:false}) "
-                        "RETURN coin.transaction_id, coin.out_index, coin.address, coin.amount ")
+        result = tx.run("MATCH (coin:utxo {spent:false})--(address) "
+                        "RETURN coin.transaction_id, coin.out_index, coin.address, coin.amount, coin.local_index, address.acc_index, address.type ")
         return result.data()
     
     @staticmethod
@@ -88,8 +88,8 @@ class WalletDB(object):
                         "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index)
         data = result.data()
         if len(data)>0:
-            data = result.data()
-            if data[0]["coin.confirmed"] != confirmed:
+            _confirmed = data[0]["coin.confirmed"]
+            if _confirmed != confirmed:
                 tx.run("MATCH (coin:utxo {transaction_id:$tx_id, out_index:$out_index}) "
                        "SET coin.confirmed = $confirmed"
                         "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index, confirmed=confirmed)
