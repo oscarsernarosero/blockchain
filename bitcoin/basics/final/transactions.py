@@ -98,14 +98,13 @@ class Transact:
 
         #Let's calculate the fee and the change:
         tx_size = len(my_tx.serialize().hex())
-        #fee_per_byte = 8 # I changed from 2 to 10 after sending this transaction because it had really low appeal to miners.
         if multisig: tx_size*=2
         fee = tx_size * fee_per_byte
         print(f"fee: {fee}")
         return fee
     
     @classmethod
-    def calculate_fee_w_master(self,utxo_list, my_tx, master_account, fee_per_byte = 10, segwit = False ):
+    def calculate_fee_w_master(self,utxo_list, my_tx, master_account, fee_per_byte = 7, segwit = False ):
         """
         privkey: can be just one or a list of private keys in the case of multisignature.
         """
