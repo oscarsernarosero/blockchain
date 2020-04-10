@@ -10,6 +10,13 @@ entropy: 256
 
 xtended_private_key: tprv8ZgxMBicQKsPfQJYjuFAso9x6STzmUdMh5U8CQqqQUTgtQHBHCq4C7FseeeZg15L16UeSwbrLwJRTXNPQsJQwqvbBA11sn4M6c3jR1LwAQP
 
+My_other_test account:
+words = "client sudden sunset borrow pupil rely sand girl prefer movie bachelor guilt giraffe glove much strong dizzy switch ill silent goddess crumble goat power"
+mywallet2 = Wallet.recover_from_words(words,entropy=256,passphrase="RobertPaulson",testnet=True)
+mywallet2
+
+xtended_private_key:
+tprv8ZgxMBicQKsPdZiXgX96dFgvdso3ote8qGxbfb6KS961itG11jwLpAFEnhrpaKnqUn8XsjyEyvFEkhwSZfiqwJkhMgPDruDUh7hUTntjSHb
 
 
 Neo4j Database:
@@ -50,10 +57,22 @@ MATCH coins = (u:utxo {local_index:ins})
 FOREACH (coin IN nodes(coins) |
 CREATE (coin)<-[:SPENT]-(n))
 
+##AT THE SAME TIME!!!##:
+CREATE (n:TxOut {id:2222, inputs: [0,1], outputs: ["out_0","out_1","out_n"], confirmations:0, created:timestamp()})
+WITH n
+UNWIND n.inputs AS ins
+MATCH coins = (u:utxo {local_index:ins})
+FOREACH (coin IN nodes(coins) |
+CREATE (coin)<-[:SPENT]-(n))
+
+
 update balance:
 Run an update-balance query on all the utxoAddresses every hour.
 
 When confirmations in transactions surpass 6 then:
+MATCH (n:TxOut {id:2222})
+SET n.confirmations=6
+RETURN n
 
 1- Run an update-balance query on all the utxoAddresses used in transaction 
 
@@ -66,4 +85,9 @@ Cleanning_database:
 run once a day the following:
 MATCH (a: address)
 WHERE NOT (a)--() AND (timestamp() - a.created )>2592000000
-RETURN a
+DELETE a
+
+
+Look for addresses with balances:
+MATCH (u:utxo {spent:false})--(a)
+RETURN u,a

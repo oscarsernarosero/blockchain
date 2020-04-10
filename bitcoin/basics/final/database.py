@@ -10,11 +10,13 @@ class WalletDB(object):
         
         
     @staticmethod
-    def _new_address(tx, address,i,change_addr):
+    def _new_address(tx, address,i,change_addr,wallet_xprv):
         if change_addr: addr_type = "change"
         else: addr_type = "recipient"
-        result = tx.run("CREATE a = (:address {address:$address, acc_index:$index, type:$kind, created:timestamp()}) "
-                        "RETURN a ", address=address, index = i, kind = addr_type)
+        result = tx.run("MATCH (w:wallet {xprv:$xprv})"
+                        "CREATE a = (:address {address:$address, acc_index:$index, type:$kind, created:timestamp()}) "
+                        "<- [:OWNS]-(w)"
+                        "RETURN a ", address=address, index = i, kind = addr_type, xprv=wallet_xprv)
         return result.single()
     
     
@@ -64,9 +66,9 @@ class WalletDB(object):
 
     
     @staticmethod
-    def _look_for_coins(tx):
-        result = tx.run("MATCH (coin:utxo {spent:false})--(address) "
-                        "RETURN coin.transaction_id, coin.out_index, coin.address, coin.amount, coin.local_index, address.acc_index, address.type ")
+    def _look_for_coins(tx,xprv):
+        result = tx.run("MATCH (coin:utxo {spent:false})--(address)--(w:wallet {xprv:$xprv}) "
+                        "RETURN coin.transaction_id, coin.out_index, coin.address, coin.amount, coin.local_index, address.acc_index, address.type ",xprv=xprv)
         return result.data()
     
     @staticmethod
@@ -77,13 +79,13 @@ class WalletDB(object):
         return result.data()
     
     @staticmethod
-    def _get_all_addresses(tx):
-        result = tx.run("MATCH (addr:address) "
-                        "RETURN  addr.address, addr.acc_index, addr.type ")
+    def _get_all_addresses(tx,xprv):
+        result = tx.run("MATCH (addr:address)<-[:OWNS]-(:wallet {xprv:$xprv}) "
+                        "RETURN  addr.address, addr.acc_index, addr.type ",xprv=xprv)
         return result.data()
     
     @staticmethod
-    def _exists_utxo(tx, tx_id, out_index, confirmed):
+    def _exist_utxo(tx, tx_id, out_index, confirmed):
         result = tx.run("MATCH (coin:utxo {transaction_id:$tx_id, out_index:$out_index}) "
                         "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index)
         data = result.data()
@@ -91,18 +93,33 @@ class WalletDB(object):
             _confirmed = data[0]["coin.confirmed"]
             if _confirmed != confirmed:
                 tx.run("MATCH (coin:utxo {transaction_id:$tx_id, out_index:$out_index}) "
-                       "SET coin.confirmed = $confirmed"
+                       "SET coin.confirmed = $confirmed "
                         "RETURN  coin.amount, coin.confirmed ",tx_id=tx_id, out_index=out_index, confirmed=confirmed)
             return True
+        else: return False
+        
+    @staticmethod
+    def _new_wallet(tx,xprv):
+        result = tx.run("CREATE (w:wallet {xprv: $xprv}) "
+                        "RETURN  w ",xprv = xprv )
+        return result.single()
+    
+    @staticmethod
+    def _exist_wallet(tx, xprv):
+        result = tx.run("MATCH (wallet:wallet {xprv:$xprv}) "
+                        "RETURN  COUNT (wallet) ",xprv = xprv )
+        data = result.data()
+        #print(f"data: {data}")
+        if data[0]["COUNT (wallet)"]>0: return True
         else: return False
             
 
 
 
     
-    def new_address(self, address,i,change_addr):
+    def new_address(self, address,i,change_addr,wallet_xprv):
         with self._driver.session() as session:
-            result = session.write_transaction(self._new_address, address,i,change_addr)
+            result = session.write_transaction(self._new_address, address,i,change_addr,wallet_xprv)
             print(result)
             
     def new_utxo(self, address,tx_id,out_index,amount,confirmed):
@@ -130,9 +147,9 @@ class WalletDB(object):
             result = session.write_transaction(self._clean_addresses)
             print(result)
             
-    def look_for_coins(self):
+    def look_for_coins(self,xprv):
         with self._driver.session() as session:
-            result = session.write_transaction(self._look_for_coins)
+            result = session.write_transaction(self._look_for_coins,xprv)
             return result
         
     def get_unused_addresses(self):
@@ -140,12 +157,23 @@ class WalletDB(object):
             result = session.write_transaction(self._get_unused_addresses)
             return result
         
-    def get_all_addresses(self):
+    def get_all_addresses(self,xprv):
         with self._driver.session() as session:
-            result = session.write_transaction(self._get_all_addresses)
+            result = session.write_transaction(self._get_all_addresses,xprv)
             return result
             
-    def exists_utxo(self, tx_id, out_index, confirmed):
+    def exist_utxo(self, tx_id, out_index, confirmed):
         with self._driver.session() as session:
-            result = session.write_transaction(self._exists_utxo, tx_id, out_index, confirmed)
+            result = session.write_transaction(self._exist_utxo, tx_id, out_index, confirmed)
+            return result
+        
+    def new_wallet(self, xprv):
+        with self._driver.session() as session:
+            result = session.write_transaction(self._new_wallet, xprv )
+            print(result)
+            return result
+        
+    def exist_wallet(self, xprv):
+        with self._driver.session() as session:
+            result = session.write_transaction(self._exist_wallet, xprv )
             return result

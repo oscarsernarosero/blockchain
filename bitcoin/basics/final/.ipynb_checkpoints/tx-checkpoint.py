@@ -276,7 +276,7 @@ class Tx:
         # hash256 the serialization
         h256 = hash256(s)
         # convert the result to an integer using int.from_bytes(x, 'big')
-        self.id = int.from_bytes(h256, 'big')
+        #self.id = int.from_bytes(h256, 'big')
         return int.from_bytes(h256, 'big')
     
     def hash_prevouts(self):
@@ -324,7 +324,7 @@ class Tx:
         s += self.hash_outputs()
         s += int_to_little_endian(self.locktime, 4)
         s += int_to_little_endian(SIGHASH_ALL, 4)
-        self.id = int.from_bytes(hash256(s), 'big')
+        #self.id = int.from_bytes(hash256(s), 'big')
         return int.from_bytes(hash256(s), 'big')
 
     def verify_input(self, input_index):

@@ -25,6 +25,7 @@ class MasterAccount(Xtended_privkey):
     def generate_random(self,entropy = 128,  passphrase="", testnet = False):
         mnemonic = Mnemonic.generate_random(entropy, passphrase)
         print(f"Copy these words for future recovery:\n{mnemonic.words}")
+        print(int.from_bytes(mnemonic.seed,"big"))
         return self.from_bip39_seed(int.from_bytes(mnemonic.seed,"big"), testnet = testnet)
         
     @classmethod
@@ -32,6 +33,7 @@ class MasterAccount(Xtended_privkey):
         if isinstance(mnemonic_list,str):
             mnemonic_list = mnemonic_list.split()
         mnemonic = Mnemonic.recover_from_words(mnemonic_list, entropy ,  passphrase)
+        print(int.from_bytes(mnemonic.seed,"big"))
         return self.from_bip39_seed(int.from_bytes(mnemonic.seed,"big"), testnet = testnet)
     
         

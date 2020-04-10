@@ -10,6 +10,13 @@ entropy: 256
 
 xtended_private_key: tprv8ZgxMBicQKsPfQJYjuFAso9x6STzmUdMh5U8CQqqQUTgtQHBHCq4C7FseeeZg15L16UeSwbrLwJRTXNPQsJQwqvbBA11sn4M6c3jR1LwAQP
 
+My_other_test account:
+words = "client sudden sunset borrow pupil rely sand girl prefer movie bachelor guilt giraffe glove much strong dizzy switch ill silent goddess crumble goat power"
+mywallet2 = Wallet.recover_from_words(words,entropy=256,passphrase="RobertPaulson",testnet=True)
+mywallet2
+
+xtended_private_key:
+tprv8ZgxMBicQKsPdZiXgX96dFgvdso3ote8qGxbfb6KS961itG11jwLpAFEnhrpaKnqUn8XsjyEyvFEkhwSZfiqwJkhMgPDruDUh7hUTntjSHb
 
 
 Neo4j Database:
