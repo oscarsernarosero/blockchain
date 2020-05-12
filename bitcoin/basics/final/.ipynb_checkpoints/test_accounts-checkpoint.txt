@@ -91,3 +91,10 @@ DELETE a
 Look for addresses with balances:
 MATCH (u:utxo {spent:false})--(a)
 RETURN u,a
+
+
+DATABASE CLEANING SCHEDULE:
+
+_clean_addresses: Frequency: once a day.
+update_balance (from Wallet): Frequency: once an hour.
+update_confirmations (not developed): every 30 seconds until 3 confirmations, every 2 minutes until 6. Stop after 6.
