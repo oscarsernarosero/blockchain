@@ -31,6 +31,8 @@ MANIFEST
 
 # Jupyter Notebook
 .ipynb_checkpoints
+__pycache__
+
 
 # IPython
 profile_default/

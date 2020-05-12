@@ -7,261 +7,155 @@ suggested by him in chapter 14 of his book.
 This is just an educational-purpose code. The author does not take any responsibility
 on any losses caused by the use of this code.
 """
-from ecc import PrivateKey, S256Point, Signature
-from script import p2pkh_script, p2sh_script, Script
-from helper import decode_base58, SIGHASH_ALL, h160_to_p2pkh_address, hash160, h160_to_p2sh_address
-from tx import TxIn, TxOut, Tx, TxFetcher
+from accounts import MasterAccount, Account, MultSigAccount
+from transactions import Transaction, MultiSigTransaction
+from os import urandom
+from database import WalletDB
+from blockcypher import get_address_details
+from blockcypher import pushtx
+from dotenv import load_dotenv
+import os
 
-class Account():
-    """
-    To create account use from_phrase() method.
-    """
+class Wallet(MasterAccount):
     
-    def __init__(self, _privkey):
-        """
-        Initialize the account with a private key in Integer form.
-        """
-        self.privkey = PrivateKey(_privkey)
-        self.testnet_address = self.privkey.point.address(testnet = True)
-        self.address = self.privkey.point.address(testnet = False)
+    def __init__(self, depth, fingerprint, index, chain_code, private_key, db_user="neo4j",db_password="wallet", testnet = False):
+    
+        load_dotenv()
+        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
         
-    def __repr__(self):
-        return f"Private Key Hex: {self.privkey.hex()}"
         
+        self.db = WalletDB( "neo4j://localhost:7687" ,db_user ,db_password )
+        super().__init__( depth, fingerprint, index, chain_code, private_key,testnet)
+        
+        if not self.db.exist_wallet(self.get_xtended_key()):
+            self.db.new_wallet(self.get_xtended_key())
+        
+
+    def close_db(self):
+        self.db.close()
     
     @classmethod
-    def from_phrase(cls,phrase, endian="big"):
-        """
-        phrase must be in bytes.
-        endian can be either "big" or "little". Change later to boolean "bignendian"
-        Returns an account using the phrase chosen which is converted to an Integer
-        """
-        if endian not in ["big","little"]:
-            raise Exception( f'endian can be either "big" or "little" not "{endian}"')
-            
-        if isinstance(phrase, str):
-            phrase = phrase.encode('utf-8')
-            
-        elif isinstance(phrase, bytes):
-            return cls(int.from_bytes(phrase,endian))
-        
+    def get_i(self, index):
+        if index is None:
+            print(f"get i: {index}")
+            i = int.from_bytes(urandom(4),"big")
+            i = i & 0x7fffffff
+            if i < (2**31-1):print("true")
         else:
-            raise Exception( f"The phrase must be a string or bytes, not {type(phrase)}" )
+            if index <= (2**31-1):
+                i = index
+            else:
+                raise Exception (f"index must be less than {2**31-1} ")
+        return i
 
+    #@classmethod
+    def create_receiving_address(self, addr_type = "p2pkh",index=None):
+        receiving_path = "m/0H/2H/"
+        i = self.get_i(index)
+        path = receiving_path + str(i)
+        print(f"Path: {path}")
+        receiving_xtended_acc = self.get_child_from_path(path)
+        account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
+        self.db.new_address(account.address,i,False, self.get_xtended_key())
+        return account
 
-class MultSigAccount():
-    """
-    To create account use from_phrases() method.
-    """
+    #@classmethod
+    def create_change_address(self,addr_type = "p2wpkh", index=None):
+        change_path = "m/0H/1H/"
+        i = self.get_i(index)
+        path = change_path + str(i)
+        print(f"Path: {path}")
+        change_xtended_acc = self.get_child_from_path(path)
+        account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
+        self.db.new_address(account.address,i,True, self.get_xtended_key())
+        return account
     
-    def __init__(self,m, n,  _privkeys):
-        """
-        Initialize the account with a private key in Integer form.
-        m: the minumin amount of signatures required to spend the money.
-        n: total amount of signatures that can be used to sign transactions.
-        Note: Therefore:
-        a- m has to be less or equal to n.
-        b- n has to be equal to the length of the array _privkeys
-        Also:
-        c- n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
-        """
-        if n != len(_privkeys):
-            raise Exception("n must be equal to the amount of private keys")
-        if m < 1 or m > 16 or n < 1 or n > 16:
-            raise Exception("m and n must be between 1 and 16")
-        if m > n:
-            raise Exception("m must be always less or equal than n")
-            
-            
-        self.privkeys = [PrivateKey(privkey) for privkey in _privkeys]
-        self.m = m
-        self.n = n
-        pubkeys = [x.point.sec() for x in self.privkeys]
-        self.redeem_script = Script([m+80, *pubkeys, n + 80, 174])
-        serialized_redeem = self.redeem_script.raw_serialize()
-        self.testnet_address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=True)
-        self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=False)
+    def get_utxos(self):
+        return self.db.look_for_coins(self.get_xtended_key())
         
-    def __repr__(self):
-        return f"Private Key Hex: {self.privkey.hex()}"
+    def get_balance(self):
+        coins = self.get_utxos()
+        balance = 0
+        for coin in coins:
+            balance += coin["coin.amount"]
+        return balance
+
+    def update_balance(self):
+        addresses = self.db.get_all_addresses(self.get_xtended_key())
         
+        if self.testnet: coin_symbol = "btc-testnet"
+        else: coin_symbol = "btc"
+            
+        for address in addresses:
+            
+            addr_info = get_address_details(address["addr.address"], coin_symbol = coin_symbol, unspent_only=True)
+            
+            if addr_info["unconfirmed_n_tx"] > 0:
+                for utxo in addr_info["unconfirmed_txrefs"]:
+                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], False):
+                        print("new unconfirmed UTXO")
+                        self.db.new_utxo(utxo["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],False)
+            
+            if addr_info["n_tx"] - addr_info["unconfirmed_n_tx"] > 0 :
+                for utxo in addr_info["txrefs"]:
+                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], True):
+                        print("new confirmed UTXO")
+                        self.db.new_utxo(addr_info["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],True)
+      
+        return self.get_balance()
     
-    @classmethod
-    def from_phrases(cls, m , n , phrases):
+    #@classmethod
+    #def create_multisig_account(m,public_key_list,account,addr_type="p2sh", testnet = False, segwit=True):
+    #    n = len(public_key_list)
+    #    return MultiSigTransaction(m, n, int.from_bytes(account.private_key,"big"), public_key_list, addr_type, testnet, segwit)
+
+    #@classmethod
+    def send(self, to_address_amount_list, segwit=True):
         """
-        phrase: must be a list of tuples of (bytes, endian) or (string, endian). i.e:
-            [(b"my secret","little"),("my other secret","big")]
+        to_address can be a single address or a list.
+        amount can be an integer or a list of integers.
+        If they are lists, they must be ordered in the same way. address 1 will e sent amount 1, 
+        adrress 2 will be sent amount2.. adress n will be sent amount n.
+        """
+        total_amount = 0
+        for output in to_address_amount_list:
+            total_amount += output[1]
             
-        endian: can be either "big" or "little"
-        Returns a multisignature account using the phrases chosen which are converted to Integers
-        """
-        keys = [int.from_bytes(key[0],key[1]) for key in phrases]
-        return cls(m,n,keys)
-       
-        
-class Build_TX():
-    @classmethod
-    def get_index(cls,outs_list, address):
-        """
-        Supporting method.
-        receives the list of outputs from transaction and find the index of 
-        particular output of interest.
-        outs_list: is the list of outputs of previous transaction where the UTXO is.
-        address: the address trying to spend the UTXO.
-        """
-        for index,out in enumerate(outs_list):
-            if out.script_pubkey.cmds[2] == decode_base58(address) or out.script_pubkey.cmds[1] == decode_base58(address):
-                return index
-        raise Expection( "output index not found")
-
-    @classmethod
-    def get_amount_utxo(cls,outs_list, index):
-        """
-        Supporting method.
-        receives the list of outputs from transaction and the index of 
-        particular output of interest and returns the amount of the UTXO.
-        outs_list: is the list of outputs of previous transaction where the UTXO is.
-        index: the index of the UTXO in the list of all the outputs.
-        """
-        return outs_list[index].amount
-
-    @classmethod
-    def get_tx_ins_utxo(cls,prev_tx_id_list, receiving_address, testnet=True):
-        """
-        Receives a list of transaction ids where the UTXOs to spend are, and 
-        also the receiving address to return a valid tx_in list to create
-        a transaction.
-        prev_tx_id_list: list of the transaction ids where the UTXOs are.
-        receiving_address: the address trying to spend the UTXO (String).
-        testnet: if the transaction is in testnet or not (boolean).
-        """
-        tx_ins = []
-
-        for prev_tx_id in prev_tx_id_list:
-            prev_tx = TxFetcher.fetch(prev_tx_id, testnet)
-            prev_index = cls.get_index(prev_tx.tx_outs, receiving_address)
-            tx_in = TxIn(bytes.fromhex(prev_tx_id),prev_index)
-            utxo = cls.get_amount_utxo(prev_tx.tx_outs, prev_index)
-            #print(f"index 1: {prev_index}, amount: {utxo}")
-            tx_ins.append({"tx_in": tx_in, "utxo": utxo})
-
-        return tx_ins
-
-    @classmethod
-    def calculate_fee(cls,version, tx_ins, tx_outs, locktime, privkey, redeem_script, 
-                      testnet=True, multisig =False, fee_per_byte = 8 ):
-        """
-        privkey: can be just one or a list of private keys in the case of multisignature.
-        """
-        my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=True)
-        print(my_tx)
-
-        # sign the inputs in the transaction object using the private key
-        if multisig:
-            for tx_input in range(len(tx_ins)):
-                print(my_multisig_tx.sign_input_multisig(tx_input, privkey, redeem_script))
-        else:
-            for tx_input in range(len(tx_ins)):
-                print(my_tx.sign_input(tx_input, privkey))
-            # print the transaction's serialization in hex
-
-        #Let's calculate the fee and the change:
-        tx_size = len(my_tx.serialize().hex())
-        #fee_per_byte = 8 # I changed from 2 to 10 after sending this transaction because it had really low appeal to miners.
-        fee = tx_size * fee_per_byte
-        print(f"fee: {fee}")
-        return fee
-    
-    @classmethod
-    def calculate_change(cls, utxo_list, fee, amountTx):
-        """
-        utxo_list: the list of the amounts of every utxo.
-        amountTx: the list of the ammounts of every transaction output.
-        fee: the fee of the transaction.
-        Returns the respective amount of the change.
-        """
-        total_utxo = sum(utxo_list)
-        total_out = sum(amountTx)
-        change = total_utxo - fee - total_out
-        print(f"change {change}")
-        if change < 0:
-            raise Exception( f"Not enough utxos: total_utxo {total_utxo} and total_out {total_out} meaning change = {change}")
-        #Let's make sure that we are actually spending the exact amount of the UTXO
-        total_send=fee+total_out+change
-        diff = total_utxo-total_send
-        print(f"total {total_send}, diff: {diff}")
-
-        return change
-
-    @classmethod
-    def build_tx(cls, utxo_tx_id_list, outputAddress_amount_list, account, testnet = True, fee=None):
-        """
-        utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
-        outputAddress_amount_list: a list of tuples (to_address:amount) specifying
-        the amount to send to each address.
-        account: must be an Account object.
-        If fee is specifyed, then the custom fee will be applied.
-        
-        Returns the hex of the raw transaction.
-        """
-        #Validation process:
-        if testnet:
-            for addr in outputAddress_amount_list:
-                if addr[0][0] not in "2mn":
-                    raise Exception (f"{addr[0]} not a testnet address. Funds will be lost!")
-                if addr[1] < 1:
-                    raise Exception (f"{addr[1]} not a valid amount. It should be greater than 1 satoshis")
-        else:
-            for addr in outputAddress_amount_list:
-                if addr[0][0] not in "13":
-                    raise Exception (f"{addr[0]} not a mainnet bitcoin address. Funds will be lost!")
-                if addr[1] < 1:
-                    raise Exception (f"{addr[1]} not a valid amount. It should be greater than 1 satoshis")
-              
-        # initializing variables
-        tx_outs =[]
-        tx_ins =[]
-        change = int(0.01 * 100000000)# we are going to fix this later
-        #amountTx= int(0.01 * 100000000)
-        
-        #https://en.bitcoin.it/wiki/List_of_address_prefixes
-        #We create the tx outputs based on the kind of address (multisig or normal)
-        for output in outputAddress_amount_list:
-            if output[0][0] in "1mn" :
-                tx_outs.append( TxOut(output[1], p2pkh_script(decode_base58(output[0]))))
-            elif output[0][0] in "23" :
-                tx_outs.append( TxOut(output[1], p2sh_script(decode_base58(output[0]))))
-        
-        #Let's return the fake change to our same address. 
-        #This will change later when BIP32 is implemented.
-        if testnet:
-            if account.testnet_address in "mn":
-                tx_outs.append( TxOut(change, p2pkh_script(decode_base58(account.testnet_address))))
-            elif account.testnet_address == "2":
-                tx_outs.append( TxOut(change, p2sh_script(decode_base58(account.testnet_address))))
-        else:
-            if account.address == "1":
-                tx_outs.append( TxOut(change, p2pkh_script(decode_base58(account.address))))
-            elif account.address == "3":
-                tx_outs.append( TxOut(change, p2sh_script(decode_base58(account.address))))
+        balance = self.get_balance()
+        if total_amount>balance:
+            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
+            
+        all_utxos = self.get_utxos()
+        utxos = []
+        utxo_total = 0
+        for utxo in all_utxos:
+            if utxo["coin.amount"] > total_amount*1.1:
+                utxos = [utxo]
+                break
                 
-        #Creating the Tx_In list:
-        if testnet: tx_ins_utxo = cls.get_tx_ins_utxo(utxo_tx_id_list, account.testnet_address, testnet)
-        else:  tx_ins_utxo = cls.get_tx_ins_utxo(utxo_tx_id_list, account.address, testnet)
-            
-        tx_ins = [x["tx_in"] for x in tx_ins_utxo]
-        utxos = [x["utxo"] for x in tx_ins_utxo]
+        if len(utxos)==0:    
+            for utxo in all_utxos:
+                utxos.append(utxo)
+                utxo_total += utxo["coin.amount"]
+                if utxo_total>total_amount: break
+        change_account = self.create_change_address()
+          
+        tx = Transaction.create_from_master( utxos,to_address_amount_list, self,change_account,
+                           fee=None, segwit=segwit)
         
-        my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet)
+        print(f"TRANSACTION ID: {tx.transaction.id()}")
         
-        fee = cls.calculate_fee(1, tx_ins, tx_outs, 0, privkey=account.privkey, redeem_script=None, testnet=True)
-        change = cls.calculate_change(utxos, fee, [x[1] for x in outputAddress_amount_list])
+        #saving in db
+        self.db.new_tx(tx.transaction.id(),[x["coin.local_index"] for x in utxos], 
+                       #[str(x[0])+":"+str(x[1]) for x in to_address_amount_list]
+                       [str(x) for x in tx.transaction.tx_outs]
+                      )
+        if self.testnet: symbol = "btc-testnet"
+        else: symbol= "btc"
         
-        my_tx.tx_outs[-1].amount = change
+        push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
         
-        for tx_input in range(len(tx_ins)):
-            if not my_tx.sign_input(tx_input, account.privkey):
-                raise Exception("Signature failed")
+        self.db.update_utxo(tx.transaction.id())
         
-        return my_tx.serialize().hex()
+        return tx,push
         
