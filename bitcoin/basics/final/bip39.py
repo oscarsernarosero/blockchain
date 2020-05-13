@@ -1,3 +1,7 @@
+"""
+BIP39 implementation complying with test vectors.
+"""
+
 from os import urandom
 import hashlib
 import unicodedata
@@ -18,6 +22,16 @@ class Mnemonic:
     
     @classmethod
     def generate_random(self,entropy = 128,  passphrase=""):
+        """
+        Returns a Mnemonic object from a crytographic random number. Mnemonic object contains:
+        entropy, mnemonic words, the originating number, passphrase, and the seed.
+        entropy: Int, the entropy is the level of security that the mnemonic phrase and numeric representation
+        will have. In the case of the phrase, it will also indicate the amount of words
+        it will contain. A valid value for this argument can be either 128, 160, 192, 224, or 256. A 128 level 
+        entropy will produce a 12-word mnemoic phrase, while a 256 will produce a 24-word phrase.
+        passphrase: String, this will be an extra security layer to produce the mnemonic object. This argument
+        is optional although highly encoraged. This will be like a "salt" in a hash.
+        """
         
         ENT = entropy
         
@@ -31,6 +45,17 @@ class Mnemonic:
         
     @classmethod
     def generate_from_number(self,number = None, entropy = 128,  passphrase=""):
+        """
+        Returns a Mnemonic object from the specified random number. Mnemonic object contains:
+        entropy, mnemonic words, the originating number, passphrase, and the seed.
+        number: Int, the number from which the mnemonic will be originated.
+        entropy: Int, the entropy is the level of security that the mnemonic phrase and numeric representation
+        will have. In the case of the phrase, it will also indicate the amount of words
+        it will contain. A valid value for this argument can be either 128, 160, 192, 224, or 256. A 128 level 
+        entropy will produce a 12-word mnemoic phrase, while a 256 will produce a 24-word phrase.
+        passphrase: String, this will be an extra security layer to produce the mnemonic object. This argument
+        is optional although highly encoraged. This will be like a "salt" in a hash.
+        """
         
         ENT = entropy
 
@@ -42,13 +67,37 @@ class Mnemonic:
     
     @classmethod
     def recover_from_words(self,mnemonic_list = None, entropy = 128,  passphrase=""):
+        """
+        Returns a Mnemonic object from the specified mnemonic words. Mnemonic object contains:
+        entropy, mnemonic words, the originating number, passphrase, and the seed.
+        mnemonic_list: List, the list of the mnemonic words from which it is desired to recover
+        the Mnemonic object.
+        entropy: Int, a valid value for this argument can be either 128, 160, 192, 224, or 256. This argument 
+        must match with the number of words in the phrase. An entropy of 128 will produce a 12-word mnemoic phrase, 
+        for example, while a 256 will produce a 24-word phrase.
+        passphrase: String, this will be an extra security layer to produce the mnemonic object. This argument
+        is optional although highly encoraged. This will be like a "salt" in a hash.
+        """
         
         return self.get_seed(mnemonic_list = mnemonic_list, passphrase = passphrase)
       
         
     @classmethod
     def get_seed(cls,ENT = 128, mnemonic_list=None, random_number=None,passphrase="",MS=None):
-        
+        """
+        Returns a Mnemonic object from the specified arguments. Mnemonic object contains:
+        entropy, mnemonic words, the originating number, passphrase, and the seed.
+        If a mnemonic_list is passed, then the random_number is not necessary and viceversa.
+        mnemonic_list: List, the list of the mnemonic words from which it is desired to recover
+        the Mnemonic object.
+        ENT: Int, a valid value for this argument can be either 128, 160, 192, 224, or 256. This argument 
+        must match with the number of words in the phrase. An entropy (ENT) of 128 will produce a 12-word mnemoic 
+        phrase, for example, while a 256 will produce a 24-word phrase.
+        passphrase: String, this will be an extra security layer to produce the mnemonic object. This argument
+        is optional although highly encoraged. This will be like a "salt" in a hash.
+        MS: Int, this represents the number of words in the mnemonic phrase. This argument is only necessary if
+        the mnemonic_list is None, but a random_number is passed. This should also match with the entropy.
+        """
         words = []
         with open("english_word.txt", "r", encoding="utf-8") as f:
             for w in f.readlines():
