@@ -1,6 +1,6 @@
 """
 This code makes use of the code written by Jimmy Song in the book Programming Bitcoin.
-This code only tries to build on Jimmi Song's code and take it to the next step as 
+This code only tries to build on top of Jimmi Song's code and take it to the next step as 
 suggested by him in chapter 14 of his book.
 This module is coded entirely by Oscar Serna.
 
@@ -325,7 +325,9 @@ class Transaction(Transact):
         utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
-        sender_account: must be an Account object.
+        master_account: must be a MasterAccount object.
+        change_account: must be an Account object. This will be contain the address to which
+        the change of the transaction will be sent to.
         If fee is specifyed, then the custom fee will be applied.
         """
         testnet = master_account.testnet
@@ -339,11 +341,7 @@ class Transaction(Transact):
         else:
             raise Exception("Signature faliled") 
      
-    
-    
-    
-    
-            
+               
 class MultiSigTransaction(Transaction):
     
     @classmethod
