@@ -98,7 +98,7 @@ class WalletDB(object):
         Deletes addresses in the database that had were innactive for more than one month.
         """
         result = tx.run("MATCH (a: address) "
-                        "WHERE NOT (a)--() AND (timestamp() - a.created )>2592000000 "
+                        "WHERE NOT (:wallet)--(a)--() AND (timestamp() - a.created )>2592000000 "
                         "DELETE a ")
         return result.single()
 
@@ -115,15 +115,37 @@ class WalletDB(object):
         return result.data()
     
     @staticmethod
-    def _get_unused_addresses(tx,xprv):
+    def _get_unused_addresses(tx,xprv, days_range=None, max_days=None):
         """
         Searches the database for addresses that haven't been used in the specific wallet.
         tx: internal database driver transaction.
         xprv: String, The wallet extended private key.
+        max_days: how far away should the app look for the unused address in the pass. The limit is 30 since the app deletes 
+        unused addresses after a month of creation.
+        days_range: number of days for the range in which to look for the address. The range will start
+        in day_range days before the max_days day (starting_day = (max_days - days_range)).
+        
+        days_range and max_days should be either both specified or neither specified. If they are not, both values will be
+        automatically set to 30 making the search to happen from now to the last 30 days. If only one of them is specified, 
+        the function will throw an exception.
         """
-        result = tx.run("MATCH (unused_address:address) "
-                        "WHERE NOT (unused_address)--() "
-                        "RETURN  unused_address.address, unused_address.acc_index, unused_address.type ")
+        if days_range is None and max_days is None:
+            result = tx.run("MATCH (unused_address:address) "
+                            "WHERE NOT (:wallet)--(unused_address)--() "
+                            "RETURN  unused_address.address, unused_address.acc_index, unused_address.type ")
+            
+        elif (days_range is None or max_days is None) and (days_range != max_days):
+            raise Exception("Arguments days_range and max_days must be either both specified or neither one specified.")
+            
+        else:
+            MILSEC_PER_DAY = 86400000
+            finish_day = max_days * MILSEC_PER_DAY
+            start_day = finish_day - days_range*MILSEC_PER_DAY
+            result = tx.run("MATCH (unused_address:address) "
+                            "WHERE NOT (:wallet)--(unused_address)--() AND (timestamp() - unused_address.created )>finish_day AND (timestamp() - unused_address.created )<start_day"
+                            "RETURN  unused_address.address, unused_address.acc_index, unused_address.type ")
+            
+            
         return result.data()
     
     @staticmethod
@@ -260,13 +282,13 @@ class WalletDB(object):
             result = session.write_transaction(self._look_for_coins,xprv)
             return result
         
-    def get_unused_addresses(self):
+    def get_unused_addresses(self,xprv, days_range=None, max_days=None):
         """
         Searches the database for addresses that haven't been used in the specific wallet.
         xprv: String, The wallet extended private key.
         """
         with self._driver.session() as session:
-            result = session.write_transaction(self._get_unused_addresses)
+            result = session.write_transaction(self._get_unused_addresses,xprv, days_range, max_days)
             return result
         
     def get_all_addresses(self,xprv):

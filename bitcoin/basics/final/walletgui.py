@@ -1,5 +1,7 @@
 import kivy
 kivy.require('1.11.1') # replace with your current kivy version !
+from wallet import Wallet
+import qrcode
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -11,7 +13,7 @@ from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.config import Config
 from kivy.uix.image import AsyncImage
-from kivy.properties import StringProperty,BooleanProperty
+from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 Config.set('graphics','width',300)
 Config.set('graphics','height',600)
@@ -19,18 +21,39 @@ Config.set('graphics','height',600)
 
 
 class MainScreen(Screen):
-    btc_balance=1234567
-    usd_balance=100000000
+    btc_balance = NumericProperty()
+    usd_balance = 0.0
+    
+    def __init__(self, **kwargs):
+        super(MainScreen, self).__init__(**kwargs)
+        # Initialize Target Container
+        self.update_balance()
+    
+    
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
-    usd_balance_text = StringProperty("~100 billion USD")
+    usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
+    
     font_size = "20sp"
     
     def update_balance(self):
-        self.btc_balance_text =  str(self.btc_balance*1.5) + " BTC"
-        self.usd_balance_text = "~150 billion USD"
+        app = App.get_running_app() 
+        self.my_wallet = app.my_wallet
+        self.btc_balance = app.btc_balance/100000000
+        self.usd_balance = self.btc_balance * 10000
+        self.btc_balance_text =  str(self.btc_balance) + " BTC"
+        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
         
+
         
 class SendScreen(Screen):
+    
+    """
+    def function():
+        app = App.get_running_app() 
+        print(app.root.manager.MainScreen.my_variable)
+        
+    function()
+    """
   
     def confirm_popup(self):
         self.show = ConfirmSendPopup()
@@ -38,7 +61,6 @@ class SendScreen(Screen):
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
-        #self.show.YES.bind(on_press=self.send_tx)
         self.show.YES.bind(on_release=self.go_back)
         self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
         
@@ -50,10 +72,16 @@ class SendScreen(Screen):
         
     def go_back(self,button):
         self.send_tx(self)
+        print(self.ids)
+        amount = self.ids.amount.text
+        address = self.ids.address.text
+        print(f"amount: {amount}, address: {address}")
         #app = WindowManager()
         #Main = MainScreen(name="Main")
         #app.add_widget(Main)
         #app.switch_to(Main,direction="right")
+        self.ids.amount.text = ""
+        self.ids.address.text = ""
         self.popupWindow.dismiss()
         print("just did go bakc")
         
@@ -82,18 +110,25 @@ class ConfirmSendPopup(FloatLayout):
         self.add_widget(self.YES)
         self.add_widget(self.CANCEL)
         
+
         
 class QRcodePopup(FloatLayout):
-    def __init__(self):
+    def __init__(self, address):
         super().__init__()
         #self.orientation="vertical")
-        qrcode = AsyncImage(source='https://storage.googleapis.com/support-forums-api/attachment/thread-13090132-506909745012483037.png',
+        self.address = address
+        
+        qrcode.make(self.address).save("images/QR.png")
+        
+        qrcode_image = AsyncImage(source='images/QR.png',
                             size_hint= (0.8, 0.8),size=(210,210),
                             pos_hint= {'center_x':.5, 'center_y': 0.65} )
         
-        address = Label(text="sdljfa4o8nj3o40nkqjv0dsddslg8",
+        address = Label(text=self.address,
                        halign="center",size_hint= (0.6,0.25), 
-                        pos_hint={"center_x":0.5, "center_y":0.23}
+                        pos_hint={"center_x":0.5, "center_y":0.23},
+                        font_name= "Arial",
+                        font_size="13sp"
                        )
         
         self.OK = Button(text="OK",
@@ -101,15 +136,21 @@ class QRcodePopup(FloatLayout):
                      size_hint= (1,0.15),
                              background_color=[0.6,0.9,1,1]
                       )
-        self.add_widget(qrcode)
+        self.add_widget(qrcode_image)
         self.add_widget(address)
         self.add_widget(self.OK)
     
 
 class ReceiveScreen(Screen):
     label_font_size = "15sp"
+    address = None
+    
+    #def from_unused():
+        
+        
+    
     def qr_popup(self):
-        self.show = QRcodePopup()
+        self.show = QRcodePopup("mocc7fvLz4ggT5kVfLSJsiXfFByoXYBCqi")
         self.popupWindow = Popup(title="Address QR Code", content=self.show, size_hint=(None,None), size=(280,380))
         self.popupWindow.open()
         #self.show.YES.bind(on_press=self.send_tx)
@@ -125,15 +166,21 @@ class WindowManager(ScreenManager):
     pass
 
 
-
-
-kv = Builder.load_file("walletgui.kv")
-
-
 class walletguiApp(App):
+    
     title = "Wallet"
+    #self.my_variable = StringProperty("THIS IS MY FLAG")
+    
+    words = "engine over neglect science fatigue dawn axis parent mind man escape era goose border invest slab relax bind desert hurry useless lonely frozen morning"
+    
+    my_wallet = ObjectProperty()
+    btc_balance = NumericProperty()
+    
+    my_wallet = Wallet.recover_from_words(words, 256, "RobertPauslon",True)
+    btc_balance = my_wallet.get_balance()
+    
     def build(self):
-        return kv
+        return Builder.load_file("walletgui.kv")
 
 
 if __name__ == '__main__':

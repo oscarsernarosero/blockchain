@@ -16,6 +16,9 @@ from blockcypher import pushtx
 from dotenv import load_dotenv
 import os
 
+import schedule 
+import time 
+
 class Wallet(MasterAccount):
     
     def __init__(self, depth, fingerprint, index, chain_code, private_key, db_user="neo4j",db_password="wallet", testnet = False):
@@ -30,6 +33,24 @@ class Wallet(MasterAccount):
         if not self.db.exist_wallet(self.get_xtended_key()):
             self.db.new_wallet(self.get_xtended_key())
         
+        self.start_schedule()
+        
+    @classmethod
+    def start_schedule(self):
+        """
+        This method starts the process of the scheduled tasks that are in charge of cleaning the database, 
+        updating the balace automatically every hour, and update confirmations on new transactions sent or
+        received.
+        """
+        schedule.every().day.do(self.clean_addresses)
+        schedule.every().hour.do(self.update_balance)
+        #pendind: to update confirmations of incoming and outcoming transactions.
+        
+    
+    #@classmethod
+    def clean_addresses(self):
+        #print("cleaning addresses...")
+        self.db.clean_addresses()
 
     def close_db(self):
         self.db.close()
@@ -48,6 +69,21 @@ class Wallet(MasterAccount):
                 raise Exception (f"index must be less than {2**31-1} ")
         return i
 
+    #@classmethod
+    def get_unused_addresses_list(self, change_addresses=False, range_of_days=None, last_day_range=None):
+        
+        unused_addresses = self.db.get_unused_addresses(xprv = self.get_xtended_key(), 
+                                                        days_range = range_of_days, 
+                                                        max_days = last_day_range)
+        
+        if change_addresses:
+            unused_addresses_filtered =  [x for x in unused_addresses if x["unused_address.type"]=="change"]
+        else:
+            unused_addresses_filtered =  [x for x in unused_addresses if x["unused_address.type"]=="recipient"]
+        
+        return unused_addresses_filtered
+                               
+                               
     #@classmethod
     def create_receiving_address(self, addr_type = "p2pkh",index=None):
         receiving_path = "m/0H/2H/"

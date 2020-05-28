@@ -9,6 +9,7 @@ WindowManager:
 <MainScreen>:  
     id: main
     name: "Main"
+    
     PageLayout:
         BoxLayout:
 
@@ -193,6 +194,7 @@ WindowManager:
                     halign: "left"
                     text: "to address:"
                 TextInput:
+                    id: address
                     size_hint:1,0.7
                     multiline: True
 
@@ -239,6 +241,7 @@ WindowManager:
                     halign: "left"
                     text: "Amount:  "
                 TextInput:
+                    id: amount
                     padding: [30,0,0,0]
                     size_hint:0.6,0.5
                     halign: "right"
