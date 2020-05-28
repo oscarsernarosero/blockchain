@@ -153,6 +153,7 @@ class Wallet(MasterAccount):
         If they are lists, they must be ordered in the same way. address 1 will e sent amount 1, 
         adrress 2 will be sent amount2.. adress n will be sent amount n.
         """
+        print(f"From wallet.send(): {to_address_amount_list}")
         total_amount = 0
         for output in to_address_amount_list:
             total_amount += output[1]
@@ -189,6 +190,8 @@ class Wallet(MasterAccount):
         if self.testnet: symbol = "btc-testnet"
         else: symbol= "btc"
         
+        load_dotenv()
+        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
         push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
         
         self.db.update_utxo(tx.transaction.id())

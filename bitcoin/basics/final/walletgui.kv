@@ -197,6 +197,8 @@ WindowManager:
                     id: address
                     size_hint:1,0.7
                     multiline: True
+                    #on_focus:
+                        #send.paste()
 
         BoxLayout:
             size_hint: 1,1
@@ -311,13 +313,18 @@ WindowManager:
                     width: 2.1
                     rectangle: self.x, self.y, self.width, self.height
         
+            Label:
+                size_hint: 1, 0.2
+                font_name: "Arial Black"
+                font_size: receive.label_font_size
+                color: 0,1,0,1                
+                valign:"bottom"
+                text: "From an anused adrress:"
             
-            
-            ToggleButton:
+            ToggleSpinner:
                 id: existing_addr
                 font_name: "Arial Black"
-                font_size: "17sp"
-                halign: "center"
+                font_size: "20sp"
                 background_color: 0.6,1,0.8,1
                 canvas.before:
                     Color:
@@ -326,13 +333,16 @@ WindowManager:
                         width: 2.1
                         rectangle: self.x, self.y, self.width, self.height
                 group: "address_source"
-                size_hint: 1,1
-                size: 280, 250
-                text: "From Existing\nUnused Adrress"
-                multiline: True
+                size_hint: 1, 0.7
+                size: 280, 100
+                #pos_hint: {'center': (.5, .5)}
+                text: 'P2PKH (default)'
+                values: 'P2PKH (default)', 'P2WPKH','P2SH_P2WPKH'
+                on_press: 
+                    #receive.activate_spinner()
+                on_value:
+                    #print: "The spinner {} has text {}".format(self, self.value)
 
-            #Label:
-                #size_hint: 1,0.01
             Label:
                 size_hint: 1, 0.2
                 font_name: "Arial Black"

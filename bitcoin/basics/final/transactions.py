@@ -190,6 +190,7 @@ class Transaction(Transact):
         
         #https://en.bitcoin.it/wiki/List_of_address_prefixes
         #We create the tx outputs based on the kind of address
+        
         tx_outs = []
         for output in receivingAddress_w_amount_list:
             

@@ -3,6 +3,8 @@ kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
 import qrcode
 
+from kivy.core.clipboard import Clipboard 
+
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.label import Label
@@ -54,6 +56,8 @@ class SendScreen(Screen):
         
     function()
     """
+    def paste(self):
+        self.ids.address.text = Clipboard.paste()
   
     def confirm_popup(self):
         self.show = ConfirmSendPopup()
@@ -65,21 +69,23 @@ class SendScreen(Screen):
         self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
         
     
-    def send_tx(self,screen):
+    def send_tx(self,screen, amount, address):
         "the button is the Button object"
         print(screen.show.YES.text)
+        print(f"amount: {amount}, address: {address}")
         print("SENDING TX")
+        app = App.get_running_app() 
+        my_wallet = app.my_wallet
+        transaction = my_wallet.send([(address,amount)])
+        print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
+        
         
     def go_back(self,button):
-        self.send_tx(self)
-        print(self.ids)
-        amount = self.ids.amount.text
+        self.show.YES.disabled = True
+        amount = int(self.ids.amount.text)
         address = self.ids.address.text
-        print(f"amount: {amount}, address: {address}")
-        #app = WindowManager()
-        #Main = MainScreen(name="Main")
-        #app.add_widget(Main)
-        #app.switch_to(Main,direction="right")
+        self.send_tx(self, amount, address)
+        print(self.ids)
         self.ids.amount.text = ""
         self.ids.address.text = ""
         self.popupWindow.dismiss()
@@ -118,40 +124,107 @@ class QRcodePopup(FloatLayout):
         #self.orientation="vertical")
         self.address = address
         
-        qrcode.make(self.address).save("images/QR.png")
+        if self.address:
+            qrcode.make(self.address).save("images/QR.png")
         
-        qrcode_image = AsyncImage(source='images/QR.png',
-                            size_hint= (0.8, 0.8),size=(210,210),
-                            pos_hint= {'center_x':.5, 'center_y': 0.65} )
+            qrcode_image = AsyncImage(source='images/QR.png',
+                                size_hint= (0.8, 0.8),size=(210,210),
+                                pos_hint= {'center_x':.5, 'center_y': 0.65} )
         
-        address = Label(text=self.address,
-                       halign="center",size_hint= (0.6,0.25), 
-                        pos_hint={"center_x":0.5, "center_y":0.23},
-                        font_name= "Arial",
-                        font_size="13sp"
-                       )
+            address = Label(text=self.address,
+                           halign="center",size_hint= (0.6,0.25), 
+                            pos_hint={"center_x":0.5, "center_y":0.23},
+                            font_name= "Arial",
+                            font_size="12sp"
+                           )
+            self.add_widget(qrcode_image)
+            self.add_widget(address)
+        else:
+            address = Label(text="NO UNUSED ADDRESSES\nAVAILABLE. \n\nPLEASE CREATE A\nNEW ADDRESS.",
+                           halign="center",size_hint= (0.6,0.25), 
+                            pos_hint={"center_x":0.5, "center_y":0.6},
+                            font_name= "Arial",
+                            font_size="15sp"
+                           )
+            self.add_widget(address)
+            
         
         self.OK = Button(text="OK",
                      pos_hint= {"x":0, "y":0.01}, 
                      size_hint= (1,0.15),
                              background_color=[0.6,0.9,1,1]
                       )
-        self.add_widget(qrcode_image)
-        self.add_widget(address)
+        
         self.add_widget(self.OK)
-    
 
+        
+class SelectOnePopup(FloatLayout):
+    def __init__(self):
+        super().__init__()
+        #self.orientation="vertical")
+        
+        address = Label(text="YOU MUST SELECT ONE\nOPTION FOR THE ADDRESS\n\n(NEW ADDRESS)\nOR\nEXISTING UNUSED\nADDRESS)",
+                        halign="center",size_hint= (0.6,0.25), 
+                        pos_hint={"center_x":0.5, "center_y":0.7},
+                        font_name= "Arial",
+                        font_size="18sp"
+                        )
+        self.OK = Button(text="OK",
+                     pos_hint= {"x":0, "y":0.01}, 
+                     size_hint= (1,0.15),
+                             background_color=[0.6,0.9,1,1]
+                      )
+        
+        self.add_widget(self.OK)
+        self.add_widget(address)
+
+        
 class ReceiveScreen(Screen):
     label_font_size = "15sp"
     address = None
     
     #def from_unused():
         
-        
-    
+
     def qr_popup(self):
-        self.show = QRcodePopup("mocc7fvLz4ggT5kVfLSJsiXfFByoXYBCqi")
-        self.popupWindow = Popup(title="Address QR Code", content=self.show, size_hint=(None,None), size=(280,380))
+        app = App.get_running_app() 
+        my_wallet = app.my_wallet
+        
+        if self.ids.existing_addr.state == "down":
+        
+            addresses = my_wallet.get_unused_addresses_list()
+            addr_type = self.ids.existing_addr.text
+            
+            if addr_type == "P2PKH (default)": 
+                addresses_filtered = [x for x in addresses if x["unused_address.address"][0] in "1mn"]
+                
+            elif addr_type == "P2WPKH": 
+                addresses_filtered = [x for x in addresses if x["unused_address.address"][:3] in ["tb1","bc1"]]
+                
+            else:
+                addresses_filtered = [x for x in addresses if x["unused_address.address"][0] in "23"]
+
+                
+            if len(addresses_filtered)==0:
+                self.show = QRcodePopup(None)
+            else:
+                self.show = QRcodePopup(addresses_filtered[0]["unused_address.address"])
+                
+        elif self.ids.new_addr.state == "down":
+            app = App.get_running_app() 
+            my_wallet = app.my_wallet
+            addr_type = self.ids.new_addr.text
+            
+            if addr_type == "P2PKH (default)": 
+                addr_type = "P2PKH"
+                
+            account = my_wallet.create_receiving_address(addr_type)
+            self.show = QRcodePopup(account.address)
+        
+        else: 
+            self.show = SelectOnePopup()
+    
+        self.popupWindow = Popup(title="Address and QR Code", content=self.show, size_hint=(None,None), size=(280,380))
         self.popupWindow.open()
         #self.show.YES.bind(on_press=self.send_tx)
         self.show.OK.bind(on_release=self.popupWindow.dismiss)
