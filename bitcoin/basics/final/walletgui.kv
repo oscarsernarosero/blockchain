@@ -186,7 +186,7 @@ WindowManager:
         BoxLayout:
             size_hint: 1,0.5
             id: address_source
-            padding: [0,30,20,30]
+            padding: [0,30,10,10]
             spacing: 10
             
             CheckBox:
@@ -205,8 +205,9 @@ WindowManager:
                     text: "to address:"
                 TextInput:
                     id: address
-                    size_hint:1,0.7
+                    size_hint:1,1
                     multiline: True
+                    on_double_tap: send.paste()
                     #on_focus:
                         #send.paste()
 

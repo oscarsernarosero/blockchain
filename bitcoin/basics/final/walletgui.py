@@ -5,8 +5,11 @@ import qrcode
 from urllib.request import Request, urlopen
 import json
 import os
+import pyperclip
 
 from kivy.core.clipboard import Clipboard 
+from kivy.clock import Clock
+from kivy.base import EventLoop
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -20,6 +23,7 @@ from kivy.config import Config
 from kivy.uix.image import AsyncImage
 from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
+import kivy.input.motionevent 
 Config.set('graphics','width',300)
 Config.set('graphics','height',600)
 
@@ -72,16 +76,10 @@ class MainScreen(Screen):
 
         
 class SendScreen(Screen):
-    
-    """
-    def function():
-        app = App.get_running_app() 
-        print(app.root.manager.MainScreen.my_variable)
-        
-    function()
-    """
+ 
     def paste(self):
-        self.ids.address.text = Clipboard.paste()
+        text_to_paste = pyperclip.paste()
+        self.ids.address.text = text_to_paste
   
     def confirm_popup(self):
         self.show = ConfirmSendPopup()
@@ -121,6 +119,7 @@ class SendScreen(Screen):
         my_wallet = app.my_wallet
         my_wallet.get_balance()
         main.update_real_balance()
+
         
         
         
@@ -146,14 +145,21 @@ class ConfirmSendPopup(FloatLayout):
         self.add_widget(message)
         self.add_widget(self.YES)
         self.add_widget(self.CANCEL)
-        
-
-        
+              
+            
+            
+class TouchLabel(Label):       
+    def on_touch_down(self, touch):
+        Clock.schedule_once(lambda dt: pyperclip.copy(self.text))
+        Label.on_touch_down(self, touch)
+      
+    
 class QRcodePopup(FloatLayout):
     def __init__(self, address):
         super().__init__()
         #self.orientation="vertical")
         self.address = address
+        
         
         if self.address:
             qrcode.make(self.address).save("images/QR.png")
@@ -162,11 +168,12 @@ class QRcodePopup(FloatLayout):
                                 size_hint= (0.8, 0.8),size=(210,210),
                                 pos_hint= {'center_x':.5, 'center_y': 0.65} )
         
-            address = Label(text=self.address,
+            address = TouchLabel(text=self.address,
                            halign="center",size_hint= (0.6,0.25), 
                             pos_hint={"center_x":0.5, "center_y":0.23},
                             font_name= "Arial",
-                            font_size="12sp"
+                            font_size="12sp",
+                            
                            )
             self.add_widget(qrcode_image)
             self.add_widget(address)
@@ -187,6 +194,10 @@ class QRcodePopup(FloatLayout):
                       )
         
         self.add_widget(self.OK)
+        
+            
+        
+        
 
         
 class SelectOnePopup(FloatLayout):
