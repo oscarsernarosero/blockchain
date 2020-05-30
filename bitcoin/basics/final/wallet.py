@@ -180,6 +180,13 @@ class Wallet(MasterAccount):
         tx = Transaction.create_from_master( utxos,to_address_amount_list, self,change_account,
                            fee=None, segwit=segwit)
         
+        if self.testnet: symbol = "btc-testnet"
+        else: symbol= "btc"
+        
+        load_dotenv()
+        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
+        push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
+        
         print(f"TRANSACTION ID: {tx.transaction.id()}")
         
         #saving in db
@@ -187,12 +194,7 @@ class Wallet(MasterAccount):
                        #[str(x[0])+":"+str(x[1]) for x in to_address_amount_list]
                        [str(x) for x in tx.transaction.tx_outs]
                       )
-        if self.testnet: symbol = "btc-testnet"
-        else: symbol= "btc"
         
-        load_dotenv()
-        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
-        push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
         
         self.db.update_utxo(tx.transaction.id())
         

@@ -25,13 +25,23 @@ WindowManager:
                 padding: 20
 
 
-                Label:
-                    text: 'Balance'
-                    size_hint: None, 0.5
-                    halign: "left"
-                    valign: "bottom"
-                    font_size: main.font_size
-                    font_name: "Arial Black"
+                BoxLayout:
+                
+                    Label:
+                        text: 'Balance'
+                        size_hint: 1, 0.5
+                        halign: "left"
+                        valign: "bottom"
+                        font_size: main.font_size
+                        font_name: "Arial Black"
+                    Button:
+                        id: reload_button
+                        background_normal: 'images/Reload-icon.png'
+                        size_hint: 0.4, 0.85
+                        size: 10,10
+                        pos_hint: {'center_x':1, 'center_y': 0.25}
+                        on_press: main.update_real_balance()
+                        
 
 
                 Label:
@@ -234,26 +244,35 @@ WindowManager:
             spacing: 25
             orientation: "vertical"
             
-            BoxLayout:
+            GridLayout:
                 spacing: 2
+                cols: 2
                 Label:
                     font_name: "Arial Black"
                     color: 0,1,0,1
-                    size_hint:0.4,0.3
+                    size_hint:1,0.3
                     halign: "left"
-                    text: "Amount:  "
+                    text: "Amount :  "
+                Label:
+                    font_name: "Arial Black"
+                    color: 0,1,0,1
+                    size_hint:None,0.3
+                    halign: "left"
+                    text: "Units:"
                 TextInput:
                     id: amount
                     padding: [30,0,0,0]
-                    size_hint:0.6,0.5
+                    size_hint:1,0.3
                     halign: "right"
                     multiline: False 
-                Label:
+                Spinner:
+                    id: denomination
                     font_name: "Arial Black"
                     color: 0,1,0,1
-                    size_hint:0.2,0.3
+                    size_hint:None,0.3
                     halign: "left"
-                    text: "BTC"
+                    text: "Bitcoins"
+                    values: "Bitcoins","Satoshis"
             Button:
                 text:"SEND"
                 on_press: send.confirm_popup()

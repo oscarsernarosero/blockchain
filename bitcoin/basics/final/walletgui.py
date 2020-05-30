@@ -2,6 +2,9 @@ import kivy
 kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
 import qrcode
+from urllib.request import Request, urlopen
+import json
+import os
 
 from kivy.core.clipboard import Clipboard 
 
@@ -37,13 +40,34 @@ class MainScreen(Screen):
     
     font_size = "20sp"
     
-    def update_balance(self):
+    def update_real_balance(self):
+        self.ids.reload_button.disabled = True
         app = App.get_running_app() 
-        self.my_wallet = app.my_wallet
-        self.btc_balance = app.btc_balance/100000000
-        self.usd_balance = self.btc_balance * 10000
+        my_wallet = app.my_wallet
+        my_wallet.update_balance()  
+        self.update_balance()
+        self.ids.reload_button.disabled = False
+    
+    def update_balance(self):
+        api_key = os.getenv("CC_API")
+        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
+        raw_data = self.read_json(url)
+        btc_price = raw_data["USD"]
+        app = App.get_running_app() 
+        my_wallet = app.my_wallet
+        self.btc_balance = my_wallet.get_balance()/100000000
+        print(f"balance: {self.btc_balance}")
+        #self.btc_balance = app.btc_balance/100000000
+        self.usd_balance = self.btc_balance * btc_price
         self.btc_balance_text =  str(self.btc_balance) + " BTC"
         self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
+        
+    def read_json(self,url):
+        request = Request(url)
+        response = urlopen(request)
+        data = response.read()
+        url2 = json.loads(data)
+        return url2
         
 
         
@@ -81,15 +105,22 @@ class SendScreen(Screen):
         
         
     def go_back(self,button):
+        main = MainScreen()
         self.show.YES.disabled = True
-        amount = int(self.ids.amount.text)
+        denomination = self.ids.denomination.text
+        amount = float(self.ids.amount.text)
         address = self.ids.address.text
+        if denomination == "Bitcoins": amount = int(amount*100000000)
+        else: amount = int(amount)
         self.send_tx(self, amount, address)
         print(self.ids)
         self.ids.amount.text = ""
         self.ids.address.text = ""
         self.popupWindow.dismiss()
-        print("just did go bakc")
+        app = App.get_running_app() 
+        my_wallet = app.my_wallet
+        my_wallet.get_balance()
+        main.update_real_balance()
         
         
         
