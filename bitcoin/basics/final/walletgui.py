@@ -6,6 +6,7 @@ from urllib.request import Request, urlopen
 import json
 import os
 import pyperclip
+import time, threading
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -36,7 +37,9 @@ class MainScreen(Screen):
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
         # Initialize Target Container
+        
         self.update_balance()
+        
     
     
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
@@ -45,14 +48,37 @@ class MainScreen(Screen):
     font_size = "20sp"
     
     def update_real_balance(self):
+        self.loading = LoadingPopup("Consulting the blockchain..\n\nUpdating the database...\n\nPlease wait.")
+        self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(250, 250))
+        self.loadingDB.open()
+        mythread = threading.Thread(target=self.update_real_balance_process)
+        mythread.start()
+    
+    
+    def update_real_balance_process(self):
         self.ids.reload_button.disabled = True
         app = App.get_running_app() 
         my_wallet = app.my_wallet
         my_wallet.update_balance()  
+        
+        print("Database up to date. Updating information on display...")
+        self.loadingDB.dismiss()
+        
         self.update_balance()
         self.ids.reload_button.disabled = False
+        
     
     def update_balance(self):
+        #Creating the loading screen
+        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nPlease wait.")
+        self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(250, 250))
+        self.loadingBalance.open()
+        mythread = threading.Thread(target=self.update_balance_process)
+        mythread.start()
+        
+    def update_balance_process(self):
         api_key = os.getenv("CC_API")
         url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
         raw_data = self.read_json(url)
@@ -65,6 +91,9 @@ class MainScreen(Screen):
         self.usd_balance = self.btc_balance * btc_price
         self.btc_balance_text =  str(self.btc_balance) + " BTC"
         self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
+        
+        print("closing loading window")
+        self.loadingBalance.dismiss()
         
     def read_json(self,url):
         request = Request(url)
@@ -82,7 +111,14 @@ class SendScreen(Screen):
         self.ids.address.text = text_to_paste
   
     def confirm_popup(self):
-        self.show = ConfirmSendPopup()
+        #reading the inputs and 
+        denomination = self.ids.denomination.text
+        amount = float(self.ids.amount.text)
+        address = self.ids.address.text
+        if denomination == "Bitcoins": amount = int(amount*100000000)
+        else: amount = int(amount)
+            
+        self.show = ConfirmSendPopup(amount,address,denomination)
         self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(280,280), 
                             #auto_dismiss=False
                            )
@@ -103,31 +139,65 @@ class SendScreen(Screen):
         
         
     def go_back(self,button):
-        main = MainScreen()
+        """
+        Sends transaction, pops up a loading scree, cleans the inputs, and updates balances.
+        """
+        #disabling the button to avoid unintentional double action.
         self.show.YES.disabled = True
+        
+        #Creating the loading screen
+        self.loading = LoadingPopup("Broadcasting your\ntransaction...")
+        self.loadingWindow = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(250, 250))
+        self.loadingWindow.open()
+        mythread = threading.Thread(target=self.send_tx_process)
+        mythread.start()
+        
+    def send_tx_process(self):
+        #reading the inputs and 
         denomination = self.ids.denomination.text
         amount = float(self.ids.amount.text)
         address = self.ids.address.text
         if denomination == "Bitcoins": amount = int(amount*100000000)
         else: amount = int(amount)
+            
+        #broadcasting transaction    
         self.send_tx(self, amount, address)
-        print(self.ids)
+        
+        #cleanning the inputs
         self.ids.amount.text = ""
         self.ids.address.text = ""
-        self.popupWindow.dismiss()
+        
+        #updating balance
         app = App.get_running_app() 
         my_wallet = app.my_wallet
         my_wallet.get_balance()
+        main = MainScreen()
+        #closing popups
+        self.loadingWindow.dismiss()
         main.update_real_balance()
+        self.popupWindow.dismiss()
+        
+        
+        
 
         
+class LoadingPopup(FloatLayout):
+     def __init__(self,msg):
+        super().__init__()
         
+        self.message = Label(text=msg,
+                            halign="center", size_hint=(1,1), pos_hint={"center_x":0.5, "center_y":0.5},
+                            
+                            )
+        self.add_widget(self.message)
         
 class ConfirmSendPopup(FloatLayout):
-    def __init__(self):
+    def __init__(self,amount,address,denomination):
         super().__init__()
         #self.orientation="vertical")
-        message = Label(text="Are you sure you want \nto send xx.xxx BTC to adress\n abc666lkp1233?",
+            
+        message = Label(text=f"Are you sure you want \nto send {amount} {denomination} to adress\n{address}?",
                        halign="center",size_hint= (0.6,0.3), 
                         pos_hint={"x":0.2, "top":1}
                        )
