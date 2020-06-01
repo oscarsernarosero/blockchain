@@ -49,7 +49,7 @@ class Wallet(MasterAccount):
     
     #@classmethod
     def clean_addresses(self):
-        #print("cleaning addresses...")
+        print("cleaning addresses...")
         self.db.clean_addresses()
 
     def close_db(self):

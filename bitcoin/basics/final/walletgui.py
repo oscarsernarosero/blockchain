@@ -48,16 +48,15 @@ class MainScreen(Screen):
     font_size = "20sp"
     
     def update_real_balance(self):
-        self.loading = LoadingPopup("Consulting the blockchain..\n\nUpdating the database...\n\nPlease wait.")
+        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\nThis might take a few\nmore seconds...\nPlease wait.")
         self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(250, 250))
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
         self.loadingDB.open()
         mythread = threading.Thread(target=self.update_real_balance_process)
         mythread.start()
     
     
     def update_real_balance_process(self):
-        self.ids.reload_button.disabled = True
         app = App.get_running_app() 
         my_wallet = app.my_wallet
         my_wallet.update_balance()  
@@ -66,14 +65,13 @@ class MainScreen(Screen):
         self.loadingDB.dismiss()
         
         self.update_balance()
-        self.ids.reload_button.disabled = False
         
     
     def update_balance(self):
         #Creating the loading screen
-        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nPlease wait.")
+        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
         self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(250, 250))
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
         self.loadingBalance.open()
         mythread = threading.Thread(target=self.update_balance_process)
         mythread.start()
@@ -119,7 +117,8 @@ class SendScreen(Screen):
         else: amount = int(amount)
             
         self.show = ConfirmSendPopup(amount,address,denomination)
-        self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(280,280), 
+        self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(500,500), 
+                                 pos_hint={"center_x":0.5, "center_y":0.5}
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
@@ -148,7 +147,7 @@ class SendScreen(Screen):
         #Creating the loading screen
         self.loading = LoadingPopup("Broadcasting your\ntransaction...")
         self.loadingWindow = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(250, 250))
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
         self.loadingWindow.open()
         mythread = threading.Thread(target=self.send_tx_process)
         mythread.start()
@@ -168,19 +167,24 @@ class SendScreen(Screen):
         self.ids.amount.text = ""
         self.ids.address.text = ""
         
-        #updating balance
-        app = App.get_running_app() 
-        my_wallet = app.my_wallet
-        my_wallet.get_balance()
-        main = MainScreen()
         #closing popups
         self.loadingWindow.dismiss()
+        #updating balance
+        
+        main = MainScreen()
         main.update_real_balance()
+        
         self.popupWindow.dismiss()
-        
-        
-        
 
+        
+class CameraPopup(FloatLayout):
+     def __init__(self,msg):
+        super().__init__()
+        
+        self.camera = Camera(resolution= (640, 480),play= False
+                             #,id="camera" 
+                            )
+        self.add_widget(self.message)
         
 class LoadingPopup(FloatLayout):
      def __init__(self,msg):
@@ -197,18 +201,18 @@ class ConfirmSendPopup(FloatLayout):
         super().__init__()
         #self.orientation="vertical")
             
-        message = Label(text=f"Are you sure you want \nto send {amount} {denomination} to adress\n{address}?",
+        message = Label(text=f"Are you sure you want to send\n {amount/100000000} BTC to the adress\n{address}\n?",
                        halign="center",size_hint= (0.6,0.3), 
-                        pos_hint={"x":0.2, "top":1}
+                        pos_hint={"center_x":0.5, "center_y":0.8}, font_size="12sp"
                        )
 
         self.YES = Button(text="YES",
-                     pos_hint= {"x":0, "y":0.35}, 
+                     pos_hint= {"center_x":0.5, "center_y":0.43}, 
                      size_hint= (1,0.17),
                           background_color=[0.5,1,0.75,1]
                       )
         self.CANCEL = Button(text="CANCEL",
-                     pos_hint= {"x":0, "y":-0.01}, 
+                     pos_hint= {"center_x":0.5, "center_y":0.15}, 
                      size_hint= (1,0.3),
                              background_color=[1,0.3,0.3,1]
                       )
@@ -222,7 +226,10 @@ class TouchLabel(Label):
     def on_touch_down(self, touch):
         Clock.schedule_once(lambda dt: pyperclip.copy(self.text))
         Label.on_touch_down(self, touch)
-      
+        
+
+
+#class LabelButton
     
 class QRcodePopup(FloatLayout):
     def __init__(self, address):
@@ -336,7 +343,8 @@ class ReceiveScreen(Screen):
         else: 
             self.show = SelectOnePopup()
     
-        self.popupWindow = Popup(title="Address and QR Code", content=self.show, size_hint=(None,None), size=(280,380))
+        self.popupWindow = Popup(title="Address and QR Code", content=self.show, size_hint=(None,None), size=(550,700),
+                                pos_hint={"center_x":0.5, "center_y":0.5})
         self.popupWindow.open()
         #self.show.YES.bind(on_press=self.send_tx)
         self.show.OK.bind(on_release=self.popupWindow.dismiss)

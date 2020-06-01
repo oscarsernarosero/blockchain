@@ -37,7 +37,7 @@ WindowManager:
                     Button:
                         id: reload_button
                         background_normal: 'images/Reload-icon.png'
-                        size_hint: 0.4, 0.85
+                        size_hint: 0.4, 0.7
                         size: 10,10
                         pos_hint: {'center_x':1, 'center_y': 0.25}
                         on_press: main.update_real_balance()
@@ -182,11 +182,11 @@ WindowManager:
     id: send
     BoxLayout:
         orientation: "vertical"
-        padding: [10,10,10,10]
+        padding: [10,30,10,10]
         BoxLayout:
             size_hint: 1,0.5
             id: address_source
-            padding: [0,30,10,10]
+            padding: [0,30,30,10]
             spacing: 10
             
             CheckBox:
@@ -214,12 +214,8 @@ WindowManager:
         BoxLayout:
             size_hint: 1,1
             id: address_source
-            #cols: 2
-            padding: [0,30,20,30]
-            #valign: "top"
+            padding: [10,30,20,30]
             spacing: 10
-            #size_hint: 1,None
-            #row_force_default: True
             CheckBox:
                 group: "addr_source"
                 size_hint_x: .10
@@ -227,6 +223,7 @@ WindowManager:
                 
 
             BoxLayout:
+                spacing: 8
                 orientation: "vertical"
                 Label:
                     color: 0,1,0,1
@@ -241,7 +238,7 @@ WindowManager:
                     pos_hint: {'center_x':.5, 'center_y': .5}      
 
         BoxLayout:
-            padding: [30,10,30,10]
+            padding: [30,30,30,10]
             spacing: 25
             orientation: "vertical"
             
@@ -257,7 +254,7 @@ WindowManager:
                 Label:
                     font_name: "Arial Black"
                     color: 0,1,0,1
-                    size_hint:None,0.3
+                    size_hint:0.5,0.3
                     halign: "left"
                     text: "Units:"
                 TextInput:
@@ -270,7 +267,7 @@ WindowManager:
                     id: denomination
                     font_name: "Arial Black"
                     color: 0,1,0,1
-                    size_hint:None,0.3
+                    size_hint:0.5,0.3
                     halign: "left"
                     text: "Bitcoins"
                     values: "Bitcoins","Satoshis"
