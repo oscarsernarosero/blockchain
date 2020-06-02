@@ -11,6 +11,8 @@ import time, threading
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
 from kivy.base import EventLoop
+from  kivy.uix.camera import Camera
+from kivy_garden.zbarcam import ZBarCam
 
 from kivy.app import App
 from kivy.lang import Builder
@@ -175,16 +177,24 @@ class SendScreen(Screen):
         main.update_real_balance()
         
         self.popupWindow.dismiss()
-
+        
+    def scan_qr(self):
+        self.qrscanner = CameraPopup()
+        self.QRScannerWindow = Popup(title="Scan Qr Code", content=self.qrscanner, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.6}
+                            #auto_dismiss=False
+                           )
+        self.QRScannerWindow.open()
+        self.qrscanner.ids.select.bind(on_release=self.scanqr)
+    
+    
+    def scanqr(self,button_object):
+        self.ids.address.text = self.qrscanner.ids.address.text
+        self.QRScannerWindow.dismiss()
         
 class CameraPopup(FloatLayout):
-     def __init__(self,msg):
-        super().__init__()
+    pass
         
-        self.camera = Camera(resolution= (640, 480),play= False
-                             #,id="camera" 
-                            )
-        self.add_widget(self.message)
         
 class LoadingPopup(FloatLayout):
      def __init__(self,msg):

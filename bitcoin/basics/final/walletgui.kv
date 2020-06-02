@@ -231,11 +231,14 @@ WindowManager:
                     size_hint:None,0.2
                     halign: "left"
                     text: "From QRcode:"
-                AsyncImage:
-                    source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                #AsyncImage:
+                Button:
+                    #source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                    background_normal: 'images/QR.png'
                     size_hint: 1, 1
                     size: 280,280
-                    pos_hint: {'center_x':.5, 'center_y': .5}      
+                    pos_hint: {'center_x':.5, 'center_y': .5} 
+                    on_press: send.scan_qr()
 
         BoxLayout:
             padding: [30,30,30,10]
@@ -449,7 +452,28 @@ WindowManager:
                     width: 2.1
                     rectangle: self.x, self.y, self.width, self.height
         
-
+<CameraPopup>:
+    id: qrcam
+    ZBarCam:
+        pos_hint: {"center_x":0.5, "center_y":0.75}
+        size: 450,450
+        id: zbarcam
+        #code_types: ZBarSymbol.QRCODE, ZBarSymbol.EAN13
+    Label:
+        id: address
+        size_hint: None, None
+        size: 0, 50
+        font_size: "12sp"
+        pos_hint: {"center_x":0.5, "center_y":0.3}
+        text: ', '.join([str(symbol.data) for symbol in zbarcam.symbols]) 
+        #text: "text text text text" 
+        
+    Button:
+        id: select
+        pos_hint: {"center_x":0.5, "center_y":0.1}
+        text: "SELECT THIS ADDRESS"
+        size_hint: 1, None
+        #on_release: qrcam.scanqr(address.text)
 
 
 #<ConfirmSendPopup>:
