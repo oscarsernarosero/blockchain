@@ -19,7 +19,7 @@ This wallet relies heavily in the use of the Herarchical Deterministic Derivatio
 
 ### Corporate Super-Account:
 
-These accounts will be the most important accounts for the company wallet. For this same reason, it relies heavily in the multi-signature technology to avoid a single point of failure. This wallet stablishes a total of three Corporate Super-Account (CSA) per company wallet to ensure the security of the funds.
+These accounts will be the most important accounts for the company wallet. For this same reason, it relies heavily in the multi-signature technology to avoid a single point of failure. This wallet stablishes a minimum of three Corporate Super-Account (CSA) per company wallet to ensure the security of the funds.
 
 The holders of these accounts must be in the highest rank of the company, such as CEOs, owners, Accounting Managers, etc. since they will be able to transfer the funds of the entire company.
 
@@ -45,7 +45,7 @@ These are not a type of account, but mostly a type of addresses where multiple a
 
 **Weekly Safe:** These addresses will store the funds remaining in the daily safes from a certain location at the end of the week. These will be a 2-of-5 multi-signature address, and it is cosidered a medium risk address since it stores a considerable amount of funds for the company.
 
-**Corporate safe:** These addresses will store funds securly for corporate. These addresses can be generated arbitrarily any time corporate consider it necessary to ensure the security of the funds or to ensure the accountability of them. These addresses will be 2-of-3 multi-signature addresses, and only CSA can sign its transactions to ensure maximum security of its funds.
+**Corporate safe:** These addresses will store funds securly for corporate. These addresses can be generated arbitrarily any time corporate considers it necessary to ensure the security of the funds or to ensure the accountability of them. These addresses will be 2-of-3 multi-signature addresses, and only CSA can sign its transactions to ensure maximum security of its funds.
 
 ### Receiving Addresses
 
@@ -108,7 +108,7 @@ Following the former example of company XYZ, let's pretend that the highest volu
 These addresses are multisignature addresses as pointed out previously. For each store, it will be always the same co-signers:
 
 - Store General Manager.
-- Store Asistant Manager.
+- Store Assistant Manager.
 - Regional Manager.
 - CEO Main account.
 - CEO co-signing account 1
@@ -147,7 +147,7 @@ The range will be a default amount of 2000, with no leap.
 
 ## Change Addresses
 
-...
+
 
 
 
