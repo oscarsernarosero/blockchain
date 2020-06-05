@@ -105,8 +105,49 @@ Following the former example of company XYZ, let's pretend that the highest volu
 
 ### Daily Safe Address Genration
 
-These addresses are multisignature addresses as pointed out previously. For each store, it will be always the same co-signers 
+These addresses are multisignature addresses as pointed out previously. For each store, it will be always the same co-signers:
 
+- Store General Manager.
+- Store Asistant Manager.
+- Regional Manager.
+- CEO Main account.
+- CEO co-signing account 1
+- CEO co-signing account 2/ Accounting
+
+The required signatures to conduct a fund transfer will be 2 out of 6.
+
+However, due to the way that multi-signature addresses are generated in Bitcoin, this address would always be the same if we don't modify at least one of the accounts every time we generat it. For this reason, the CEO main account will not be the master key as it is the case with the other accounts. It will be a deterministic grandchild account that will use the same principle used previously by the Daily Payment Account.
+
+These grandchild accounts will be direct descendant of a single child account from the the CEO main account: m'/1'/1000'. The indices that these grandchild accounts will have will obvey to the date for which it will be created following the format YYMMDD. Therefore, if today were December the 31st of 2020, the accont that would be able to sign the Daily Safe Address of that day will be the account m'/1'/1000'/201231 from the CEO's main account.
+
+For this to actually be possible, public key exchange will be necessary. This will be discuss later. However, the account responsible for the generation of these safe addresses will be the CEO main account.
+
+
+### Weekly Safe Address Genration
+
+These addresses are also multisignature addresses. For each store, it will be always the same co-signers:
+
+- Store General Manager.
+- Regional Manager.
+- CEO Main account.
+- CEO co-signing account 1
+- CEO co-signing account 2/ Accounting
+
+The required signatures to conduct a fund transfer will be 2 out of 5.
+
+Similar to the Daily Safe Accounts, these Weekly Safe Accounts are grandchild accounts descending directly from a single child account from the the CEO main account: m'/1'/2020'. The indices that these grandchild accounts will have will obvey to the number of the week in the year for which it will be created. Therefore, if today were December the 31st of 2020, the accont that would be able to sign the Weekly Safe Address of that week will be the account m'/1'/2020'/53 from the CEO's main account.
+
+### Safe Corporate Addresses
+
+Corporate will have to its disposal a whole wallet which is built upon the three Corporate Super Accounts. This wallet will be a 2-of-3 multi signature wallet at the least. By default, every address generated to receive payments directly to corporate level will be handled under Safe Corporate Addresses. These addresses are similiar to the receiving addresses for stores in the way that these are created randomly under 2 boundaries which are, again, the account and the range.
+
+Every receiving payment at corporate level will ocure in a **yearly account**. These accounts will have the index of the year in the format YYYY, and they will be under the account m'/2'. So, for example, the payments received from corporate in 2020 will be under the account m'/2'/2020. 
+
+The range will be a default amount of 2000, with no leap.
+
+## Change Addresses
+
+...
 
 
 
