@@ -37,7 +37,7 @@ Now that we have talked about safe addresses, it is important to define them.
 
 ### Safe Addresses:
 
-These are not a type of account, but mostly a type of addresses where multiple accounts are necessary to have access to the funds. So, in order for this wallet to ensure the safety and the accountancy of the funds, the wallet will store the funds collected throughout the day and throughout the week in these safe addresses. These addresses are multisignature addresses that require at least 2 co-signer accounts to transfer the funds to ensure its safety. The possible configuration of cosigners will differ depending of the amount of money that the address will store. There are three types of safe addresses:
+In order for this wallet to ensure the safety and the accountancy of the funds, the wallet will store the funds collected throughout the day and throughout the week in these safe addresses. These addresses are multisignature addresses that require at least 2 co-signer accounts to transfer the funds to ensure its safety. The possible configuration of cosigners will differ depending of the amount of money that the address will store. There are three types of safe addresses:
 
 **Daily Safe:** These addresses will store the total of the payments received at a certain location in a single day. These will be a 2-of-6 multi-signature address, and this is considered a low risk safe address since the amount of money it holds is the least out of the three kinds of safe addresses.
 
@@ -105,7 +105,7 @@ The following table summarizes the path generation for deposit addresses at stor
 | Path | Purpose |
 | --- | -- |
 | m/44'/0'/0' | Store-Accounts Parent Account |
-| m/44'/0'/0'/XXXX' | Store-Accounts Account |
+| m/44'/0'/0'/XXXX' | Store Accounts |
 | m/44'/0'/0'/XXXX'/YYMMDD' | Store's Daily-Payment Account |
 | m/44'/0'/0'/XXXX'/YYMMDD'/i* | Store's Daily-Payment Addresses* |
 
@@ -114,7 +114,7 @@ YYMMDD: date.<br>
 i: number or index of payment.
 
 
-*Even though we haven't talked about change and deposit accounts, this is a best practice in which this wallet relies. However, in this case, there is no need to create two separate accounts for deposits and change since this account is already meant to exclusively be a deposit account.
+*Even though we haven't talked about change and deposit accounts yet, this is a best practice on which this wallet relies. However, in this case, there is no need to create two separate accounts for deposits and change since this account is already meant to exclusively be a deposit account.
 
 ### Daily Safe Address Generation
 
