@@ -142,7 +142,7 @@ class WalletDB(object):
             finish_day = max_days * MILSEC_PER_DAY
             start_day = finish_day - days_range*MILSEC_PER_DAY
             result = tx.run("MATCH (unused_address:address) "
-                            "WHERE NOT (:wallet)--(unused_address)--() AND (timestamp() - unused_address.created )>finish_day AND (timestamp() - unused_address.created )<start_day"
+                            "WHERE NOT (:wallet)--(unused_address)--() AND (timestamp() - unused_address.created )<finish_day AND (timestamp() - unused_address.created )>start_day"
                             "RETURN  unused_address.address, unused_address.acc_index, unused_address.type ")
             
             
