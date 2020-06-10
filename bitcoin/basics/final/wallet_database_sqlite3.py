@@ -5,14 +5,14 @@ import time
 class Sqlite3Wallet:
     
     def __init__(self):
-        self.conn = None
         self.conn = self.create_connection(r"database/wallet_db.db")
+        print("connection with database made.")
         
     def create_connection(self,db_file):
         """ create a database self.connection to a SQLite database """
         conn = None
         try:
- 
+            conn = sqlite3.connect(db_file)
             return conn
 
         except Error as e:
@@ -248,9 +248,9 @@ class Sqlite3Wallet:
             now = int(time.time())
             query1 = f"SELECT address \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
             query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{wallet}'"
-            query3 = f"\nAND\n ({now} - Addresses.created) > {start_day} AND ({now} - Addresses.created) < {finish_day} ';"
+            query3 = f"\nAND\n ({now} - Addresses.created) > {start_day} AND ({now} - Addresses.created) < {finish_day} ;"
             query = query1 + query2 + query3
-            #print(query)
+            print(query)
             return self.execute_w_res(query)
 
     def get_all_addresses(self,wallet):
