@@ -10,7 +10,8 @@ on any losses caused by the use of this code.
 from accounts import MasterAccount, Account, MultSigAccount
 from transactions import Transaction, MultiSigTransaction
 from os import urandom
-from database import WalletDB
+#from database import WalletDB
+from wallet_database_sqlite3 import Sqlite3Wallet
 from blockcypher import get_address_details
 from blockcypher import pushtx
 from dotenv import load_dotenv
