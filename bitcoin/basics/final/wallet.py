@@ -27,13 +27,14 @@ class Wallet(MasterAccount):
         BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
         
         
-        self.db = WalletDB( "neo4j://localhost:7687" ,db_user ,db_password )
+        #self.db = WalletDB( "neo4j://localhost:7687" ,db_user ,db_password )
+        self.db = Sqlite3Wallet()
         super().__init__( depth, fingerprint, index, chain_code, private_key,testnet)
         
-        if not self.db.exist_wallet(self.get_xtended_key()):
-            self.db.new_wallet(self.get_xtended_key())
+        #if not self.db.exist_wallet(self.get_xtended_key()):
+            #self.db.new_wallet(self.get_xtended_key())
         
-        self.start_schedule()
+        #self.start_schedule()
         
     @classmethod
     def start_schedule(self):
@@ -53,7 +54,7 @@ class Wallet(MasterAccount):
         self.db.clean_addresses()
 
     def close_db(self):
-        self.db.close()
+        self.db.close_database()
     
     @classmethod
     def get_i(self, index):
@@ -92,7 +93,7 @@ class Wallet(MasterAccount):
         print(f"Path: {path}")
         receiving_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
-        self.db.new_address(account.address,i,False, self.get_xtended_key())
+        self.db.new_address(account.address,receiving_path,i,0, self.get_xtended_key())
         return account
 
     #@classmethod
@@ -103,7 +104,7 @@ class Wallet(MasterAccount):
         print(f"Path: {path}")
         change_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
-        self.db.new_address(account.address,i,True, self.get_xtended_key())
+        self.db.new_address(account.address,change_path,i,1, self.get_xtended_key())
         return account
     
     def get_utxos(self):
@@ -113,7 +114,8 @@ class Wallet(MasterAccount):
         coins = self.get_utxos()
         balance = 0
         for coin in coins:
-            balance += coin["coin.amount"]
+            "coin will be an array with data [ tx_id, out_index, amount ]"
+            balance += coin[2]
         return balance
 
     def update_balance(self):
@@ -123,20 +125,21 @@ class Wallet(MasterAccount):
         else: coin_symbol = "btc"
             
         for address in addresses:
+            "address will be a touple with data (address,)"
             
-            addr_info = get_address_details(address["addr.address"], coin_symbol = coin_symbol, unspent_only=True)
+            addr_info = get_address_details(address[0], coin_symbol = coin_symbol, unspent_only=True)
             
             if addr_info["unconfirmed_n_tx"] > 0:
                 for utxo in addr_info["unconfirmed_txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], False):
+                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 0):
                         print("new unconfirmed UTXO")
-                        self.db.new_utxo(utxo["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],False)
+                        self.db.new_utxo(utxo["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],0)
             
             if addr_info["n_tx"] - addr_info["unconfirmed_n_tx"] > 0 :
                 for utxo in addr_info["txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], True):
+                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 1):
                         print("new confirmed UTXO")
-                        self.db.new_utxo(addr_info["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],True)
+                        self.db.new_utxo(addr_info["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],1)
       
         return self.get_balance()
     
@@ -166,15 +169,15 @@ class Wallet(MasterAccount):
         utxos = []
         utxo_total = 0
         for utxo in all_utxos:
-            if utxo["coin.amount"] > total_amount*1.1:
+            if utxo[2] > total_amount*1.1:
                 utxos = [utxo]
                 break
                 
         if len(utxos)==0:    
             for utxo in all_utxos:
                 utxos.append(utxo)
-                utxo_total += utxo["coin.amount"]
-                if utxo_total>total_amount: break
+                utxo_total += utxo[2]
+                if utxo_total > (total_amount*1.1) : break
         change_account = self.create_change_address()
           
         tx = Transaction.create_from_master( utxos,to_address_amount_list, self,change_account,
@@ -190,11 +193,15 @@ class Wallet(MasterAccount):
         print(f"TRANSACTION ID: {tx.transaction.id()}")
         
         #saving in db
+        """
         self.db.new_tx(tx.transaction.id(),[x["coin.local_index"] for x in utxos], 
                        #[str(x[0])+":"+str(x[1]) for x in to_address_amount_list]
                        [str(x) for x in tx.transaction.tx_outs]
                       )
-        
+        """
+        self.db.new_tx(tx.transaction.id(), [ (x[0],x[1]) for x in utxos] ,
+                       [str(x).split(":") for x in tx.transaction.tx_outs]
+                      )
         
         self.db.update_utxo(tx.transaction.id())
         

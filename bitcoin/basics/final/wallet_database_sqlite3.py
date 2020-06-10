@@ -150,7 +150,7 @@ class Sqlite3Wallet:
         """
         tx_id: String. transaction id.
         tx_ins: List of touples: [ (prev_tx_id, index), ... ]
-        tx_outs: List of touples: [ (out_index, amount, script_pubkey), ... ]
+        tx_outs: List of touples: [ (amount, script_pubkey), ... ]
         n_confirmations: int; number of confirmations in the blockchain.
         lock_time: Int: transaction locktime.
         version: Int: version.
@@ -168,8 +168,8 @@ class Sqlite3Wallet:
             self.execute(query)
 
         for tx_out in tx_outs:
-            query5 = "INSERT INTO Tx_Outs ( out_index, amount, script_pubkey, created_by)\n "
-            query6 = f"VALUES( {tx_out[0]}, {tx_out[1]}, '{tx_out[2]}', '{tx_id}');"
+            query5 = "INSERT INTO Tx_Outs ( amount, script_pubkey, created_by)\n "
+            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}', '{tx_id}');"
             query = query5+query6
             self.execute(query)
 
