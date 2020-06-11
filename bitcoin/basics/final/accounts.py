@@ -38,7 +38,7 @@ class MasterAccount(Xtended_privkey):
             
         self.words = mnemonic_list
         
-        mnemonic = Mnemonic.recover_from_words(mnemonic_list, entropy ,  passphrase)
+        mnemonic = Mnemonic.recover_from_words(mnemonic_list=mnemonic_list, entropy= entropy,  passphrase=passphrase)
         print(int.from_bytes(mnemonic.seed,"big"))
         return self.from_bip39_seed(int.from_bytes(mnemonic.seed,"big"), testnet = testnet)
     

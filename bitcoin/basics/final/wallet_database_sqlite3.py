@@ -285,6 +285,15 @@ class Sqlite3Wallet:
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}';"
         return self.execute_w_res(query)
     
+    def get_words_from_wallet(self, name):
+        """
+        Returns the Mnemonic phrase of the wallet.
+        name: the name of the wallet provided.
+        """
+        query = f"SELECT words FROM Wallets WHERE name='{name}';"
+        print(query)
+        return self.execute_w_res(query)
+    
     def get_all_wallets(self):
         query = f"SELECT * FROM Wallets;"
         return self.execute_w_res(query)

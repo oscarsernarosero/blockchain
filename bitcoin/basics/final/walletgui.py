@@ -65,7 +65,22 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
+            
             print("selection changed to {0}".format(rv.data[index]))
+            app = App.get_running_app()
+            sm = app.sm
+            
+            sm.add_widget(MainScreen(name="Main"))
+            
+            words = app.db.get_words_from_wallet(rv.data[index]["text"])
+            #the result of the query will come in the form [(result,)]. Therefore, we  
+            #will select the datum in result[0][0].
+            print(f"words from db: {words[0][0]}")
+            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
+            
+            app.wallets.append({f"{rv.data[index]["text"]}": _wallet})
+            
+            sm.switch_to(Screen(name="Main"), direction='right')
         else:
             print("selection removed for {0}".format(rv.data[index]))
 
@@ -74,10 +89,10 @@ class WalletScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         app = App.get_running_app()
-        my_wallets = app.my_wallets
+        my_wallet_names = app.my_wallet_names
         no_wallet_msg ="You don't have any wallet yet.\nLet's start by creating one.\n\nPress the '+' button." 
-        if len(my_wallets)>0:
-            self.ids.rv.data = [{'text': str(x[1])} for x in my_wallets]
+        if len(my_wallet_names)>0:
+            self.ids.rv.data = [{'text': str(x[1])} for x in my_wallet_names]
         else:
             self.ids.rv.data = [{'text': no_wallet_msg}]
 
@@ -91,12 +106,12 @@ class WalletScreen(Screen):
         
     def create_wallet(self,button):
         app = App.get_running_app()
-        my_wallets = app.my_wallets
+        my_wallet_names = app.my_wallet_names
         name = self.new_wallet_popup.ids.wallet_name.text
         my_wallet = Wallet.generate_random(testnet=True)
         app.db.new_wallet(my_wallet.xtended_key, str(my_wallet.words)[1:], name)
-        my_wallets.append((my_wallet.xtended_key, name, str(my_wallet.words)[1:]))
-        self.ids.rv.data = [{'text': x[1]} for x in my_wallets]
+        my_wallet_names.append((my_wallet.xtended_key, name, str(my_wallet.words)[1:]))
+        self.ids.rv.data = [{'text': x[1]} for x in my_wallet_names]
         self.newWalletWindow.dismiss()
         
     
@@ -109,7 +124,7 @@ class MainScreen(Screen):
         super(MainScreen, self).__init__(**kwargs)
         # Initialize Target Container
         
-        self.update_balance()
+        #self.update_balance()
         
     
     
@@ -455,8 +470,11 @@ class walletguiApp(App):
     my_wallet = Wallet.recover_from_words(words, 256, "RobertPauslon",True)
     btc_balance = my_wallet.get_balance()
     """
-    my_wallets = ListProperty()
+    my_wallet_names = ListProperty()
+    wallets = ListProperty()
     db = ObjectProperty()
+    sm = ObjectProperty()
+    
     db = Sqlite3Wallet()
     res =  db.does_table_exist("Wallets")
     print(res)
@@ -467,18 +485,18 @@ class walletguiApp(App):
         #wallets = res.fetchall()
         wallets = db.get_all_wallets()
         print(f"the table exists, {wallets}")
-        my_wallets = wallets
+        my_wallet_names = wallets
         
     else:
-        my_wallets = []
+        my_wallet_names = []
         
     def build(self):
         #return Builder.load_file("walletgui.kv")
         #return WalletScreen()
-        sm = ScreenManager()
-        sm.add_widget(WalletScreen(name='wallets'))
-        #sm.add_widget(MainScreen(name='main'))
-        return sm
+        self.sm = ScreenManager()
+        self.sm.add_widget(WalletScreen(name='Wallets'))
+        self.sm.add_widget(MainScreen(name='Main'))
+        return self.sm
 
     def on_stop(self):
         db.close_database()

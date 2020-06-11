@@ -142,6 +142,7 @@ class Mnemonic:
             size = len(random_number)//2
             random_number = int(random_number[:-(size//32)],2).to_bytes(size,"big")
             mnemonic_words = mnemonic_list
+            
 
         salt = (unicodedata.normalize("NFKD","mnemonic" + passphrase)).encode("utf-8")
 
