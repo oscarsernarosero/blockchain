@@ -1,6 +1,7 @@
 import kivy
 kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
+from wallet_database_sqlite3 import Sqlite3Wallet
 import qrcode
 from urllib.request import Request, urlopen
 import json
@@ -29,7 +30,7 @@ from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.config import Config
 from kivy.uix.image import AsyncImage
-from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty
+from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty, ListProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 import kivy.input.motionevent 
 Config.set('graphics','width',300)
@@ -72,8 +73,31 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
 class WalletScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
-        self.ids.rv.data = [{'text': str(x)} for x in range(100)]
+        app = App.get_running_app()
+        my_wallets = app.my_wallets
+        no_wallet_msg ="You don't have any wallet yet.\nLet's start by creating one.\n\nPress the '+' button." 
+        if len(my_wallets)>0:
+            self.ids.rv.data = [{'text': str(x[1])} for x in my_wallets]
+        else:
+            self.ids.rv.data = [{'text': no_wallet_msg}]
 
+    def new_wallet(self):
+        self.new_wallet_popup = NewWalletPopup()
+        self.newWalletWindow = Popup(title="New Wallet", content=self.new_wallet_popup, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.6}
+                           )
+        self.newWalletWindow.open()
+        self.new_wallet_popup.ids.button.bind(on_release=self.create_wallet)
+        
+    def create_wallet(self,button):
+        app = App.get_running_app()
+        my_wallets = app.my_wallets
+        name = self.new_wallet_popup.ids.wallet_name.text
+        my_wallet = Wallet.generate_random(testnet=True)
+        app.db.new_wallet(my_wallet.xtended_key, str(my_wallet.words)[1:], name)
+        my_wallets.append((my_wallet.xtended_key, name, str(my_wallet.words)[1:]))
+        self.ids.rv.data = [{'text': x[1]} for x in my_wallets]
+        self.newWalletWindow.dismiss()
         
     
         
@@ -239,7 +263,10 @@ class SendScreen(Screen):
         
 class CameraPopup(FloatLayout):
     pass
-        
+
+class NewWalletPopup(FloatLayout):
+    pass
+            
         
 class LoadingPopup(FloatLayout):
      def __init__(self,msg):
@@ -428,7 +455,23 @@ class walletguiApp(App):
     my_wallet = Wallet.recover_from_words(words, 256, "RobertPauslon",True)
     btc_balance = my_wallet.get_balance()
     """
+    my_wallets = ListProperty()
+    db = ObjectProperty()
+    db = Sqlite3Wallet()
+    res =  db.does_table_exist("Wallets")
+    print(res)
     
+    if len(res)>0:
+        
+        #res = db.conn.cursor().execute("SELECT * FROM Wallets")
+        #wallets = res.fetchall()
+        wallets = db.get_all_wallets()
+        print(f"the table exists, {wallets}")
+        my_wallets = wallets
+        
+    else:
+        my_wallets = []
+        
     def build(self):
         #return Builder.load_file("walletgui.kv")
         #return WalletScreen()
@@ -437,6 +480,8 @@ class walletguiApp(App):
         #sm.add_widget(MainScreen(name='main'))
         return sm
 
+    def on_stop(self):
+        db.close_database()
 
 if __name__ == '__main__':
     walletguiApp().run()

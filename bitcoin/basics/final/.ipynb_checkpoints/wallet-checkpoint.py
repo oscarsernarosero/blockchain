@@ -29,7 +29,7 @@ class Wallet(MasterAccount):
         
         
         #self.db = WalletDB( "neo4j://localhost:7687" ,db_user ,db_password )
-        self.db = Sqlite3Wallet()
+        
         super().__init__( depth, fingerprint, index, chain_code, private_key,testnet)
         
         #if not self.db.exist_wallet(self.get_xtended_key()):
@@ -53,6 +53,13 @@ class Wallet(MasterAccount):
     def clean_addresses(self):
         print("cleaning addresses...")
         self.db.clean_addresses()
+        
+    def start_conn(self, conn=None):
+        if conn:
+            self.db= conn
+        else:
+            self.db = Sqlite3Wallet()
+        return True
 
     def close_db(self):
         self.db.close_database()

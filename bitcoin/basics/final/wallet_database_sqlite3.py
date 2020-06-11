@@ -35,6 +35,7 @@ class Sqlite3Wallet:
         try:
             c = self.conn.cursor()
             c.execute(query)
+            self.conn.commit()
             return True
         except Error as e:
             print(e)
@@ -105,9 +106,9 @@ class Sqlite3Wallet:
         name: String Optional. This is an alias for the wallet if user prefers it.
         """
         query1 = "INSERT INTO Wallets (xprv, words, name)\n "
-        query2 = f"VALUES('{xprv}', '{words}', '{name}') ;"
+        query2 = f"VALUES('{xprv}', {words}, '{name}') ;"
         query = query1+query2
-        #print(query)
+        print(query)
         return self.execute(query)
 
     def new_address(self, address, path, acc_index, change_addr, wallet):
@@ -282,6 +283,10 @@ class Sqlite3Wallet:
 
     def does_table_exist(self, table):
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}';"
+        return self.execute_w_res(query)
+    
+    def get_all_wallets(self):
+        query = f"SELECT * FROM Wallets;"
         return self.execute_w_res(query)
     
     def erase_database(self):
