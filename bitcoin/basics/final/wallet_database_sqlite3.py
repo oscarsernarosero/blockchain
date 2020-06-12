@@ -167,12 +167,17 @@ class Sqlite3Wallet:
             query4 = f"VALUES( '{tx_in[0]}', {tx_in[1]}, '{tx_id}');"
             query = query3+query4
             self.execute(query)
+            #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
+            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = {tx_in[0]} AND out_index = {tx_in[1]}"
+            self.execute(query)
 
         for tx_out in tx_outs:
-            query5 = "INSERT INTO Tx_Outs ( amount, script_pubkey, created_by)\n "
-            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}', '{tx_id}');"
+            query5 = "INSERT INTO Tx_Outs ( amount, script_pubkey, out_index, created_by)\n "
+            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}',{tx_out[2]}, '{tx_id}');"
             query = query5+query6
             self.execute(query)
+            
+            
 
         return True
 
@@ -213,9 +218,10 @@ class Sqlite3Wallet:
         wallet: String, The wallet extended private key.
         Returns: List of touples [(tx_id, out_index, amount)]
         """
-        query1 = f"SELECT tx_id, out_index, amount\n FROM Utxos INNER JOIN Addresses \n"
-        query2 = f"ON Utxos.address = Addresses.address\nWHERE Utxos.spent = 0 AND Addresses.wallet = '{wallet}';"
-        query = query1 + query2
+        query1 = f"SELECT Utxos.tx_id, Utxos.out_index, Utxos.amount, Addresses.path, Addresses.acc_index, Addresses.address\n "
+        query2 = f"FROM Utxos INNER JOIN Addresses \nON Utxos.address = Addresses.address\n"
+        query3 = f"WHERE Utxos.spent = 0 AND Addresses.wallet = '{wallet}';"
+        query = query1 + query2 + query3
         print(query)
         return self.execute_w_res(query)
 

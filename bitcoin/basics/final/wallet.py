@@ -230,7 +230,7 @@ class Wallet(MasterAccount):
                       )
         """
         self.db.new_tx(tx.transaction.id(), [ (x[0],x[1]) for x in utxos] ,
-                       [str(x).split(":") for x in tx.transaction.tx_outs]
+                       [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
         
         self.db.update_utxo(tx.transaction.id())

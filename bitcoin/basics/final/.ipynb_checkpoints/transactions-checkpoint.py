@@ -217,12 +217,13 @@ class Transaction(Transact):
                 
     @classmethod
     def get_inputs(self,utxo_list):
+        print(f"utxo_list: {utxo_list}")
         
         tx_ins = []
 
         for _utxo in utxo_list:
-            tx_in = TxIn(bytes.fromhex(_utxo["coin.transaction_id"]) , _utxo["coin.out_index"])
-            tx_ins.append({"tx_in": tx_in, "utxo": _utxo["coin.amount"]})
+            tx_in = TxIn(bytes.fromhex(_utxo[0]) , _utxo[1])
+            tx_ins.append({"tx_in": tx_in, "utxo": _utxo[2]})
 
         return tx_ins
          
@@ -274,11 +275,17 @@ class Transaction(Transact):
         
         for tx_input in range(len(utxo_list)):
             
-            addr_index = utxo_list[tx_input]["address.acc_index"]
-            print(f"Address trying to spend from: {utxo_list[tx_input]['coin.address']}")
-            if utxo_list[tx_input]["address.type"] == "change": change_addr = True
-            else: change_addr = False
-                
+            addr_index = utxo_list[tx_input][4]
+            print(f"Address trying to spend from: {utxo_list[tx_input][5]}, path {utxo_list[tx_input][3]}{addr_index}")
+            #if utxo_list[tx_input]["address.type"] == "change": change_addr = True
+            #else: change_addr = False
+            signing_master_account = master_account.get_child_from_path(f"{utxo_list[tx_input][3]}{addr_index}")
+            #type doesn't really matter here because the private key doesn't depend on it. So, a simple p2wpkh is Ok.
+            signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
+                                      signing_master_account.testnet)
+            print(signing_account.address)
+            segwit=False
+            """
             if change_addr:
                 signing_master_account = master_account.get_child_from_path(f"m/0H/1H/{addr_index}")
                 signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
@@ -291,7 +298,7 @@ class Transaction(Transact):
                                          signing_master_account.testnet)
                 segwit=False
                 print(signing_account.address)
-          
+            """
             
             if not transaction.sign_input(tx_input, signing_account.privkey, segwit=segwit, p2sh=False):
                 print("SIGNATURE FAILED")
