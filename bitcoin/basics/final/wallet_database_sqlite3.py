@@ -216,6 +216,7 @@ class Sqlite3Wallet:
         query1 = f"SELECT tx_id, out_index, amount\n FROM Utxos INNER JOIN Addresses \n"
         query2 = f"ON Utxos.address = Addresses.address\nWHERE Utxos.spent = 0 AND Addresses.wallet = '{wallet}';"
         query = query1 + query2
+        print(query)
         return self.execute_w_res(query)
 
     def get_unused_addresses(self,wallet, days_range=None, max_days=None):
@@ -233,7 +234,7 @@ class Sqlite3Wallet:
         the function will throw an exception.
         """
         if days_range is None and max_days is None:
-            query1 = f"SELECT address \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
+            query1 = f"SELECT address, change_addr  \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
             query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{wallet}';"
             query = query1 + query2
             #print(query)
@@ -273,13 +274,17 @@ class Sqlite3Wallet:
         confirmed: Int/Boolean 0=False, 1=True; the current state of confirmation of the transaction in the actual blockchain.
         """
         query = f"SELECT * FROM Utxos WHERE  tx_id = '{tx_id}' AND out_index = {out_index}"
-        result = execute_w_res(query)
+        #print(query)
+        result = self.execute_w_res(query)
+        #print(f"result of looking_for coins: {result}")
         if len(result)>0:
             if result[0][6] != confirmed:
                 query = f"UPDATE Utxos \nSET confirmed = {confirmed} WHERE tx_id = '{tx_id}' AND out_index = {out_index} "
-                result = execute_w_res(query)
+                print(f"changed confirmations on utxo {tx_id}:{out_index}")
+                result = self.execute_w_res(query)
 
-        return True
+            return True
+        else: return False
 
     def does_table_exist(self, table):
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}';"
@@ -291,12 +296,23 @@ class Sqlite3Wallet:
         name: the name of the wallet provided.
         """
         query = f"SELECT words FROM Wallets WHERE name='{name}';"
-        print(query)
+        #print(query)
         return self.execute_w_res(query)
     
     def get_all_wallets(self):
         query = f"SELECT * FROM Wallets;"
         return self.execute_w_res(query)
+    
+    def get_max_index(self, account, wallet):
+        """
+        Returns an INTEGER representing the highest index of the address in 
+        the specified account belonging to the specified wallet. If there is
+        NO addresses under specified account, it will return None.
+        account: String (Path); i.e: m/44H/0H/
+        wallet: String; extended private key.
+        """
+        query = f"SELECT MAX(acc_index) FROM Addresses WHERE wallet='{wallet}' AND path='{account}';"
+        return self.execute_w_res(query)[0][0]
     
     def erase_database(self):
         query = "DROP TABLE Tx_Ins"

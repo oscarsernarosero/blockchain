@@ -78,11 +78,21 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
             print(f"words from db: {words[0][0]}")
             _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
             
-            app.wallets.append({f"{rv.data[index]["text"]}": _wallet})
+            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
             
-            sm.switch_to(Screen(name="Main"), direction='right')
+            Clock.schedule_once(self.go_to_main, 0.7)                    
+            #sm.switch_to(Screen(name="Main"), direction='right')
+                                
         else:
             print("selection removed for {0}".format(rv.data[index]))
+                                
+    def go_to_main(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        #sm.switch_to(Screen(name="Main"), direction='right')
+        sm.current = "Main"
 
 
 class WalletScreen(Screen):
@@ -120,14 +130,11 @@ class MainScreen(Screen):
     btc_balance = NumericProperty()
     usd_balance = 0.0
     
-    def __init__(self, **kwargs):
-        super(MainScreen, self).__init__(**kwargs)
-        # Initialize Target Container
+    def on_pre_enter(self):
+        app = App.get_running_app()
+        if app.current_wallet is not None:
+            self.update_balance()
         
-        #self.update_balance()
-        
-    
-    
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
     usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
     
@@ -144,7 +151,15 @@ class MainScreen(Screen):
     
     def update_real_balance_process(self):
         app = App.get_running_app() 
-        my_wallet = app.my_wallet
+        #my_wallet = app.my_wallet
+        print(f"update_balance_process:\napp.wallets {app.wallets}, current wallet: {app.current_wallet}")
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet.start_conn()
         my_wallet.update_balance()  
         
         print("Database up to date. Updating information on display...")
@@ -168,7 +183,16 @@ class MainScreen(Screen):
         raw_data = self.read_json(url)
         btc_price = raw_data["USD"]
         app = App.get_running_app() 
-        my_wallet = app.my_wallet
+        #my_wallet = app.my_wallet
+        print(f"update_balance_process:\napp.wallets {app.wallets}, current wallet: {app.current_wallet}")
+        index=None
+        for i,w in enumerate(app.wallets):
+            print(f"w.keys(): {w.keys()}")
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet.start_conn()
         self.btc_balance = my_wallet.get_balance()/100000000
         print(f"balance: {self.btc_balance}")
         #self.btc_balance = app.btc_balance/100000000
@@ -178,6 +202,7 @@ class MainScreen(Screen):
         
         print("closing loading window")
         self.loadingBalance.dismiss()
+        my_wallet.close_conn()
         
     def read_json(self,url):
         request = Request(url)
@@ -218,7 +243,15 @@ class SendScreen(Screen):
         print(f"amount: {amount}, address: {address}")
         print("SENDING TX")
         app = App.get_running_app() 
-        my_wallet = app.my_wallet
+        #my_wallet = app.my_wallet
+        index=None
+        for i,w in enumerate(app.wallets):
+            print(f"w.keys(): {w.keys()}")
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet.start_conn()
         transaction = my_wallet.send([(address,amount)])
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
         
@@ -404,31 +437,39 @@ class ReceiveScreen(Screen):
 
     def qr_popup(self):
         app = App.get_running_app() 
-        my_wallet = app.my_wallet
+        index=None
+        for i,w in enumerate(app.wallets):
+            print(f"w.keys(): {w.keys()}")
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet.start_conn()
         
         if self.ids.existing_addr.state == "down":
         
             addresses = my_wallet.get_unused_addresses_list()
+            print(addresses)
             addr_type = self.ids.existing_addr.text
             
             if addr_type == "P2PKH (default)": 
-                addresses_filtered = [x for x in addresses if x["unused_address.address"][0] in "1mn"]
+                addresses_filtered = [x for x in addresses if x[0][0] in "1mn"]
                 
             elif addr_type == "P2WPKH": 
-                addresses_filtered = [x for x in addresses if x["unused_address.address"][:3] in ["tb1","bc1"]]
+                addresses_filtered = [x for x in addresses if x[0][:3] in ["tb1","bc1"]]
                 
             else:
-                addresses_filtered = [x for x in addresses if x["unused_address.address"][0] in "23"]
+                addresses_filtered = [x for x in addresses if x[0][0] in "23"]
 
                 
             if len(addresses_filtered)==0:
                 self.show = QRcodePopup(None)
             else:
-                self.show = QRcodePopup(addresses_filtered[0]["unused_address.address"])
+                self.show = QRcodePopup(addresses_filtered[0][0])
                 
         elif self.ids.new_addr.state == "down":
-            app = App.get_running_app() 
-            my_wallet = app.my_wallet
+            #app = App.get_running_app() 
+            #my_wallet = app.my_wallet
             addr_type = self.ids.new_addr.text
             
             if addr_type == "P2PKH (default)": 
@@ -472,9 +513,12 @@ class walletguiApp(App):
     """
     my_wallet_names = ListProperty()
     wallets = ListProperty()
+    current_wallet = StringProperty()
     db = ObjectProperty()
     sm = ObjectProperty()
     
+    
+    current_wallet = None
     db = Sqlite3Wallet()
     res =  db.does_table_exist("Wallets")
     print(res)
@@ -483,9 +527,9 @@ class walletguiApp(App):
         
         #res = db.conn.cursor().execute("SELECT * FROM Wallets")
         #wallets = res.fetchall()
-        wallets = db.get_all_wallets()
-        print(f"the table exists, {wallets}")
-        my_wallet_names = wallets
+        res = db.get_all_wallets()
+        print(f"the table exists, {res}")
+        my_wallet_names = res
         
     else:
         my_wallet_names = []
@@ -495,11 +539,13 @@ class walletguiApp(App):
         #return WalletScreen()
         self.sm = ScreenManager()
         self.sm.add_widget(WalletScreen(name='Wallets'))
-        self.sm.add_widget(MainScreen(name='Main'))
+        self.sm.add_widget(MainScreen())
+        self.sm.add_widget(ReceiveScreen())
+        self.sm.add_widget(SendScreen())                       
         return self.sm
 
     def on_stop(self):
-        db.close_database()
+        self.db.close_database()
 
 if __name__ == '__main__':
     walletguiApp().run()

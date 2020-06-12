@@ -61,55 +61,71 @@ class Wallet(MasterAccount):
             self.db = Sqlite3Wallet()
         return True
 
+    def close_conn(self):
+        self.db.conn.close()
+    
     def close_db(self):
         self.db.close_database()
     
-    @classmethod
-    def get_i(self, index):
-        if index is None:
-            print(f"get i: {index}")
-            i = int.from_bytes(urandom(4),"big")
-            i = i & 0x7fffffff
-            if i < (2**31-1):print("true")
+    #@classmethod
+    def get_i(self,account_path, index,random_index = False):
+        if random_index:
+            if index is None:
+                print(f"get i: {index}")
+                i = int.from_bytes(urandom(4),"big")
+                i = i & 0x7fffffff
+                if i < (2**31-1):print("true")
+            elif index is not None:
+                if index <= (2**31-1):
+                    i = index
+                else:
+                    raise Exception (f"index must be less than {2**31-1} ")
         else:
-            if index <= (2**31-1):
-                i = index
-            else:
-                raise Exception (f"index must be less than {2**31-1} ")
+            try:
+                print(f"{self.db} OK.")
+            except:
+                self.start_conn()
+                
+            last_index = self.db.get_max_index( account_path, self.get_xtended_key())
+            
+            if last_index is None: i = 0
+            else: i = last_index + 1
+            
+            
         return i
 
     #@classmethod
     def get_unused_addresses_list(self, change_addresses=False, range_of_days=None, last_day_range=None):
         
-        unused_addresses = self.db.get_unused_addresses(xprv = self.get_xtended_key(), 
+        unused_addresses = self.db.get_unused_addresses(wallet = self.get_xtended_key(), 
                                                         days_range = range_of_days, 
                                                         max_days = last_day_range)
         
         if change_addresses:
-            unused_addresses_filtered =  [x for x in unused_addresses if x["unused_address.type"]=="change"]
+            unused_addresses_filtered =  [x for x in unused_addresses if x[1]==1]
         else:
-            unused_addresses_filtered =  [x for x in unused_addresses if x["unused_address.type"]=="recipient"]
+            unused_addresses_filtered =  [x for x in unused_addresses if x[1]==0]
         
         return unused_addresses_filtered
                                
                                
     #@classmethod
     def create_receiving_address(self, addr_type = "p2pkh",index=None):
-        receiving_path = "m/0H/2H/"
-        i = self.get_i(index)
+        receiving_path = "m/44H/0H/0H/"
+        i = self.get_i(receiving_path, index)
         path = receiving_path + str(i)
-        print(f"Path: {path}")
+        print(f"Deposit address's Path: {path}")
         receiving_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
         self.db.new_address(account.address,receiving_path,i,0, self.get_xtended_key())
         return account
 
     #@classmethod
-    def create_change_address(self,addr_type = "p2wpkh", index=None):
-        change_path = "m/0H/1H/"
-        i = self.get_i(index)
+    def create_change_address(self, addr_type = "p2wpkh", index=None):
+        change_path = "m/44H/0H/1H/"
+        i = self.get_i(change_path, index)
         path = change_path + str(i)
-        print(f"Path: {path}")
+        print(f"Change address's Path: {path}")
         change_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
         self.db.new_address(account.address,change_path,i,1, self.get_xtended_key())
@@ -120,10 +136,13 @@ class Wallet(MasterAccount):
         
     def get_balance(self):
         coins = self.get_utxos()
+        print(coins)
         balance = 0
-        for coin in coins:
-            "coin will be an array with data [ tx_id, out_index, amount ]"
-            balance += coin[2]
+        if len(coins)>0:
+            for coin in coins:
+                print(coin)
+                "coin will be an array with data [ tx_id, out_index, amount ]"
+                balance += coin[2]
         return balance
 
     def update_balance(self):
@@ -134,20 +153,23 @@ class Wallet(MasterAccount):
             
         for address in addresses:
             "address will be a touple with data (address,)"
-            
+            print(f"consulting blockchain for address {address}")
             addr_info = get_address_details(address[0], coin_symbol = coin_symbol, unspent_only=True)
+            print(f"res for {address}:\n{addr_info}")
             
             if addr_info["unconfirmed_n_tx"] > 0:
+                print("got unconfirmed transactions.")
                 for utxo in addr_info["unconfirmed_txrefs"]:
                     if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 0):
                         print("new unconfirmed UTXO")
-                        self.db.new_utxo(utxo["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],0)
+                        self.db.new_utxo(utxo["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 0)
             
             if addr_info["n_tx"] - addr_info["unconfirmed_n_tx"] > 0 :
+                print("got transactions.")
                 for utxo in addr_info["txrefs"]:
                     if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 1):
                         print("new confirmed UTXO")
-                        self.db.new_utxo(addr_info["address"],utxo["tx_hash"],utxo["tx_output_n"],utxo["value"],1)
+                        self.db.new_utxo(addr_info["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 1)
       
         return self.get_balance()
     
