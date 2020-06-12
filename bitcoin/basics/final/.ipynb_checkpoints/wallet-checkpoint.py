@@ -7,6 +7,7 @@ suggested by him in chapter 14 of his book.
 This is just an educational-purpose code. The author does not take any responsibility
 on any losses caused by the use of this code.
 """
+from constants import *
 from accounts import MasterAccount, Account, MultSigAccount
 from transactions import Transaction, MultiSigTransaction
 from os import urandom
@@ -117,7 +118,7 @@ class Wallet(MasterAccount):
         print(f"Deposit address's Path: {path}")
         receiving_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
-        self.db.new_address(account.address,receiving_path,i,0, self.get_xtended_key())
+        self.db.new_address(account.address,receiving_path,i,FALSE, addr_type, self.get_xtended_key())
         return account
 
     #@classmethod
@@ -128,7 +129,7 @@ class Wallet(MasterAccount):
         print(f"Change address's Path: {path}")
         change_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
-        self.db.new_address(account.address,change_path,i,1, self.get_xtended_key())
+        self.db.new_address(account.address,change_path,i,TRUE, P2WPKH, self.get_xtended_key())
         return account
     
     def get_utxos(self):

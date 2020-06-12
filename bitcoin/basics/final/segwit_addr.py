@@ -63,16 +63,20 @@ def bech32_decode(bech):
     """Validate a Bech32 string, and determine HRP and data."""
     if ((any(ord(x) < 33 or ord(x) > 126 for x in bech)) or
             (bech.lower() != bech and bech.upper() != bech)):
+        print(f"bech32 decoding failed. Mixed cases or characters not in range.")
         return (None, None)
     bech = bech.lower()
     pos = bech.rfind('1')
     if pos < 1 or pos + 7 > len(bech) or len(bech) > 90:
+        print(f"bech32 decoding failed. Invalid position of '1' or address too short or too long.")
         return (None, None)
     if not all(x in CHARSET for x in bech[pos+1:]):
+        print(f"bech32 decoding failed. One or more of the characters in the address are not BECH32 characters.")
         return (None, None)
     hrp = bech[:pos]
     data = [CHARSET.find(x) for x in bech[pos+1:]]
     if not bech32_verify_checksum(hrp, data):
+        print(f"bech32 decoding failed. Checksum failed.")
         return (None, None)
     return (hrp, data[:-6])
 

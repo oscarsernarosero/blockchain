@@ -7,7 +7,7 @@ This module is coded entirely by Oscar Serna.
 This is just an educational-purpose code. The author does not take any responsibility
 on any losses caused by the use of this code.
 """
-
+from constants import *
 from ecc import PrivateKey, S256Point, Signature
 from script import p2pkh_script, p2sh_script, Script, p2wpkh_script,p2wsh_script
 from helper import (
@@ -284,7 +284,16 @@ class Transaction(Transact):
             signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
                                       signing_master_account.testnet)
             print(signing_account.address)
-            segwit=False
+            #FIX THIS AFTER WE SETUP THE KIND OF ADDRESS IN THE DATABASE!!!:
+            if utxo_list[tx_input][6] == P2WPKH or utxo_list[tx_input][6] == P2WSH or utxo_list[tx_input][6] == P2SH_P2WPKH:
+                segwit=True
+            else:
+                segwit=False
+                
+            if utxo_list[tx_input][6] == P2SH_P2WPKH:
+                p2sh=True
+            else:
+                p2sh=False
             """
             if change_addr:
                 signing_master_account = master_account.get_child_from_path(f"m/0H/1H/{addr_index}")
@@ -300,7 +309,7 @@ class Transaction(Transact):
                 print(signing_account.address)
             """
             
-            if not transaction.sign_input(tx_input, signing_account.privkey, segwit=segwit, p2sh=False):
+            if not transaction.sign_input(tx_input, signing_account.privkey, segwit=segwit, p2sh=p2sh):
                 print("SIGNATURE FAILED")
         return transaction
     

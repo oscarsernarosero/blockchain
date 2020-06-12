@@ -50,8 +50,8 @@ class Sqlite3Wallet:
 
     def create_address_table(self):
         query1 =f"CREATE TABLE IF NOT EXISTS Addresses ( address text NOT NULL PRIMARY KEY,\nacc_index INT NOT NULL,"
-        query2 = "\npath text NOT NULL,\nchange_addr INT NOT NULL,\ncreated INT NOT NULL,\nwallet text NOT NULL,\nFOREIGN KEY (wallet) "
-        query3 = "\nREFERENCES Wallets(xprv) ) WITHOUT ROWID ;"
+        query2 = "\npath text NOT NULL,\nchange_addr INT NOT NULL,\ncreated INT NOT NULL,\nwallet text NOT NULL,\n"
+        query3 = "type INT NOT NULL,\nFOREIGN KEY (wallet) \nREFERENCES Wallets(xprv) ) WITHOUT ROWID ;"
         query = query1 + query2 + query3
         #print(query)
         return self.execute(query)
@@ -111,7 +111,7 @@ class Sqlite3Wallet:
         print(query)
         return self.execute(query)
 
-    def new_address(self, address, path, acc_index, change_addr, wallet):
+    def new_address(self, address, path, acc_index, change_addr, _type, wallet):
         """
         Creates a new address in the database.
         self.conn: internal database driver transaction.
@@ -120,11 +120,12 @@ class Sqlite3Wallet:
         as a standard, it must start with m and end with /
         acc_index: int; account index. This would be the last part of the path.
         change_addr: int, 0=False, 1=True; if the address is a "change adrress" then 1 (True). Otherwise 0 (False).
+        _type: INTEGER; the codes are: P2PKH = 2, P2SH = 3, P2WPKH = 4, P2WSH = 5, P2SH_P2WPKH = 6, P2SH_P2WSH = 7
         wallet: String; the xtended private key of the wallet
         """
         created = int(time.time())
-        query1 = "INSERT INTO Addresses (address, path, acc_index, change_addr, created, wallet)\n "
-        query2 = f'VALUES("{address}", "{path}", {acc_index}, {change_addr}, {created}, "{wallet}") ;'
+        query1 = "INSERT INTO Addresses (address, path, acc_index, change_addr, created, type, wallet)\n "
+        query2 = f'VALUES("{address}", "{path}", {acc_index}, {change_addr}, {created}, {_type}, "{wallet}") ;'
         query = query1+query2
         #print(query)
         return self.execute(query)
@@ -218,8 +219,8 @@ class Sqlite3Wallet:
         wallet: String, The wallet extended private key.
         Returns: List of touples [(tx_id, out_index, amount)]
         """
-        query1 = f"SELECT Utxos.tx_id, Utxos.out_index, Utxos.amount, Addresses.path, Addresses.acc_index, Addresses.address\n "
-        query2 = f"FROM Utxos INNER JOIN Addresses \nON Utxos.address = Addresses.address\n"
+        query1 = f"SELECT Utxos.tx_id, Utxos.out_index, Utxos.amount, Addresses.path, Addresses.acc_index, Addresses.address,\n "
+        query2 = f"Addresses.type \nFROM Utxos INNER JOIN Addresses \nON Utxos.address = Addresses.address\n"
         query3 = f"WHERE Utxos.spent = 0 AND Addresses.wallet = '{wallet}';"
         query = query1 + query2 + query3
         print(query)
