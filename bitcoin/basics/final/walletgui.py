@@ -276,6 +276,12 @@ class SendScreen(Screen):
         denomination = self.ids.denomination.text
         amount = float(self.ids.amount.text)
         address = self.ids.address.text
+        address = address.replace("\n","")
+        address = address.strip(" ")
+        address = address.strip("'")
+        address = address.rfind("'")
+        address = address[starts+1:]                        
+        
         if denomination == "Bitcoins": amount = int(amount*100000000)
         else: amount = int(amount)
             
