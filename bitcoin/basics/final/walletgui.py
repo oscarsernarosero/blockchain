@@ -295,21 +295,41 @@ class SendScreen(Screen):
         if denomination == "Bitcoins": amount = int(amount*100000000)
         else: amount = int(amount)
             
-        #broadcasting transaction    
-        self.send_tx(self, amount, address)
+        #broadcasting transaction
+        try: 
+            self.send_tx(self, amount, address)
+                                
+            #cleanning the inputs
+            self.ids.amount.text = ""
+            self.ids.address.text = ""
+                                
+            #closing popups
+            self.loadingWindow.dismiss()
+                                
+            #updating balance
+            main = MainScreen()
+            main.update_real_balance()
+
+            self.popupWindow.dismiss()
+                                
+        except Exception as e:
+            if str(e).startswith("Not enough funds"):
+                #TRIGGER THE "WRONG INPUT POPUP"
+                self.not_enough_funds = NotEnoughFundsPopup()
+                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.not_enough_funds, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.not_enough_funds.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingWindow.dismiss()
+                self.popupWindow.dismiss()
         
-        #cleanning the inputs
-        self.ids.amount.text = ""
-        self.ids.address.text = ""
         
-        #closing popups
-        self.loadingWindow.dismiss()
-        #updating balance
         
-        main = MainScreen()
-        main.update_real_balance()
         
-        self.popupWindow.dismiss()
         
     def scan_qr(self):
         self.qrscanner = CameraPopup()
@@ -330,6 +350,24 @@ class CameraPopup(FloatLayout):
 
 class NewWalletPopup(FloatLayout):
     pass
+
+class NotEnoughFundsPopup(FloatLayout):
+    def __init__(self):
+        super().__init__()
+        #self.orientation="vertical")
+        msg_txt = "You don't have enough\nfunds for this transaction.\n\nSorry :/"
+        message = Label(text= msg_txt,
+                       halign="center",size_hint= (0.6,0.3), 
+                        pos_hint={"center_x":0.5, "center_y":0.65}, font_size="14sp"
+                       )
+
+        self.OK = Button(text="Ok. Got it!",
+                     pos_hint= {"center_x":0.5, "center_y":0.18}, 
+                     size_hint= (1,0.17),
+                          background_color=[0.5,1,0.75,1]
+                      )
+        self.add_widget(message)
+        self.add_widget(self.OK)                                
                                 
 class WrongInputPopup(FloatLayout):
     def __init__(self):

@@ -248,17 +248,10 @@ class Wallet(MasterAccount):
         print(f"TRANSACTION ID: {tx.transaction.id()}")
         
         #saving in db
-        """
-        self.db.new_tx(tx.transaction.id(),[x["coin.local_index"] for x in utxos], 
-                       #[str(x[0])+":"+str(x[1]) for x in to_address_amount_list]
-                       [str(x) for x in tx.transaction.tx_outs]
-                      )
-        """
         self.db.new_tx(tx.transaction.id(), [ (x[0],x[1]) for x in utxos] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
-        #The following is achieved now through to the new_transaction method in the Sqlite3Wallet class.
-        #self.db.update_utxo(tx.transaction.id())
+        
         
         return tx,push
         
