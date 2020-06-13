@@ -222,21 +222,31 @@ class SendScreen(Screen):
     def confirm_popup(self):
         #reading the inputs and 
         denomination = self.ids.denomination.text
-        amount = float(self.ids.amount.text)
-        address = self.ids.address.text
-        if denomination == "Bitcoins": amount = int(amount*100000000)
-        else: amount = int(amount)
-            
-        self.show = ConfirmSendPopup(amount,address,denomination)
-        self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(500,500), 
-                                 pos_hint={"center_x":0.5, "center_y":0.5}
-                            #auto_dismiss=False
-                           )
-        self.popupWindow.open()
-        self.show.YES.bind(on_release=self.go_back)
-        self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
-        
-    
+        amount = None
+        try: 
+            amount = float(self.ids.amount.text)
+            address = self.ids.address.text
+            if denomination == "Bitcoins": amount = int(amount*100000000)
+            else: amount = int(amount)
+
+            self.show = ConfirmSendPopup(amount,address,denomination)
+            self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(500,500), 
+                                     pos_hint={"center_x":0.5, "center_y":0.5}
+                                #auto_dismiss=False
+                               )
+            self.popupWindow.open()
+            self.show.YES.bind(on_release=self.go_back)
+            self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
+        except: 
+            #TRIGGER THE "WRONG INPUT POPUP"
+            self.wrong_input = WrongInputPopup()
+            self.wrongInputWindow = Popup(title="Not a valid amount", content=self.wrong_input, size_hint=(None,None), 
+                                          size=(500,500), pos_hint={"center_x":0.5, "center_y":0.5}
+                               )
+            self.wrongInputWindow.open()
+            self.wrong_input.OK.bind(on_release=self.wrongInputWindow.dismiss)                    
+
+                                
     def send_tx(self,screen, amount, address):
         "the button is the Button object"
         print(screen.show.YES.text)
@@ -274,7 +284,7 @@ class SendScreen(Screen):
     def send_tx_process(self):
         #reading the inputs and 
         denomination = self.ids.denomination.text
-        amount = float(self.ids.amount.text)
+        amount = float(self.ids.amount.text)                        
         address = self.ids.address.text
         address = address.replace("\n","")
         address = address.strip(" ")
@@ -320,6 +330,27 @@ class CameraPopup(FloatLayout):
 
 class NewWalletPopup(FloatLayout):
     pass
+                                
+class WrongInputPopup(FloatLayout):
+    def __init__(self):
+        super().__init__()
+        #self.orientation="vertical")
+        msg_txt1 = "Only decimal numbers are allowed\nin the 'Amount' field.\nPlease enter a valid amount of"
+        msg_txt2 = " currency.\nMake sure you are\nselecting the right 'Units'(Bitcoins/Satoshis)."
+        msg_txt3 = "\nFor example:\n0.0234 Bitcoins;  or:  2340000 Satoshis."
+        msg_txt = msg_txt1 + msg_txt2 + msg_txt3
+        message = Label(text= msg_txt,
+                       halign="center",size_hint= (0.6,0.3), 
+                        pos_hint={"center_x":0.5, "center_y":0.65}, font_size="12sp"
+                       )
+
+        self.OK = Button(text="Ok. Got it!",
+                     pos_hint= {"center_x":0.5, "center_y":0.18}, 
+                     size_hint= (1,0.17),
+                          background_color=[0.5,1,0.75,1]
+                      )
+        self.add_widget(message)
+        self.add_widget(self.OK)
             
         
 class LoadingPopup(FloatLayout):
@@ -339,7 +370,7 @@ class ConfirmSendPopup(FloatLayout):
             
         message = Label(text=f"Are you sure you want to send\n {amount/100000000} BTC to the adress\n{address}\n?",
                        halign="center",size_hint= (0.6,0.3), 
-                        pos_hint={"center_x":0.5, "center_y":0.8}, font_size="12sp"
+                        pos_hint={"center_x":0.5, "center_y":0.8}, font_size="11sp"
                        )
 
         self.YES = Button(text="YES",
