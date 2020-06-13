@@ -332,7 +332,6 @@ class SendScreen(Screen):
         except Exception as e:
                                 
             if str(e).startswith("Not enough funds"):
-                #TRIGGER THE "WRONG INPUT POPUP"
                 self.exception_popup = GenericOkPopup("You don't have enough\nfunds for this transaction.\n\nSorry :/")
                 self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
@@ -346,9 +345,38 @@ class SendScreen(Screen):
                 self.popupWindow.dismiss()
                                 
             elif str(e).startswith("('Status Code 429'"):
-                #TRIGGER THE "WRONG INPUT POPUP"
                 self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
                 self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingWindow.dismiss()
+                self.popupWindow.dismiss()
+                                 
+            elif str(e).endswith("Funds will be lost!"):
+                                
+                msg1 = "You entered an invalid address.\nWe prevented the transaction from\nlosing your funds. "
+                msg2 = "Please\nenter a valid address and try\nagain."
+                self.exception_popup = GenericOkPopup(msg)
+                self.notEnoughFundsWindow = Popup(title="Bad Address", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingWindow.dismiss()
+                self.popupWindow.dismiss()
+                                
+            else:
+                #TRIGGER THE "OOPS! POPUP"
+                self.exception_popup = GenericOkPopup("Oops! Something went wrong.\nPlease try again later.")
+                self.notEnoughFundsWindow = Popup(title="Unknown Exception", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}
                                    )
