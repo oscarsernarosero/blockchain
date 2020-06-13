@@ -160,12 +160,29 @@ class MainScreen(Screen):
                 break
         my_wallet = app.wallets[index][app.current_wallet]
         my_wallet.start_conn()
-        my_wallet.update_balance()  
+                                
+        try:                        
+            my_wallet.update_balance()  
+            print("Database up to date. Updating information on display...")
+            self.loadingDB.dismiss()
+
+            self.update_balance()
+        except Exception as e:
+            if str(e).startswith("('Status Code 429'"):
+                #TRIGGER THE "WRONG INPUT POPUP"
+                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
+                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingDB.dismiss()
+
+                self.update_balance()                  
         
-        print("Database up to date. Updating information on display...")
-        self.loadingDB.dismiss()
-        
-        self.update_balance()
         
     
     def update_balance(self):
@@ -313,19 +330,35 @@ class SendScreen(Screen):
             self.popupWindow.dismiss()
                                 
         except Exception as e:
+                                
             if str(e).startswith("Not enough funds"):
                 #TRIGGER THE "WRONG INPUT POPUP"
-                self.not_enough_funds = NotEnoughFundsPopup()
-                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.not_enough_funds, 
+                self.exception_popup = GenericOkPopup("You don't have enough\nfunds for this transaction.\n\nSorry :/")
+                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}
                                    )
                 self.notEnoughFundsWindow.open()
-                self.not_enough_funds.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
                                 
                 #closing popups
                 self.loadingWindow.dismiss()
                 self.popupWindow.dismiss()
+                                
+            elif str(e).startswith("('Status Code 429'"):
+                #TRIGGER THE "WRONG INPUT POPUP"
+                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
+                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingWindow.dismiss()
+                self.popupWindow.dismiss()
+                
         
         
         
@@ -351,11 +384,10 @@ class CameraPopup(FloatLayout):
 class NewWalletPopup(FloatLayout):
     pass
 
-class NotEnoughFundsPopup(FloatLayout):
-    def __init__(self):
+class GenericOkPopup(FloatLayout):
+    def __init__(self,msg_txt):
         super().__init__()
-        #self.orientation="vertical")
-        msg_txt = "You don't have enough\nfunds for this transaction.\n\nSorry :/"
+                                
         message = Label(text= msg_txt,
                        halign="center",size_hint= (0.6,0.3), 
                         pos_hint={"center_x":0.5, "center_y":0.65}, font_size="14sp"
