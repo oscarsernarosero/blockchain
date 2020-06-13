@@ -279,7 +279,7 @@ class SendScreen(Screen):
         address = address.replace("\n","")
         address = address.strip(" ")
         address = address.strip("'")
-        address = address.rfind("'")
+        starts = address.rfind("'")
         address = address[starts+1:]                        
         
         if denomination == "Bitcoins": amount = int(amount*100000000)

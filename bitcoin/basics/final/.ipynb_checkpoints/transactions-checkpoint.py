@@ -284,15 +284,19 @@ class Transaction(Transact):
             signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
                                       signing_master_account.testnet)
             print(signing_account.address)
-            #FIX THIS AFTER WE SETUP THE KIND OF ADDRESS IN THE DATABASE!!!:
+            
             if utxo_list[tx_input][6] == P2WPKH or utxo_list[tx_input][6] == P2WSH or utxo_list[tx_input][6] == P2SH_P2WPKH:
+                print(f"from Transactions: sending from a SegWit Address")
                 segwit=True
             else:
+                print(f"from Transactions: sending from a NOT SegWit Address")
                 segwit=False
                 
             if utxo_list[tx_input][6] == P2SH_P2WPKH:
+                print(f"from Transactions: sending from a P2SH Address")
                 p2sh=True
             else:
+                print(f"from Transactions: sending NOT from a P2SH Address")
                 p2sh=False
             """
             if change_addr:

@@ -24,7 +24,7 @@ import time
 class Wallet(MasterAccount):
     
     def __init__(self, depth, fingerprint, index, chain_code, private_key, db_user="neo4j",db_password="wallet", testnet = False):
-    
+        
         load_dotenv()
         BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
         
@@ -112,13 +112,20 @@ class Wallet(MasterAccount):
                                
     #@classmethod
     def create_receiving_address(self, addr_type = "p2pkh",index=None):
+        if addr_type.lower()   ==   "p2pkh":     _type  = P2PKH
+        elif addr_type.lower() ==  "p2wpkh":     _type  = P2WPKH
+        elif addr_type.lower() ==    "p2sh":     _type  = P2SH
+        elif addr_type.lower() ==   "p2wsh":     _type  = P2WSH
+        elif addr_type.lower() == "p2sh_p2wpkh": _type  = P2SH_P2WPKH
+        elif addr_type.lower() == "p2sh_p2wsh":  _type  = P2SH_P2WSH
+        else: raise Exception(f"{addr_type} is NOT a valid type of address.")
         receiving_path = "m/44H/0H/0H/"
         i = self.get_i(receiving_path, index)
         path = receiving_path + str(i)
         print(f"Deposit address's Path: {path}")
         receiving_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
-        self.db.new_address(account.address,receiving_path,i,FALSE, addr_type, self.get_xtended_key())
+        self.db.new_address(account.address,receiving_path,i,FALSE, _type, self.get_xtended_key())
         return account
 
     #@classmethod
@@ -233,8 +240,8 @@ class Wallet(MasterAccount):
         self.db.new_tx(tx.transaction.id(), [ (x[0],x[1]) for x in utxos] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
-        
-        self.db.update_utxo(tx.transaction.id())
+        #The following is achieved now through to the new_transaction method in the Sqlite3Wallet class.
+        #self.db.update_utxo(tx.transaction.id())
         
         return tx,push
         

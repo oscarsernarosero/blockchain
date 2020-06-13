@@ -108,7 +108,7 @@ class Sqlite3Wallet:
         query1 = "INSERT INTO Wallets (xprv, words, name)\n "
         query2 = f"VALUES('{xprv}', {words}, '{name}') ;"
         query = query1+query2
-        print(query)
+        #print(query)
         return self.execute(query)
 
     def new_address(self, address, path, acc_index, change_addr, _type, wallet):
@@ -169,7 +169,7 @@ class Sqlite3Wallet:
             query = query3+query4
             self.execute(query)
             #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
-            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = {tx_in[0]} AND out_index = {tx_in[1]}"
+            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = '{tx_in[0]}' AND out_index = {tx_in[1]}"
             self.execute(query)
 
         for tx_out in tx_outs:
@@ -223,7 +223,7 @@ class Sqlite3Wallet:
         query2 = f"Addresses.type \nFROM Utxos INNER JOIN Addresses \nON Utxos.address = Addresses.address\n"
         query3 = f"WHERE Utxos.spent = 0 AND Addresses.wallet = '{wallet}';"
         query = query1 + query2 + query3
-        print(query)
+        #print(query)
         return self.execute_w_res(query)
 
     def get_unused_addresses(self,wallet, days_range=None, max_days=None):
@@ -259,7 +259,7 @@ class Sqlite3Wallet:
             query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{wallet}'"
             query3 = f"\nAND\n ({now} - Addresses.created) > {start_day} AND ({now} - Addresses.created) < {finish_day} ;"
             query = query1 + query2 + query3
-            print(query)
+            #print(query)
             return self.execute_w_res(query)
 
     def get_all_addresses(self,wallet):
