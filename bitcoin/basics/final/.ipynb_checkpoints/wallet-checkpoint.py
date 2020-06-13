@@ -110,7 +110,6 @@ class Wallet(MasterAccount):
         return unused_addresses_filtered
                                
                                
-    #@classmethod
     def create_receiving_address(self, addr_type = "p2pkh",index=None):
         if addr_type.lower()   ==   "p2pkh":     _type  = P2PKH
         elif addr_type.lower() ==  "p2wpkh":     _type  = P2WPKH
@@ -128,7 +127,7 @@ class Wallet(MasterAccount):
         self.db.new_address(account.address,receiving_path,i,FALSE, _type, self.get_xtended_key())
         return account
 
-    #@classmethod
+    
     def create_change_address(self, addr_type = "p2wpkh", index=None):
         change_path = "m/44H/0H/1H/"
         i = self.get_i(change_path, index)
@@ -138,6 +137,24 @@ class Wallet(MasterAccount):
         account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
         self.db.new_address(account.address,change_path,i,TRUE, P2WPKH, self.get_xtended_key())
         return account
+    
+    def get_a_change_address(self):
+        """
+        Returns an Account object containing a change address. It returns an existing unused change
+        address account, or creates a new one if necessary.
+        """
+        unused_addresses = self.get_unused_addresses_list(change_addresses=True)
+        
+        if len(unused_addresses)>0: 
+            #We grab the first unused address always
+            #The unused_addresses will be a list of touples. Each touple will be (address, change_addr, path, acc_index)
+            change_xtended_acc = self.get_child_from_path(f"{unused_addresses[0][2]}{unused_addresses[0][3]}")
+            account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),"p2wpkh", self.testnet )
+            if unused_addresses[0][0] == account.address:
+                return account
+            else:
+                raise Exception("Addresses don't match!")
+        else: return create_change_address()
     
     def get_utxos(self):
         return self.db.look_for_coins(self.get_xtended_key())
@@ -216,7 +233,7 @@ class Wallet(MasterAccount):
                 utxos.append(utxo)
                 utxo_total += utxo[2]
                 if utxo_total > (total_amount*1.1) : break
-        change_account = self.create_change_address()
+        change_account = self.get_a_change_address()
           
         tx = Transaction.create_from_master( utxos,to_address_amount_list, self,change_account,
                            fee=None, segwit=segwit)

@@ -343,11 +343,12 @@ class Transaction(Transact):
                            fee=None, #Modify code to allow manual fee!!!
                  segwit=False):
         """
-        utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
+        utxo_list: the list of touples with all the UTXOs information. Likethis:
+        [(tx_id, out_index, amount, path, account_index, address, type), ... ].
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
         master_account: must be a MasterAccount object.
-        change_account: must be an Account object. This will be contain the address to which
+        change_account: must be an Account object. This will contain the address to which
         the change of the transaction will be sent to.
         If fee is specifyed, then the custom fee will be applied.
         """

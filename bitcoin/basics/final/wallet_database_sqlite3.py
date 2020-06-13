@@ -229,6 +229,7 @@ class Sqlite3Wallet:
     def get_unused_addresses(self,wallet, days_range=None, max_days=None):
         """
         Searches the database for addresses that haven't been used in the specific wallet.
+        Returns a list of touples: (address, change_addr, path, acc_index).
         tx: internal database driver transaction.
         xprv: String, The wallet extended private key.
         max_days: how far away should the app look for the unused address in the pass. The limit is 30 since the app deletes 
@@ -241,7 +242,7 @@ class Sqlite3Wallet:
         the function will throw an exception.
         """
         if days_range is None and max_days is None:
-            query1 = f"SELECT address, change_addr  \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
+            query1 = f"SELECT address, change_addr, path, acc_index  \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
             query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{wallet}';"
             query = query1 + query2
             #print(query)
