@@ -139,7 +139,7 @@ class MainScreen(Screen):
     usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
     
     font_size = "20sp"
-    
+   
     def update_real_balance(self):
         self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\nThis might take a few\nmore seconds...\nPlease wait.")
         self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
@@ -171,7 +171,7 @@ class MainScreen(Screen):
             if str(e).startswith("('Status Code 429'"):
                 #TRIGGER THE "WRONG INPUT POPUP"
                 self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
-                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
+                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}
                                    )
@@ -348,7 +348,7 @@ class SendScreen(Screen):
             elif str(e).startswith("('Status Code 429'"):
                 #TRIGGER THE "WRONG INPUT POPUP"
                 self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
-                self.notEnoughFundsWindow = Popup(title="Not a valid amount", content=self.exception_popup, 
+                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}
                                    )
@@ -645,7 +645,7 @@ class walletguiApp(App):
         #return Builder.load_file("walletgui.kv")
         #return WalletScreen()
         self.sm = ScreenManager()
-        self.sm.add_widget(WalletScreen(name='Wallets'))
+        self.sm.add_widget(WalletScreen())
         self.sm.add_widget(MainScreen())
         self.sm.add_widget(ReceiveScreen())
         self.sm.add_widget(SendScreen())                       

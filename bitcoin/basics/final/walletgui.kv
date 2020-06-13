@@ -25,6 +25,7 @@
             rectangle: self.x, self.y, self.width, self.height
 <WalletScreen>:
     id: wallets
+    name: "Wallets"
     BoxLayout:
         spacing: 1
         padding: [7,7,7,7]
@@ -108,7 +109,7 @@
 
 
                 BoxLayout:
-                
+                    spcaing: 20
                     Label:
                         text: 'Balance'
                         size_hint: 1, 0.5
@@ -116,10 +117,21 @@
                         valign: "bottom"
                         font_size: main.font_size
                         font_name: "Arial Black"
+                    
+                    Button:
+                        id: go_back
+                        background_normal: 'images/rewind-xxl.png'
+                        size_hint: 0.5, 0.5
+                        size: 5,5
+                        pos_hint: {'center_x':1, 'center_y': 0.25}
+                        on_press: 
+                            app.root.current = "Wallets"
+                            root.manager.transition.direction = "right"  
+                        
                     Button:
                         id: reload_button
                         background_normal: 'images/Reload-icon.png'
-                        size_hint: 0.4, 0.7
+                        size_hint: 0.4, 0.55
                         size: 10,10
                         pos_hint: {'center_x':1, 'center_y': 0.25}
                         on_press: main.update_real_balance()
