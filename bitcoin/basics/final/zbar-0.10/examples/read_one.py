@@ -26,4 +26,4 @@ proc.visible = False
 # extract results
 for symbol in proc.results:
     # do something useful with results
-    print 'decoded', symbol.type, 'symbol', '"%s"' % symbol.data
+    print( 'decoded', symbol.type, 'symbol', '"%s"' % symbol.data)

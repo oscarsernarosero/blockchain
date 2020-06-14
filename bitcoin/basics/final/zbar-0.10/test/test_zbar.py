@@ -297,7 +297,7 @@ class TestImageScan(ut.TestCase):
             self.assert_(isinstance(comps, zbar.SymbolSet))
             self.assertEqual(len(comps), 0)
             self.assert_(not comps)
-            self.assert_(tuple(comps) is ())
+            self.assert_(tuple(comps) == ())
 
             data = sym.data
             self.assertEqual(data, '9876543210128')

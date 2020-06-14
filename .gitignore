@@ -63,5 +63,5 @@ env.bak/
 venv.bak/
 
 
-
+*.buildozer
 test_accounts.txt
