@@ -172,14 +172,14 @@ class Transaction(Transact):
             testnet = True
             for addr in outputAddress_amount_list:
                 if addr[0][0] not in "2mnt":
-                    raise Exception (f"{addr[0]} not a testnet address. Funds will be lost!")
+                    raise Exception (f"{addr[0]} not a valid testnet address. Funds will be lost!")
                 if addr[1] < 1:
                     raise Exception (f"{addr[1]} not a valid amount. It should be greater than 1 satoshis")
         else:
             testnet  = False
             for addr in outputAddress_amount_list:
                 if addr[0][0] not in "13b":
-                    raise Exception (f"{addr[0]} not a mainnet bitcoin address. Funds will be lost!")
+                    raise Exception (f"{addr[0]} not a valid mainnet bitcoin address. Funds will be lost!")
                 if addr[1] < 1:
                     raise Exception (f"{addr[1]} not a valid amount. It should be greater than 1 satoshis")
               

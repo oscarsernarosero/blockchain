@@ -6,6 +6,7 @@ import qrcode
 from urllib.request import Request, urlopen
 import json
 import os
+from dotenv import load_dotenv
 import pyperclip
 import time, threading
 
@@ -195,6 +196,7 @@ class MainScreen(Screen):
         mythread.start()
         
     def update_balance_process(self):
+        load_dotenv()
         api_key = os.getenv("CC_API")
         url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
         raw_data = self.read_json(url)
@@ -357,7 +359,7 @@ class SendScreen(Screen):
                 self.loadingWindow.dismiss()
                 self.popupWindow.dismiss()
                                  
-            elif str(e).endswith("Funds will be lost!"):
+            elif (str(e)[str(e).find(" ")+1:]).startswith("not a valid"):
                                 
                 msg1 = "You entered an invalid address.\nWe prevented the transaction from\nlosing your funds. "
                 msg2 = "Please\nenter a valid address and try\nagain."
