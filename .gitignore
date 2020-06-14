@@ -63,5 +63,5 @@ env.bak/
 venv.bak/
 
 
-*.buildozer
+bitcoin/basics/final/.buildozer/*
 test_accounts.txt
