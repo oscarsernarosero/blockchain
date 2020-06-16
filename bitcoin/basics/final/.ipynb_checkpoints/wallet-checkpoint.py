@@ -12,10 +12,9 @@ from accounts import MasterAccount, Account, MultSigAccount
 from transactions import Transaction, MultiSigTransaction
 from os import urandom
 #from database import WalletDB
-from wallet_database_sqlite3 import Sqlite3Wallet
+from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 from blockcypher import get_address_details
 from blockcypher import pushtx
-from dotenv import load_dotenv
 import os
 
 import schedule 
@@ -24,9 +23,6 @@ import time
 class Wallet(MasterAccount):
     
     def __init__(self, depth, fingerprint, index, chain_code, private_key, db_user="neo4j",db_password="wallet", testnet = False):
-        
-        load_dotenv()
-        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
         
         
         #self.db = WalletDB( "neo4j://localhost:7687" ,db_user ,db_password )
@@ -241,8 +237,9 @@ class Wallet(MasterAccount):
         if self.testnet: symbol = "btc-testnet"
         else: symbol= "btc"
         
-        load_dotenv()
-        BLOCKCYPHER_API_KEY = os.getenv('BLOCKCYPHER_API_KEY')
+        env = Sqlite3Environment()
+        BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
+        env.close_database()
         push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
         
         print(f"TRANSACTION ID: {tx.transaction.id()}")

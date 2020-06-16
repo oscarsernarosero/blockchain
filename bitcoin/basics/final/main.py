@@ -1,12 +1,11 @@
 import kivy
 kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
-from wallet_database_sqlite3 import Sqlite3Wallet
+from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 import qrcode
 from urllib.request import Request, urlopen
 import json
 import os
-from dotenv import load_dotenv
 import pyperclip
 import time, threading
 
@@ -196,8 +195,9 @@ class MainScreen(Screen):
         mythread.start()
         
     def update_balance_process(self):
-        load_dotenv()
-        api_key = os.getenv("CC_API")
+        env = Sqlite3Environment()
+        api_key = env.get_key("CC_API")[0][0]
+        env.close_database()
         url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
         raw_data = self.read_json(url)
         btc_price = raw_data["USD"]

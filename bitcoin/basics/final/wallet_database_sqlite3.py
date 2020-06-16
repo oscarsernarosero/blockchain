@@ -335,4 +335,84 @@ class Sqlite3Wallet:
         self.execute(query)
         query = "DROP TABLE Wallets"
         self.execute(query)
+        
+        self.create_tables()
         return True
+    
+    
+    
+class Sqlite3Environment:
+    
+    def __init__(self):
+        self.conn = self.create_connection(r"database/env.db")
+        print("connection with database made.")
+        
+    def create_connection(self,db_file):
+        """ create a database self.connection to a SQLite database """
+        conn = None
+        try:
+            conn = sqlite3.connect(db_file)
+            return conn
+
+        except Error as e:
+            print(e)
+
+    def close_database(self):
+        if self.conn:
+            self.conn.close()
+        
+    def execute_w_res(self, query):
+        try:
+            c = self.conn.cursor()
+            result = c.execute(query)
+            return result.fetchall()
+        except Error as e:
+            print(e)
+            return None
+        
+    def execute(self, query):
+        try:
+            c = self.conn.cursor()
+            c.execute(query)
+            self.conn.commit()
+            return True
+        except Error as e:
+            print(e)
+            return None
+        
+    def create_table(self):
+        query1 =  f"CREATE TABLE IF NOT EXISTS Keys ( name text NOT NULL PRIMARY KEY,\n "
+        query2 = f"key text NOT NULL UNIQUE) WITHOUT ROWID;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+    
+    def new_key(self,name, key):
+        query1 = "INSERT INTO Keys (name, key)\n"
+        query2 = f"VALUES('{name}', '{key}') ;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+    
+    def update_key(self,name, key):
+        query1 = f"UPDATE Keys SET key = '{key}'\n"
+        query2 = f"WHERE name ='{name}' ;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+    
+    def delete_key(self,name):
+        query1 = f"DELETE FROM Keys\n"
+        query2 = f"WHERE name ='{name}' ;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+    
+    def get_key(self, name):
+        query1 = f"SELECT key FROM Keys\n"
+        query2 = f"WHERE name ='{name}' ;"
+        query = query1+query2
+        print(query)
+        return self.execute_w_res(query)
+        
+        
