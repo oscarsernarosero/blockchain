@@ -377,7 +377,7 @@ class SendScreen(Screen):
                                 
             else:
                 #TRIGGER THE "OOPS! POPUP"
-                self.exception_popup = GenericOkPopup("Oops! Something went wrong.\nPlease try again later.")
+                self.exception_popup = GenericOkPopup(f"Oops! Something went wrong.\n{str(e)}\nPlease try again later.")
                 self.notEnoughFundsWindow = Popup(title="Unknown Exception", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}

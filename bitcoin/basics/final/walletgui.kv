@@ -1,6 +1,6 @@
-<WindowManager>:
-    WalletScreen:
-    MainScreen:
+#<WindowManager>:
+    #WalletScreen:
+    #MainScreen:
     #SendScreen:
     #ReceiveScreen:
 
@@ -81,8 +81,9 @@
             font_size: "40sp"
             on_release: wallets.delete_wallet()
         Label:
-            text: "bla bla bla "
+            text: "Disclaimer: This is a Testnet-Bitcoin wallet\nstill in the development phase."
             valign: "bottom"
+            halign: "left"
             size_hint : 1,0.5
 
             
@@ -131,8 +132,8 @@
                     
                     Button:
                         id: go_back
-                        background_normal: 'images/rewind-xxl.png'
-                        size_hint: 0.5, 0.5
+                        background_normal: 'images/backwards.png'
+                        size_hint: 0.5, 0.7
                         size: 5,5
                         pos_hint: {'center_x':1, 'center_y': 0.25}
                         on_press: 

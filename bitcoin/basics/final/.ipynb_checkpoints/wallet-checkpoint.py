@@ -150,7 +150,7 @@ class Wallet(MasterAccount):
                 return account
             else:
                 raise Exception("Addresses don't match!")
-        else: return create_change_address()
+        else: return self.create_change_address()
     
     def get_utxos(self):
         return self.db.look_for_coins(self.get_xtended_key())
