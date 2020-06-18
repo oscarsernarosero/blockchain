@@ -468,7 +468,7 @@ class ConfirmSendPopup(FloatLayout):
         super().__init__()
         #self.orientation="vertical")
             
-        message = Label(text=f"Are you sure you want to send\n {amount/100000000} BTC to the adress\n{address}\n?",
+        message = Label(text=f"Are you sure you want to send\n {amount/100000000} BTC to the address\n{address}\n?",
                        halign="center",size_hint= (0.6,0.3), 
                         pos_hint={"center_x":0.5, "center_y":0.8}, font_size="11sp"
                        )
