@@ -16,23 +16,25 @@ Currently only supporting Testnet Bitcoin for individuals. The corporate version
 
 -Elliptic Curve Cryptography (secp256k1)
 
--Transactions
+- Transactions
 
--Bip32
+- Bip32
 
--Bip39
+- Bip39
 
--Accounts
+- Bip44
 
--Segwit Compliant
+- Accounts
 
--Multi-signature
+- Segwit Compliant
 
-Some of the code here comes from the book Programming Bitcoin, so a share of the credit goes to Jimmy Song (the author of the great book).
+- Multi-signature
+
+Some of the code here comes from the book "Programming Bitcoin", so a share of the credit goes to Jimmy Song (the author of this great book).
 
 ### General Description of Current Version
 
-The current version of the wallet is a wallet for the testnet network. It is intended for individual use, however a company version is on its way. The general features will be discussed next:
+The current version of the project is a wallet for the testnet network. It is intended for individual use, however a company version is on its way. The general features will be discussed next:
 
 #### Security:
 
@@ -50,7 +52,7 @@ The current version of the wallet is a wallet for the testnet network. It is int
 
 - Multi-signature technology is available, although not fully exploited yet. Only used for making SegWit addresses backward compatible (P2SH_P2WPKH). Fully multi-signature wallets will come in next versions.
 
-- Segregated Witness technology is supported with the exception of multi-signature SegWit addresses (P2WSH, P2SH_P2WSH). This will be available in the coming versions.
+- Segregated-Witness technology is supported with the exception of multi-signature SegWit addresses (P2WSH, P2SH_P2WSH). This will be available in the coming versions.
 
 ### External APIs
 
@@ -139,7 +141,7 @@ But, of course, we have no unused addresses yet.
 
  <img src="bitcoin/basics/final/images/screenshots/15.png" width="300" height="600" />
 
- A confirmation window will pop up. If this information is correct, press "YES":
+ Press "SEND". A confirmation window will pop up. If this information is correct, press "YES":
 
 <img src="bitcoin/basics/final/images/screenshots/16.png" width="300" height="600" />
 
