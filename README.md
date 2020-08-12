@@ -14,7 +14,7 @@ Currently only supporting Testnet Bitcoin for individuals. The corporate version
 
 ### Achievments:
 
--Elliptic Curve Cryptography (secp256k1)
+- Elliptic Curve Cryptography (secp256k1)
 
 - Transactions
 
@@ -54,7 +54,7 @@ The current version of the project is a wallet for the testnet network. It is in
 
 - Segregated-Witness technology is supported with the exception of multi-signature SegWit addresses (P2WSH, P2SH_P2WSH). This will be available in the coming versions.
 
-### External APIs
+#### External APIs
 
 - Block-Cypher: This wallet is using Block-Cypher's API to get and push information to the blockchain.
 
@@ -66,11 +66,29 @@ The current version of the project is a wallet for the testnet network. It is in
 This library uses Kivy for its front-end development. A release with executables for different platforms (iOS, Android, Mac, Windows) is on its way. But for right now, to use this app, follow the following steps (I suggest you to do this in a brand-new virtual environment):
 
 1. Clone this repository.
+
+2. create a brand new virtual environment:
+
+```
+conda create -n walletenv python=3.8 anaconda
+```
+
+press 'y' and hit 'Enter' when asked.
+
+Activate the brand new virtual environment:
+
+```
+conda deactivate
+conda activate walletenv
+````
+
 2. Install dependencies:
-    - kivy
-    - blockcypher
-    - pyperclip
-    - qrcode
+    - kivy ```conda install kivy -c conda-forge```
+    - blockcypher ```pip3 install blockcypher```
+    - schedule ``` pip install schedule```
+    - pyperclip ```pip install pyperclip```
+    - qrcode ```pip install qrcode```
+    - zbarcam ```pip install zbarcam```
 3. Run:
 
      ```$ cd blockchain```
