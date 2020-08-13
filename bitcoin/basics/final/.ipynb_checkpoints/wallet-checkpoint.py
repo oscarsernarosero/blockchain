@@ -15,7 +15,6 @@ from os import urandom
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 from blockcypher import get_address_details
 from blockcypher import pushtx
-import os
 
 import schedule 
 import time 
@@ -63,6 +62,87 @@ class Wallet(MasterAccount):
     
     def close_db(self):
         self.db.close_database()
+        
+        
+    def consult_confirmations(tx,BLOCKCYPHER_API_KEY):
+    
+        tx_details = get_transaction_details(tx,coin_symbol = "btc-testnet",api_key=BLOCKCYPHER_API_KEY)
+
+        try: confirmations = tx_details['confirmations']
+        except: confirmations = None
+
+        return confirmations
+
+
+    def confirm_tx_sent(tx,state=0):
+
+        """
+        This method consults the blockchain to check on a transaction and its confirmations.
+        tx: the transaction hexadecimal to consult. 
+        state: only use this for transactions previously consulted. Mostly for internal recursive use.
+        """
+
+        env = Sqlite3Environment()
+        BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
+        env.close_database()
+        
+        #initial interval of seconds in which the app will consult the blockchain for changes in the
+        #confirmation number. This value will be updated automatically after the first and the third
+        #confirmation to gain some efficiency.
+        sleeping_time = 90
+
+        initiated = datetime.datetime.now()
+        time.sleep(5)
+
+        for i in range(40):
+            
+            #get confirmations from the blockchain
+            confirmations = self.consult_confirmations(tx,BLOCKCYPHER_API_KEY)
+            #print(f"confirmations: {confirmations}")
+            
+            #if a None value is returned, it means that the blockchain doesn't know about the transaction at all.
+            #This means that there was an error and the transaction didn't get broadcasted.
+            if confirmations is None: 
+                print("None ..")
+                return False
+
+            if confirmations>0 and state==0:
+                print(f"got 1 confirmation. Now in state 1 {tx}")
+                sleeping_time = (((datetime.datetime.now() - initiated)*3)//5).seconds
+                print(f"sleeping time: {sleeping_time}")
+                state=1
+            elif confirmations>2 and state ==1:
+                print(f"got 3 confirmation. Now in state 2 {tx}")
+                state=2
+            elif confirmations>5 and state == 2:
+                state=3
+                print("confirmed")
+                break
+                
+            print(f"counter {i} {datetime.datetime.now()}")
+            time.sleep(sleeping_time)
+            
+
+        print(f"finish {datetime.datetime.now()}")
+        
+        if state == 0:
+            print("transaction not broadcasted")
+            self.db.delete_tx(tx)
+            return False
+            
+        elif state == 1:
+            print("transaction disregarded")
+            self.db.delete_tx(tx)
+            return False
+            
+        elif state == 2: 
+            if confirm_tx_sent(tx,state=2):
+                return True
+            else: return False
+            
+        else: 
+            print("transaction succesfull")
+            return True
     
     #@classmethod
     def get_i(self,account_path, index,random_index = False):
