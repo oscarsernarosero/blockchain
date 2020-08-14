@@ -13,11 +13,13 @@ from transactions import Transaction, MultiSigTransaction
 from os import urandom
 #from database import WalletDB
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
-from blockcypher import get_address_details
+from blockcypher import get_address_details, get_transaction_details
 from blockcypher import pushtx
+import threading
 
 import schedule 
 import time 
+import datetime
 
 class Wallet(MasterAccount):
     
@@ -64,7 +66,7 @@ class Wallet(MasterAccount):
         self.db.close_database()
         
         
-    def consult_confirmations(tx,BLOCKCYPHER_API_KEY):
+    def consult_confirmations(self,tx,BLOCKCYPHER_API_KEY):
     
         tx_details = get_transaction_details(tx,coin_symbol = "btc-testnet",api_key=BLOCKCYPHER_API_KEY)
 
@@ -74,7 +76,7 @@ class Wallet(MasterAccount):
         return confirmations
 
 
-    def confirm_tx_sent(tx,state=0):
+    def confirm_tx_sent(self,tx,state=0):
 
         """
         This method consults the blockchain to check on a transaction and its confirmations.
@@ -119,7 +121,7 @@ class Wallet(MasterAccount):
                 print("confirmed")
                 break
                 
-            print(f"counter {i} {datetime.datetime.now()}")
+            print(f"counter {i}; confirmation {confirmations} for tx {tx} at {datetime.datetime.now()}")
             time.sleep(sleeping_time)
             
 
@@ -158,10 +160,8 @@ class Wallet(MasterAccount):
                 else:
                     raise Exception (f"index must be less than {2**31-1} ")
         else:
-            try:
-                print(f"{self.db} OK.")
-            except:
-                self.start_conn()
+            try: print(f"{self.db} OK.")
+            except: self.start_conn()
                 
             last_index = self.db.get_max_index( account_path, self.get_xtended_key())
             
@@ -321,14 +321,18 @@ class Wallet(MasterAccount):
         BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
         env.close_database()
         push = pushtx(tx_hex= tx.transaction.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
-        
-        print(f"TRANSACTION ID: {tx.transaction.id()}")
+        tx_id = tx.transaction.id()
+        print(f"TRANSACTION ID: {tx_id}")
         
         #saving in db
-        self.db.new_tx(tx.transaction.id(), [ (x[0],x[1]) for x in utxos] ,
+        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
         
+        #start new thread to check if the transaction goes through in the blockchain or not.
+        #Maybe move this to the front end class to pop a warning when it doesn't go through
+        mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))
+        mythread.start()
         
         return tx,push
         

@@ -144,7 +144,13 @@ class Transact:
         str_pubkeyhash = ""
         for char in decoded[1][1:]:
             str_pubkeyhash += "{0:05b}".format(char)
-        return int(str_pubkeyhash,2).to_bytes(20,"big")
+    
+        try: 
+            addr_bytes = int(str_pubkeyhash,2).to_bytes(20,"big")
+        except: 
+            print("trying P2WSH")
+            addr_bytes = int(str_pubkeyhash[:256],2).to_bytes(32,"big")
+        return addr_bytes
     
 class Transaction(Transact):
       
