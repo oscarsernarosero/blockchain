@@ -388,10 +388,13 @@ class MultiSigTransaction(Transaction):
 
     @classmethod
     def sign1by1(self, transaction, sender_account):
-       
+        """
+        transaction: must be Tx object.
+        sender account: must be Multisignature object.
+        """
         for tx_input in range(len(transaction.tx_ins)):
             transaction.sign_input_multisig_1by1(tx_input, sender_account.privkey,sender_account.privkey_index,
-                                                 sender_account.redeem_script, sender_account.n)
+                                                 sender_account.redeem_script, sender_account.n, sender_account.m)
         return transaction
         
     @classmethod
@@ -408,20 +411,37 @@ class MultiSigTransaction(Transaction):
         utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
-        sender_account: must be an Account object.
+        sender_account: must be a MultSigAccount object.
         If fee is specifyed, then the custom fee will be applied.
         """
         testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         tx_outs = self.get_outputs(receivingAddress_w_amount_list, sender_account)
-        tx_ins_utxo = self.get_inputs(utxo_tx_id_list, sender_account.address, testnet)
+        tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
         fee, change, transaction = self.unsigned_tx(tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list)
         transaction = self.sign1by1(transaction, sender_account)
         final_tx =  self.verify_signatures(transaction, sender_account)
         if isinstance(final_tx,bool):
+            print("transaction not ready to broadcast")
             return MultiSigTransaction(transaction, sender_account, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit)
         else:
+            print("transaction ready!")
+            return final_tx
+    
+    @classmethod
+    def sign_received_tx(self,multisig_transaction,sender_account):
+        """
+        multisig_transaction: must be a MultiSigTransaction object.
+        sender_account: must be a MultSigAccount object.
+        """
+        signed_tx = self.sign1by1(multisig_transaction.transaction,sender_account)
+        final_tx =  self.verify_signatures(signed_tx, sender_account)
+        if isinstance(final_tx,bool):
+            print("transaction not ready to broadcast")
+            return MultiSigTransaction(signed_tx, sender_account, multisig_transaction.tx_ins,multisig_transaction.utxos ,multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change, multisig_transaction.testnet, multisig_transaction.segwit)
+        else:
+            print("TRANSACTION READY!\nRun serialize().hex() to get the raw transaction.")
             return final_tx
         
     @classmethod

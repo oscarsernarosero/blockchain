@@ -482,9 +482,10 @@ class Tx:
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
-    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n):
+    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n,m):
         '''Signs the input using the private key
         n: n signatures that can sign transaction.
+        m: minimum signatures required.
         private_key: must be a PrivateKey object.
         privkey_index: is the index of the private key according to the order of the public keys.
         '''
@@ -492,24 +493,26 @@ class Tx:
         z = self.sig_hash(input_index, redeem_script)
         # get der signature of z from private key
         cmds = self.tx_ins[input_index].script_sig.cmds
+        
         if len(cmds) == 0:
-            #We create an array full of 0s with a lentgth of n+1. n is the number of possible private keys that can
+            #if this is the first time this transaction will be sign, then
+            #We create an array full of 0s with a lentgth of n. n is the number of possible private keys that can
             #sign the transaction. This way we can place the signatures in the right order. We get rid of the unnecesarry
-            #0s later.
+            #0s later in the method verify_signatures.
             print(f"cmds is empty. Creating new set of commands")
             cmds = [0]*(n)
             #we also need to append at the end the serialized redeem script:
             cmds.append(redeem_script.serialize()[1:])
+            
         der = private_key.sign(z).der()
         # append the SIGHASH_ALL to der (use SIGHASH_ALL.to_bytes(1, 'big'))
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
-        #we add 1 to the index because of the OP_0 bug.
+        #we place the signature in the respective position
         cmds[privkey_index] = sig
-        
-        #commands.append(*redeem_script.cmds)
+
         print(f"sign_input_multisig commands: {cmds}")
         script_sig = Script(cmds)
-        #script_sig = cmds
+       
         # change input's script_sig to new script
         self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
@@ -530,7 +533,7 @@ class Tx:
                 return False
             #If we have enough signatures, we go ahead and verify these, 
             #but first, let's add the OP_0 at the beginning to pass the Off-by-1 bug.
-            cmds = [0] + cmds
+            cmds = [0] + cmds 
             script_sig = Script(cmds)
             self.tx_ins[input_index].script_sig = script_sig
             #If the cerification does not pass, we have to set script signature back to the original list form

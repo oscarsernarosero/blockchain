@@ -101,45 +101,52 @@ class Account():
 
 class MultSigAccount():
     
-    def __init__(self,m, n, _privkey, public_key_list, addr_type="p2sh", testnet = False, segwit=True):
+    def __init__(self,m, _privkey, public_key_list, addr_type="p2sh", testnet = False, segwit=True):
         """
-        Initialize the account with a private key in Integer form.
+        Initialize the account with a private key in the Integer form and a list of public keys.
         m: the minumin amount of signatures required to spend the money.
         n: total amount of signatures that can be used to sign transactions.
-        Note: Therefore:
-        a- m has to be less or equal to n.
-        b- n has to be equal to the length of the array _privkeys
-        Also:
-        c- n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
+        n is calculated from the length of the publick_key_list. Therefore, it is not necessary
+        to be specified.
+        Note: These conditions must be met:
+        a) m has to be less or equal than n.
+        b) n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
+        
+        Public keys must be in bytes.
         private_key must be an int.
         addr_type = String. Possible values: "P2SH","P2WSH","P2SH_P2WSH". NOT case sensitive.
-        Public keys must be in bytes
+        
         """
-        if n != len(public_key_list):
-            raise Exception("n must be equal to the amount of public keys")
+        #validating m and n values
+        n = len(public_key_list)
+        
         if m < 1 or m > 16 or n < 1 or n > 16:
             raise Exception("m and n must be between 1 and 16")
         if m > n:
             raise Exception("m must be always less or equal than n")
-            
+        
+        #getting the index of the private key in the list of public keys
         index = -1
         pubkey = PrivateKey(_privkey).point.sec()
         for i,public_key in enumerate(public_key_list):
             if public_key == pubkey:
                 index = i
         if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
-    
         
-        self.privkey = PrivateKey(_privkey)
+        #getting the serialized redeem script
         self.public_keys = public_key_list
+        self.redeem_script = Script([m+80, *self.public_keys, n + 80, 174])
+        serialized_redeem = self.redeem_script.raw_serialize()
+        
+        #setting up the class object with the arguments received.
+        self.privkey = PrivateKey(_privkey)
         self.m = m
         self.n = n
         self.testnet = testnet
         self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
         self.addr_type = addr_type.lower()
         self.privkey_index = index
-        self.redeem_script = Script([m+80, *self.public_keys, n + 80, 174])
-        serialized_redeem = self.redeem_script.raw_serialize()
+        
       
         if self.addr_type == "p2sh":
             self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
@@ -157,7 +164,7 @@ class MultSigAccount():
         
         
     def __repr__(self):
-        return f"Private Key Hex: {self.privkey.hex()}"
+        return f"Multisignature account: {self.address}"
         
     
     @classmethod
