@@ -394,12 +394,13 @@ class MultiSigTransaction(Transaction):
         """
         for tx_input in range(len(transaction.tx_ins)):
             transaction.sign_input_multisig_1by1(tx_input, sender_account.privkey,sender_account.privkey_index,
-                                                 sender_account.redeem_script, sender_account.n, sender_account.m)
+                                                 sender_account.redeem_script, sender_account.n,
+                                                 sender_account.m,transaction.segwit)
         return transaction
         
     @classmethod
     def verify_signatures(self, transaction, sender_account):
-        if transaction.verify_signatures( sender_account.m):
+        if transaction.verify_signatures( sender_account.m, transaction.segwit):
             return transaction
         else:
             return False

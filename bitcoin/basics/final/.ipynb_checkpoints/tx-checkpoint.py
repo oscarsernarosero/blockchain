@@ -460,7 +460,7 @@ class Tx:
     
     
     def sign_input_multisig(self, input_index, private_key_list, redeem_script):
-        '''Signs the input using the private key'''
+        '''Signs the input using the private keys at the same time contained in the list'''
         # get the signature hash (z)
         z = self.sig_hash(input_index, redeem_script)
         # get der signature of z from private key
@@ -482,23 +482,30 @@ class Tx:
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
-    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n,m):
-        '''Signs the input using the private key
+    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n,m,segwit=False):
+        '''
+        Signs the input using a single private key at a time. 
         n: n signatures that can sign transaction.
         m: minimum signatures required.
         private_key: must be a PrivateKey object.
         privkey_index: is the index of the private key according to the order of the public keys.
         '''
-        # get the signature hash (z)
-        z = self.sig_hash(input_index, redeem_script)
+        # get the signature hash (z) depending on segwit or not segwit
+        if segwit: z = self.sig_hash_bip143(input_index, witness_script = redeem_script)
+        else: z = self.sig_hash(input_index, redeem_script)
+            
         # get der signature of z from private key
-        cmds = self.tx_ins[input_index].script_sig.cmds
+        
+        #first, we get the script_sig or witness_program if segwit:
+        if segwit: 
+            cmds = self.tx_ins[input_index].witness
+            if cmds == b'\x00': cmds = []
+        else: cmds = self.tx_ins[input_index].script_sig.cmds
         
         if len(cmds) == 0:
-            #if this is the first time this transaction will be sign, then
-            #We create an array full of 0s with a lentgth of n. n is the number of possible private keys that can
-            #sign the transaction. This way we can place the signatures in the right order. We get rid of the unnecesarry
-            #0s later in the method verify_signatures.
+            #if this is the first time this transaction will be sign, thenwe create an array full of 0s with a lentgth of n.
+            # n is the number of possible private keys that can sign the transaction. This way we can place the signatures
+            # in the right order. We get rid of the unnecesarry 0s later in the method verify_signatures.
             print(f"cmds is empty. Creating new set of commands")
             cmds = [0]*(n)
             #we also need to append at the end the serialized redeem script:
@@ -514,16 +521,23 @@ class Tx:
         script_sig = Script(cmds)
        
         # change input's script_sig to new script
-        self.tx_ins[input_index].script_sig = script_sig
+        if segwit: 
+            self.tx_ins[input_index].witness = cmds
+            self.tx_ins[input_index].script_sig = Script()
+        else: self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
         #return self.verify_input(input_index)
         return True
     
-    def verify_signatures(self, m):
+    def verify_signatures(self, m, segwit=False):
         
         for input_index,tx_input in enumerate(self.tx_ins):
             
-            cmds_copy = self.tx_ins[input_index].script_sig.cmds
+            if segwit: 
+                cmds_copy = self.tx_ins[input_index].witness
+                print(f"segwit commands: {cmds_copy}")
+            else: cmds_copy = self.tx_ins[input_index].script_sig.cmds
+                
             #we get rid of the empty slots in the list of signatures
             cmds = [x for x in cmds_copy if x != 0 ]
             #we check how many items there are in the list of commands of the scrip_sig. 
@@ -531,14 +545,18 @@ class Tx:
             if (len(cmds)-1)<m:
                 print(f"There are only {len(cmds)-1} signatures, but {m} are required.")
                 return False
+            
             #If we have enough signatures, we go ahead and verify these, 
             #but first, let's add the OP_0 at the beginning to pass the Off-by-1 bug.
             cmds = [0] + cmds 
             script_sig = Script(cmds)
-            self.tx_ins[input_index].script_sig = script_sig
+            if segwit: self.tx_ins[input_index].witness = cmds
+            else: self.tx_ins[input_index].script_sig = script_sig
+            
             #If the cerification does not pass, we have to set script signature back to the original list form
             if not self.verify_input(input_index):
-                self.tx_ins[input_index].script_sig = Script(cmds_copy)
+                if segwit: self.tx_ins[input_index].witness = cmds_copy
+                else: self.tx_ins[input_index].script_sig = Script(cmds_copy)
                 #And then we return False
                 return False
             #If it passes all the inputs and signatures then we can return True.

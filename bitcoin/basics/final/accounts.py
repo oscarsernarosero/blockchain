@@ -103,7 +103,7 @@ class MultSigAccount():
     
     def __init__(self,m, _privkey, public_key_list, addr_type="p2sh", testnet = False, segwit=True):
         """
-        Initialize the account with a private key in the Integer form and a list of public keys.
+        Initialize the account with only 1 private key in the Integer form and a list of public keys.
         m: the minumin amount of signatures required to spend the money.
         n: total amount of signatures that can be used to sign transactions.
         n is calculated from the length of the publick_key_list. Therefore, it is not necessary
@@ -143,7 +143,7 @@ class MultSigAccount():
         self.m = m
         self.n = n
         self.testnet = testnet
-        self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
+        #self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
         self.addr_type = addr_type.lower()
         self.privkey_index = index
         
