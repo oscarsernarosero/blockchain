@@ -216,9 +216,12 @@ class Transaction(Transact):
             tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
         elif account.addr_type == "p2wpkh":
             tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
-        elif account.addr_type in  ["p2sh","p2sh_p2wpkh"]:
+        elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
             tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
-        
+        elif account.addr_type == "p2wsh":
+            tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
+        else: raise Exception ("Not supported address.")
+            
         return tx_outs
                 
     @classmethod
@@ -240,7 +243,7 @@ class Transaction(Transact):
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
         
         #CHECK THE FOLLOWING LINE LATER!! 
-        if change_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:
+        if change_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:#this line is not working for some reason, but it's ok.
             fee = self.calculate_fee(1, tx_ins, tx_outs, 0, privkey=change_account.privkey, 
                                          redeem_script=None, testnet=testnet, segwit = segwit)
             
