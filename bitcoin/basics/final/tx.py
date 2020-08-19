@@ -3,6 +3,7 @@ from unittest import TestCase
 
 import json
 import requests
+import hashlib
 
 from ecc import PrivateKey
 from helper import (
@@ -14,7 +15,7 @@ from helper import (
     read_varint,
     SIGHASH_ALL,
 )
-from script import p2pkh_script, Script, p2wpkh_script
+from script import p2pkh_script, Script, p2wpkh_script, p2wsh_script
 
 from blockcypher import get_transaction_details
 
@@ -331,18 +332,21 @@ class Tx:
         '''Returns whether the input has a valid signature'''
         p2sh_p2wpkh = False
         p2wpkh=False
+        p2sh_p2wsh=False
+        
         # get the relevant input
         tx_in = self.tx_ins[input_index]
         # grab the previous ScriptPubKey
         script_pubkey = tx_in.script_pubkey(testnet=self.testnet)
         print(f"script_pubkey of tx IN: {script_pubkey}")
+        
         # check to see if the ScriptPubkey is a p2sh using
         # Script.is_p2sh_script_pubkey()
         if script_pubkey.is_p2sh_script_pubkey():
+            
             print(f"tx_in.script_sig.cmds[0]: {tx_in.script_sig.cmds[0]}")
             if len(tx_in.script_sig.cmds) == 1:
-                print("This is a nested P2WPKH")
-                p2sh_p2wpkh = True
+                print("This is a nested P2WPKH or nested P2WSH")
                 cmds = tx_in.script_sig.cmds[0]
             else:
                 # the last cmd in a p2sh is the RedeemScript
@@ -358,10 +362,12 @@ class Tx:
             RedScript = Script.parse(BytesIO(raw_redeem))
             
             if RedScript.is_p2wpkh_script_pubkey():
+                p2sh_p2wpkh = True
                 print(f"is_p2wpkh_script_pubkey")
                 z = self.sig_hash_bip143(input_index, RedScript)
                 witness = tx_in.witness
             elif RedScript.is_p2wsh_script_pubkey():
+                p2sh_p2wsh=True
                 print(f"is_p2wsh_script_pubkey")
                 cmd = tx_in.witness[-1]
                 raw_witness = encode_varint(len(cmd)) + cmd
@@ -374,6 +380,7 @@ class Tx:
             
         # otherwise RedeemScript is None
         else:
+                          
             # ScriptPubkey might be a p2wpkh or p2wsh
             if script_pubkey.is_p2wpkh_script_pubkey():
                 p2wpkh = True
@@ -482,7 +489,7 @@ class Tx:
         # return whether sig is valid using self.verify_input
         return self.verify_input(input_index)
     
-    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n,m,segwit=False):
+    def sign_input_multisig_1by1(self, input_index, private_key,privkey_index, redeem_script,n,m,segwit=False, p2sh_p2wsh=False):
         '''
         Signs the input using a single private key at a time. 
         n: n signatures that can sign transaction.
@@ -503,9 +510,9 @@ class Tx:
         else: cmds = self.tx_ins[input_index].script_sig.cmds
         
         if len(cmds) == 0:
-            #if this is the first time this transaction will be sign, thenwe create an array full of 0s with a lentgth of n.
-            # n is the number of possible private keys that can sign the transaction. This way we can place the signatures
-            # in the right order. We get rid of the unnecesarry 0s later in the method verify_signatures.
+            #if this is the first time this transaction will be signed, then we create an array full of 0s with a lentgth 
+            #of 'n'. 'n' is the number of possible private keys that can sign the transaction. This way we can place the 
+            #signatures in the right order. We get rid of the unnecesarry 0s later in the method verify_signatures.
             print(f"cmds is empty. Creating new set of commands")
             cmds = [0]*(n)
             #we also need to append at the end the serialized redeem script:
@@ -522,14 +529,22 @@ class Tx:
        
         # change input's script_sig to new script
         if segwit: 
+            
             self.tx_ins[input_index].witness = cmds
-            self.tx_ins[input_index].script_sig = Script()
+            
+            if p2sh_p2wsh:
+                serialized_witness = redeem_script.raw_serialize()
+                serialized_redeem = p2wsh_script(hashlib.sha256(serialized_witness).digest()).raw_serialize()
+                self.tx_ins[input_index].script_sig = Script([serialized_redeem])
+            else:
+                self.tx_ins[input_index].script_sig = Script()
+                
         else: self.tx_ins[input_index].script_sig = script_sig
         # return whether sig is valid using self.verify_input
         #return self.verify_input(input_index)
         return True
     
-    def verify_signatures(self, m, segwit=False):
+    def verify_signatures(self, m, segwit=False, p2sh_p2wsh=False):
         
         for input_index,tx_input in enumerate(self.tx_ins):
             
@@ -546,6 +561,12 @@ class Tx:
                 print(f"There are only {len(cmds)-1} signatures, but {m} are required.")
                 return False
             
+            if p2sh_p2wsh:
+                cmds_copy = self.tx_ins[input_index].script_sig.cmds
+                if len(cmds_copy) !=1: 
+                    print(f"Script signature in a P2SH_P2WSH must be 1, not {len(cmds_copy)}")
+                    return False
+                
             #If we have enough signatures, we go ahead and verify these, 
             #but first, let's add the OP_0 at the beginning to pass the Off-by-1 bug.
             cmds = [0] + cmds 

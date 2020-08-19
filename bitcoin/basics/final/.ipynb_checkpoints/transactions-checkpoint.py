@@ -207,19 +207,16 @@ class Transaction(Transact):
                 tx_outs.append( TxOut(output[1], p2sh_script(decode_base58(output[0]))))
             elif output[0][:2] in ["bc","tb"] :
                 tx_outs.append( TxOut(output[1], p2wpkh_script(self.decode_p2wpkh_addr(output[0]))))#Needs to be tested
-            else:
-                raise Exception ("Not supported address.")
+            else:raise Exception ("Not supported address.")
         
         #Let's return the fake change to our same address. 
         #This will change later when BIP32 is implemented.
         if account.addr_type == "p2pkh":
             tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
-        elif account.addr_type == "p2wpkh":
+        elif account.addr_type in ["p2wpkh","p2wsh"]:
             tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
         elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
             tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
-        elif account.addr_type == "p2wsh":
-            tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
         else: raise Exception ("Not supported address.")
             
         return tx_outs
@@ -239,11 +236,14 @@ class Transaction(Transact):
     
     @classmethod
     def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, change_account, utxos,receivingAddress_w_amount_list):
+        """
+        This method is overwritten in the MultiSigTransaction class for the multi-signature case.
+        """
         
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
         
         #CHECK THE FOLLOWING LINE LATER!! 
-        if change_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:#this line is not working for some reason, but it's ok.
+        if change_account.addr_type not in  ["p2sh","p2wsh","p2sh_p2wsh"]:
             fee = self.calculate_fee(1, tx_ins, tx_outs, 0, privkey=change_account.privkey, 
                                          redeem_script=None, testnet=testnet, segwit = segwit)
             
@@ -307,21 +307,7 @@ class Transaction(Transact):
             else:
                 print(f"from Transactions: sending NOT from a P2SH Address")
                 p2sh=False
-            """
-            if change_addr:
-                signing_master_account = master_account.get_child_from_path(f"m/0H/1H/{addr_index}")
-                signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2wpkh",
-                                         signing_master_account.testnet)
-                segwit=True
-                print(signing_account.address)
-            else:
-                signing_master_account = master_account.get_child_from_path(f"m/0H/2H/{addr_index}")
-                signing_account = Account(int.from_bytes(signing_master_account.private_key,"big"), "p2pkh",
-                                         signing_master_account.testnet)
-                segwit=False
-                print(signing_account.address)
-            """
-            
+                
             if not transaction.sign_input(tx_input, signing_account.privkey, segwit=segwit, p2sh=p2sh):
                 print("SIGNATURE FAILED")
         return transaction
@@ -395,15 +381,20 @@ class MultiSigTransaction(Transaction):
         transaction: must be Tx object.
         sender account: must be Multisignature object.
         """
+        p2sh_p2wsh=False
+        if sender_account.addr_type == "p2sh_p2wsh": p2sh_p2wsh = True
+            
         for tx_input in range(len(transaction.tx_ins)):
             transaction.sign_input_multisig_1by1(tx_input, sender_account.privkey,sender_account.privkey_index,
                                                  sender_account.redeem_script, sender_account.n,
-                                                 sender_account.m,transaction.segwit)
+                                                 sender_account.m,transaction.segwit,p2sh_p2wsh)
         return transaction
         
     @classmethod
     def verify_signatures(self, transaction, sender_account):
-        if transaction.verify_signatures( sender_account.m, transaction.segwit):
+        p2sh_p2wsh=False
+        if sender_account.addr_type == "p2sh_p2wsh": p2sh_p2wsh = True
+        if transaction.verify_signatures( sender_account.m, transaction.segwit,p2sh_p2wsh):
             return transaction
         else:
             return False
