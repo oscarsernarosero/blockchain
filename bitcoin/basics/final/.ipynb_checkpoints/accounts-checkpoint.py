@@ -178,3 +178,115 @@ class MultSigAccount():
         """
         keys = [int.from_bytes(key[0],key[1]) for key in phrases]
         return cls(m,n,keys,testnet)
+    
+    
+class SHMAccount(Xtended_pubkey):
+    """
+    SHM: Single-Herarchical Multi-Signature
+    Refers to a herarchical account that is also a multisignature account. However, the herarchical part comes from a single
+    account, and not all of them.
+    This type of account is meant to be created by the CorporateSuperWallet. However, no private key is provided. This 
+    account has to be shared with the owners of the public keys and only a valid private key will incorporate this wallet
+    into their wallets.
+    """
+    def __init__(self,m,n, xtended_pubkey, public_key_list, _privkey=None, addr_type="p2sh", testnet=False, segwit=True):
+        """
+        Initialize the account with 1 master_public_key in the String form and a list of public keys.
+        m: the minumin amount of signatures required to spend the money.
+        n: total amount of signatures that can be used to sign transactions.
+        Note: These conditions must be met:
+        a) m has to be less or equal than n.
+        b) n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
+        
+        Public keys must be in bytes.
+        private_key must be an int.
+        addr_type = String. Possible values: "P2SH","P2WSH","P2SH_P2WSH". NOT case sensitive.
+        
+        """
+        if m < 1 or m > 16 or n < 1 or n > 16:
+            raise Exception("m and n must be between 1 and 16")
+        if m > n:
+            raise Exception("m must be always less or equal than n")
+            
+        if len(public_key_list) != (n-1):
+            raise Exception("n and the amount of public keys don't match. The amount of public keys must always be n-1.")
+        
+        
+        index = None
+        #getting the index of the private key in the list of public keys
+        if _privkey is not None:
+            pubkey = PrivateKey(_privkey).point.sec()
+            for i,public_key in enumerate(public_key_list):
+                if public_key == pubkey:
+                    index = i
+            if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
+
+        self.public_keys = public_key_list
+        self.privkey = PrivateKey(_privkey)
+        self.xtended_pubkey = self.parse(xtended_pubkey)
+        self.m = m
+        self.n = n
+        self.testnet = testnet
+        self.addr_type = addr_type.lower()
+        #self.privkey_index = index
+        
+    def get_deposit_address(self,date,index=0):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        date_account = self.get_child_from_path(f'm/{date}/0/{index}')
+        all_public_keys = self.public_keys + [date_account.public_key]
+        redeem_script = Script([m+80, *all_public_keys, n + 80, 174])
+        serialized_redeem = self.redeem_script.raw_serialize()
+        address = self.get_address(serialized_redeem)
+
+        return address
+
+    def get_change_address(self,date,index=0):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        date_account = self.get_child_from_path(f'm/{date}/1/{index}')
+        all_public_keys = self.public_keys + [date_account.public_key]
+        redeem_script = Script([m+80, *all_public_keys, n + 80, 174])
+        serialized_redeem = self.redeem_script.raw_serialize()
+        address = self.get_address(serialized_redeem)
+
+        return address
+
+        
+    def get_address(self, serialized_redeem):
+        if self.addr_type == "p2sh":
+            address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
+        elif self.addr_type == "p2wsh":
+            if self.testnet:
+                address = segwit_addr.encode("tb",0,hashlib.sha256(serialized_redeem).digest())
+            else:
+                address = segwit_addr.encode("bc",0,hashlib.sha256(serialized_redeem).digest())
+        elif self.addr_type == "p2sh_p2wsh":
+            address_script = p2wsh_script(hashlib.sha256(serialized_redeem).digest())
+            serialized_addr_script = address_script.raw_serialize()
+            address = h160_to_p2sh_address(hash160(serialized_addr_script), testnet=testnet)
+        else:
+            raise Exception("Addres type not supported. Must be p2sh, p2wsh, or p2sh_p2wsh")
+        return address
+        
+        
+    def __repr__(self):
+        return f"Single-Herarchical Multisignature account: {self.address}"
+        
+    
+    @classmethod
+    def from_phrases(cls, m , n , phrases, testnet = False):
+        """
+        phrase: must be a list of tuples of (bytes, endian) or (string, endian). i.e:
+            [(b"my secret","little"),("my other secret","big")]
+            
+        endian: can be either "big" or "little"
+        Returns a multisignature account using the phrases chosen which are converted to Integers
+        """
+        keys = [int.from_bytes(key[0],key[1]) for key in phrases]
+        return cls(m,n,keys,testnet)
+    
