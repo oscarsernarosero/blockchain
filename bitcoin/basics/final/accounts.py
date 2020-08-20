@@ -199,10 +199,14 @@ class SHMAccount(Xtended_pubkey):
         b) n could be 20 or less, but to keep simplicity in the code, n can only be 16 or less.
         
         Public keys must be in bytes.
-        private_key must be an int.
+        private_key must be PrivateKey object.
         addr_type = String. Possible values: "P2SH","P2WSH","P2SH_P2WSH". NOT case sensitive.
         
         """
+        ###
+        # TO DO: CHECK THAT NO REPEATED PUBLIC KEYS EXIST!!!
+        ###
+        
         if m < 1 or m > 16 or n < 1 or n > 16:
             raise Exception("m and n must be between 1 and 16")
         if m > n:
@@ -215,14 +219,15 @@ class SHMAccount(Xtended_pubkey):
         index = None
         #getting the index of the private key in the list of public keys
         if _privkey is not None:
-            pubkey = PrivateKey(_privkey).point.sec()
+            self.privkey = _privkey
+            pubkey = self.privkey.point.sec()
             for i,public_key in enumerate(public_key_list):
                 if public_key == pubkey:
                     index = i
             if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
 
         self.public_keys = public_key_list
-        self.privkey = PrivateKey(_privkey)
+        
         self.xtended_pubkey = self.parse(xtended_pubkey)
         self.m = m
         self.n = n
@@ -275,7 +280,7 @@ class SHMAccount(Xtended_pubkey):
         
         
     def __repr__(self):
-        return f"Single-Herarchical Multisignature account: {self.address}"
+        return f"Single-Herarchical Multisignature account: master_pubkey {self.xtended_pubkey}"
         
     
     @classmethod

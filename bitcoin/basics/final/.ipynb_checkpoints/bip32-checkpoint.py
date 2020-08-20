@@ -271,7 +271,7 @@ class Xtended_pubkey:
         
     
     @classmethod
-    def parse(cls,xpk_string):
+    def parse(self,xpk_string):
         testnet = None
         s = BytesIO(decode_base58_extended(xpk_string))
         version = s.read(4)
@@ -284,5 +284,5 @@ class Xtended_pubkey:
         index= s.read(4)
         chain_code = s.read(32)
         pubkey = s.read(33)
-        return cls(depth=depth, fingerprint=fingerprint, index=index, 
+        return Xtended_pubkey(depth=depth, fingerprint=fingerprint, index=index, 
                    chain_code = chain_code, public_key=pubkey, testnet=testnet)
