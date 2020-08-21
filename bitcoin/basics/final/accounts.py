@@ -240,26 +240,47 @@ class SHMAccount(Xtended_pubkey):
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        date_account = self.get_child_from_path(f'm/{date}/0/{index}')
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
-        redeem_script = Script([m+80, *all_public_keys, n + 80, 174])
-        serialized_redeem = self.redeem_script.raw_serialize()
+        redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
+        serialized_redeem = redeem_script.raw_serialize()
         address = self.get_address(serialized_redeem)
-
         return address
+    
+    def get_deposit_account(self,date,index=0):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        if self.privkey is None: raise Exception("There is no private key for the account")
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
+        all_public_keys = self.public_keys + [date_account.public_key]
+        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        return account
 
     def get_change_address(self,date,index=0):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        date_account = self.get_child_from_path(f'm/{date}/1/{index}')
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
-        redeem_script = Script([m+80, *all_public_keys, n + 80, 174])
-        serialized_redeem = self.redeem_script.raw_serialize()
+        redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
+        serialized_redeem = redeem_script.raw_serialize()
         address = self.get_address(serialized_redeem)
 
         return address
+    
+    def get_change_account(self,date,index=0):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        if self.privkey is None: raise Exception("There is no private key for the account")
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
+        all_public_keys = self.public_keys + [date_account.public_key]
+        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        return account
 
         
     def get_address(self, serialized_redeem):
