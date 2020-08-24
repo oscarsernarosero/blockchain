@@ -151,7 +151,7 @@ class Sqlite3Wallet:
         query1 = "INSERT OR IGNORE INTO Addresses (address, path, acc_index, change_addr, created, type, wallet, safe_index)\n "
         query2 = f'VALUES("{address}", "{path}", {acc_index}, {change_addr}, {created}, {_type}, "{wallet}", {safe_index}) ;'
         query = query1+query2
-        #print(query)
+        print(query)
         return self.execute(query)
 
     def new_utxo(self, address, amount, tx_id, out_index, spent=0, confirmed=0):
@@ -322,7 +322,7 @@ class Sqlite3Wallet:
         query1 = f"SELECT address, change_addr, path, acc_index  \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
         query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{name}';"
         query = query1 + query2
-        #print(query)
+        print(query)
         return self.execute_w_res(query)
 
     
