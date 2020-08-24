@@ -146,7 +146,6 @@ class Wallet(MasterAccount):
             print("transaction succesfull")
             return True
     
-    #@classmethod
     def get_i(self,account_path, index,random_index = False):
         if random_index:
             if index is None:
@@ -168,10 +167,8 @@ class Wallet(MasterAccount):
             if last_index is None: i = 0
             else: i = last_index + 1
             
-            
         return i
 
-    #@classmethod
     def get_unused_addresses_list(self, change_addresses=False, range_of_days=None, last_day_range=None):
         
         unused_addresses = self.db.get_unused_addresses(wallet = self.get_xtended_key(), 

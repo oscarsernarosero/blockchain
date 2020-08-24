@@ -43,15 +43,27 @@ class Sqlite3Wallet:
         
     def create_wallet_table(self):
         query1 =  f"CREATE TABLE IF NOT EXISTS Wallets ( xprv text NOT NULL PRIMARY KEY,\n "
-        query2 = f"name text, words text NOT NULL) WITHOUT ROWID;"
+        query2 = f"name text, words text NOT NULL, child INT) WITHOUT ROWID;"
         query = query1+query2
+        #print(query)
+        return self.execute(query)
+    
+    def create_SHDSafeWallet_table(self):
+        """
+        name is the primary key
+        """
+        query1 = "CREATE TABLE IF NOT EXISTS SHDSafeWallet (name text NOT NULL PRIMARY KEY,\n "
+        query2 = " public_key_list text NOT NULL, m INT NOT NULL, n INT NOT NULL, privkey text, xpriv text, \n "
+        query3 = " xpub text NOT NULL, addr_type text NOT NULL, testnet INT NOT NULL, segwit INT NOT NULL,\n "
+        query4 = " parent_name text, safe_index INT\n) WITHOUT ROWID;"
+        query = query1+query2+query3+query4
         #print(query)
         return self.execute(query)
 
     def create_address_table(self):
         query1 =f"CREATE TABLE IF NOT EXISTS Addresses ( address text NOT NULL PRIMARY KEY,\nacc_index INT NOT NULL,"
         query2 = "\npath text NOT NULL,\nchange_addr INT NOT NULL,\ncreated INT NOT NULL,\nwallet text NOT NULL,\n"
-        query3 = "type INT NOT NULL,\nFOREIGN KEY (wallet) \nREFERENCES Wallets(xprv) ) WITHOUT ROWID ;"
+        query3 = "type INT NOT NULL,\nsafe_index INT,\nFOREIGN KEY (wallet) \nREFERENCES Wallets(xprv) ) WITHOUT ROWID ;"
         query = query1 + query2 + query3
         #print(query)
         return self.execute(query)
@@ -97,7 +109,7 @@ class Sqlite3Wallet:
         self.create_tx_out_table()
         return True
 
-    def new_wallet(self, xprv, words, name = None ):
+    def new_wallet(self, xprv, words, name = None, child = 0 ):
         """
         Creates a new wallet in the database.
         self.conn: self.conn: internal database driver transaction.
@@ -105,13 +117,25 @@ class Sqlite3Wallet:
         words: String; The mnemonic phrase of the wallet.
         name: String Optional. This is an alias for the wallet if user prefers it.
         """
-        query1 = "INSERT INTO Wallets (xprv, words, name)\n "
-        query2 = f"VALUES('{xprv}', {words}, '{name}') ;"
+        query1 = "INSERT INTO Wallets (xprv, words, name, child)\n "
+        query2 = f"VALUES('{xprv}', {words}, '{name}', {child}) ;"
         query = query1+query2
         #print(query)
         return self.execute(query)
+    
+    def new_SHDSafeWallet(self,name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name,safe_index):
+        """
+        Creates a new SHD multi signature Wallet in the database.
+        to do...
+        """
+        query1 = "INSERT OR IGNORE INTO SHDSafeWallet (name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name "
+        query2 = f',safe_index) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}","{addr_type}",'
+        query3 = f"{testnet},{segwit},'{parent_name}',{safe_index}) ;"
+        query = query1 + query2 + query3
+        print(query)
+        return self.execute(query)
 
-    def new_address(self, address, path, acc_index, change_addr, _type, wallet):
+    def new_address(self, address, path, acc_index, change_addr, _type, wallet, safe_index = 0):
         """
         Creates a new address in the database.
         self.conn: internal database driver transaction.
@@ -124,8 +148,8 @@ class Sqlite3Wallet:
         wallet: String; the xtended private key of the wallet
         """
         created = int(time.time())
-        query1 = "INSERT INTO Addresses (address, path, acc_index, change_addr, created, type, wallet)\n "
-        query2 = f'VALUES("{address}", "{path}", {acc_index}, {change_addr}, {created}, {_type}, "{wallet}") ;'
+        query1 = "INSERT OR IGNORE INTO Addresses (address, path, acc_index, change_addr, created, type, wallet, safe_index)\n "
+        query2 = f'VALUES("{address}", "{path}", {acc_index}, {change_addr}, {created}, {_type}, "{wallet}", {safe_index}) ;'
         query = query1+query2
         #print(query)
         return self.execute(query)
@@ -293,6 +317,15 @@ class Sqlite3Wallet:
             #print(query)
             return self.execute_w_res(query)
 
+    #CHECK IF THIS IS NECESSARY. IF NOT JUST DELETE THIS METHOD
+    def get_unused_safe_addresses(self, name):
+        query1 = f"SELECT address, change_addr, path, acc_index  \nFROM Addresses WHERE\nNOT EXISTS(\nSELECT 1 \n FROM Utxos"
+        query2 = f"\nWHERE Utxos.address = Addresses.address) \nAND\n Addresses.wallet = '{name}';"
+        query = query1 + query2
+        #print(query)
+        return self.execute_w_res(query)
+
+    
     def get_all_addresses(self,wallet):
         """
         Returns all the addresses in the database for the specific wallet.
@@ -339,6 +372,10 @@ class Sqlite3Wallet:
     
     def get_all_wallets(self):
         query = f"SELECT * FROM Wallets;"
+        return self.execute_w_res(query)
+    
+    def recover_SHDSafeWallet(self,name):
+        query = f"SELECT * FROM SHDSafeWallet WHERE name='{name}'"
         return self.execute_w_res(query)
     
     def get_max_index(self, account, wallet):

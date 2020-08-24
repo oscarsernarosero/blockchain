@@ -235,12 +235,13 @@ class SHMAccount(Xtended_pubkey):
         self.addr_type = addr_type.lower()
         #self.privkey_index = index
         
-    def get_deposit_address(self,date,index=0):
+    def get_deposit_address(self,index=0):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
+        #date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/0/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
         redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
         serialized_redeem = redeem_script.raw_serialize()
@@ -258,12 +259,12 @@ class SHMAccount(Xtended_pubkey):
         account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
         return account
 
-    def get_change_address(self,date,index=0):
+    def get_change_address(self,index=0):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
+        date_account = self.xtended_pubkey.get_child_from_path(f'm/1/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
         redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
         serialized_redeem = redeem_script.raw_serialize()
