@@ -58,6 +58,7 @@ class Transact:
     @classmethod
     def get_tx_ins_utxo(self,prev_tx_id_list, receiving_address, testnet=True):
         """
+        deprecated. Use get_inputs instead.
         Receives a list of transaction ids where the UTXOs to spend are, and 
         also the receiving address to return a valid tx_in list to create
         a transaction.
@@ -192,10 +193,12 @@ class Transaction(Transact):
         return testnet
     
     @classmethod
-    def get_outputs(self, receivingAddress_w_amount_list, account):
+    def get_outputs(self, receivingAddress_w_amount_list, account=None, send_all=False):
         
         #https://en.bitcoin.it/wiki/List_of_address_prefixes
         #We create the tx outputs based on the kind of address
+        
+        if send_all == False and account is None: raise Exception("A change account must be provided if send_all is False. If not, this would result in a lost of funds.")
         
         tx_outs = []
         for output in receivingAddress_w_amount_list:
@@ -209,15 +212,14 @@ class Transaction(Transact):
                 tx_outs.append( TxOut(output[1], p2wpkh_script(self.decode_p2wpkh_addr(output[0]))))#Needs to be tested
             else:raise Exception ("Not supported address.")
         
-        #Let's return the fake change to our same address. 
-        #This will change later when BIP32 is implemented.
-        if account.addr_type == "p2pkh":
-            tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
-        elif account.addr_type in ["p2wpkh","p2wsh"]:
-            tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
-        elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
-            tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
-        else: raise Exception ("Not supported address.")
+        #Let's return the fake change to our change-account address. 
+        if not send_all:
+            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
+            elif account.addr_type in ["p2wpkh","p2wsh"]:
+                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
+            elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
+                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
+            else: raise Exception ("Not supported address.")
             
         return tx_outs
                 
@@ -411,9 +413,11 @@ class MultiSigTransaction(Transaction):
         """
         testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         tx_outs = self.get_outputs(receivingAddress_w_amount_list, sender_account)
-        tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
+        #tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
+        tx_ins_utxo = self.get_inputs(utxo_tx_id_list)#change name of variable from utxo_tx_id_list to utxo_list
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
+        #I AM HERE!!!
         fee, change, transaction = self.unsigned_tx(tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list)
         transaction = self.sign1by1(transaction, sender_account)
         final_tx =  self.verify_signatures(transaction, sender_account)
