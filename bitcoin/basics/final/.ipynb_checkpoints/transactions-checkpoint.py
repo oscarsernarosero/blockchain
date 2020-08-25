@@ -194,6 +194,11 @@ class Transaction(Transact):
     
     @classmethod
     def get_outputs(self, receivingAddress_w_amount_list, account=None, send_all=False):
+        """
+        receivingAddress_w_amount_list: ('receiving_address',amount_in_satoshi)
+        account: can be an Account object or an address (String)
+        send_all: if you want to send all the funds set this to True. You don't need an account if you set send_all to True.
+        """
         
         #https://en.bitcoin.it/wiki/List_of_address_prefixes
         #We create the tx outputs based on the kind of address
@@ -214,11 +219,15 @@ class Transaction(Transact):
         
         #Let's return the fake change to our change-account address. 
         if not send_all:
-            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
+            #we check if we received an address or an account as an argument and convert it if necessary.
+            if isinstance(account,str): address = account
+            else: address = account.address
+                
+            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(address))))
             elif account.addr_type in ["p2wpkh","p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
+                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(address))))
             elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
+                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(address))))
             else: raise Exception ("Not supported address.")
             
         return tx_outs
@@ -364,7 +373,7 @@ class Transaction(Transact):
 class MultiSigTransaction(Transaction):
     
     @classmethod
-    def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list):
+    def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list,send_all):
         
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
         
@@ -372,9 +381,13 @@ class MultiSigTransaction(Transaction):
                                 redeem_script=sender_account.redeem_script,testnet=testnet, 
                                 segwit = segwit, multisig =True)
         
-        change = self.calculate_change(utxos, fee, [x[1] for x in receivingAddress_w_amount_list])
-        
-        my_tx.tx_outs[-1].amount = change
+        if send_all: 
+            my_tx.tx_outs[0].amount -= fee
+            change = 0
+        else:
+            change = self.calculate_change(utxos, fee, [x[1] for x in receivingAddress_w_amount_list])
+            my_tx.tx_outs[-1].amount = change
+            
         return fee, change, my_tx
 
     @classmethod
@@ -392,6 +405,7 @@ class MultiSigTransaction(Transaction):
                                                  sender_account.m,transaction.segwit,p2sh_p2wsh)
         return transaction
         
+    
     @classmethod
     def verify_signatures(self, transaction, sender_account):
         p2sh_p2wsh=False
@@ -402,31 +416,37 @@ class MultiSigTransaction(Transaction):
             return False
     
     @classmethod
-    def create(self, utxo_tx_id_list, receivingAddress_w_amount_list, sender_account, fee=None, #Modify code to allow manual fee!!!
-                 segwit=False):
+    def create(self, utxo_tx_id_list, receivingAddress_w_amount_list, 
+               sender_account, 
+               change_address, 
+               fee=None, #Modify code to allow manual fee!!!
+                 segwit=False, send_all=False):
         """
+        Currently only works with simple multisignature accounts. HD Multisignature accounts is next step!!
         utxo_tx_id_list: the list of the transaction ids where the UTXOs are.
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
-        sender_account: must be a MultSigAccount object.
+        sender_account: must be a MultSigAccount object. 
+        change_address: String. The address to receive the change.
         If fee is specifyed, then the custom fee will be applied.
         """
-        testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
-        tx_outs = self.get_outputs(receivingAddress_w_amount_list, sender_account)
+        #testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
+        if send_all:  tx_outs = self.get_outputs(receivingAddress_w_amount_list, send_all)
+        else:         tx_outs = self.get_outputs(receivingAddress_w_amount_list, change_address)
         #tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
         tx_ins_utxo = self.get_inputs(utxo_tx_id_list)#change name of variable from utxo_tx_id_list to utxo_list
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
-        #I AM HERE!!!
-        fee, change, transaction = self.unsigned_tx(tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list)
+        fee, change, transaction = self.unsigned_tx(tx_ins, tx_outs, testnet, segwit, sender_account,
+                                                    utxos,receivingAddress_w_amount_list,send_all)
         transaction = self.sign1by1(transaction, sender_account)
         final_tx =  self.verify_signatures(transaction, sender_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
-            return MultiSigTransaction(transaction, sender_account, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit)
+            return (MultiSigTransaction(transaction, sender_account, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit),False)
         else:
             print("transaction ready!")
-            return final_tx
+            return (final_tx,True)
     
     @classmethod
     def sign_received_tx(self,multisig_transaction,sender_account):
@@ -438,10 +458,10 @@ class MultiSigTransaction(Transaction):
         final_tx =  self.verify_signatures(signed_tx, sender_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
-            return MultiSigTransaction(signed_tx, sender_account, multisig_transaction.tx_ins,multisig_transaction.utxos ,multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change, multisig_transaction.testnet, multisig_transaction.segwit)
+            return MultiSigTransaction(signed_tx, sender_account, multisig_transaction.tx_ins,multisig_transaction.utxos ,multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change, multisig_transaction.testnet, multisig_transaction.segwit), False
         else:
             print("TRANSACTION READY!\nRun serialize().hex() to get the raw transaction.")
-            return final_tx
+            return final_tx, True
         
     @classmethod
     def sign_tx():
