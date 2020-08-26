@@ -132,6 +132,7 @@ class Wallet(MasterAccount):
 
         print(f"finish {datetime.datetime.now()}")
         
+        self.start_conn()
         if state == 0:
             print("transaction not broadcasted")
             self.db.delete_tx(tx)
@@ -141,7 +142,8 @@ class Wallet(MasterAccount):
             print("transaction disregarded")
             self.db.delete_tx(tx)
             return False
-            
+        
+        self.close_conn()    
         elif state == 2: 
             if confirm_tx_sent(tx,state=2):
                 return True
@@ -175,11 +177,11 @@ class Wallet(MasterAccount):
         return i
 
     def get_unused_addresses_list(self, change_addresses=False, range_of_days=None, last_day_range=None):
-        
+        self.start_conn()
         unused_addresses = self.db.get_unused_addresses(wallet = self.get_xtended_key(), 
                                                         days_range = range_of_days, 
                                                         max_days = last_day_range)
-        
+        self.close_conn()
         if change_addresses:
             unused_addresses_filtered =  [x for x in unused_addresses if x[1]==1]
         else:
@@ -202,7 +204,9 @@ class Wallet(MasterAccount):
         print(f"Deposit address's Path: {path}")
         receiving_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(receiving_xtended_acc.private_key,"big"),addr_type, self.testnet )
+        self.start_conn()
         self.db.new_address(account.address,receiving_path,i,FALSE, _type, self.get_xtended_key())
+        self.close_conn()
         return account
 
     
@@ -213,7 +217,9 @@ class Wallet(MasterAccount):
         print(f"Change address's Path: {path}")
         change_xtended_acc = self.get_child_from_path(path)
         account = Account(int.from_bytes(change_xtended_acc.private_key,"big"),addr_type, self.testnet )
+        self.start_conn()
         self.db.new_address(account.address,change_path,i,TRUE, P2WPKH, self.get_xtended_key())
+        self.close_conn()
         return account
     
     def get_a_change_address(self):
@@ -235,6 +241,7 @@ class Wallet(MasterAccount):
         else: return self.create_change_address()
     
     def get_utxos(self):
+        self.start_conn()
         return self.db.look_for_coins(self.get_xtended_key())
         
     def get_balance(self):
@@ -249,6 +256,7 @@ class Wallet(MasterAccount):
         return balance
 
     def update_balance(self):
+        self.start_conn()
         addresses = self.db.get_all_addresses(self.get_xtended_key())
         
         if self.testnet: coin_symbol = "btc-testnet"
@@ -273,7 +281,9 @@ class Wallet(MasterAccount):
                     if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 1):
                         print("new confirmed UTXO")
                         self.db.new_utxo(addr_info["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 1)
-      
+                        
+        self.close_conn()
+        
         return self.get_balance()
     
     #@classmethod
@@ -327,10 +337,11 @@ class Wallet(MasterAccount):
         print(f"TRANSACTION ID: {tx_id}")
         
         #saving in db
+        self.start_conn()
         self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
-        
+        self.close_conn()
         #start new thread to check if the transaction goes through in the blockchain or not.
         #Maybe move this to the front end class to pop a warning when it doesn't go through
         mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))
