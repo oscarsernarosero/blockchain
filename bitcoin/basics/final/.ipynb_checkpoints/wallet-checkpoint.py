@@ -96,7 +96,7 @@ class Wallet(MasterAccount):
         initiated = datetime.datetime.now()
         time.sleep(5)
 
-        for i in range(40):
+        for i in range(60):
             
             #get confirmations from the blockchain
             confirmations = self.consult_confirmations(tx,BLOCKCYPHER_API_KEY)
@@ -105,7 +105,12 @@ class Wallet(MasterAccount):
             #if a None value is returned, it means that the blockchain doesn't know about the transaction at all.
             #This means that there was an error and the transaction didn't get broadcasted.
             if confirmations is None: 
-                print("None ..")
+                
+                if   state == 0:
+                    if i == 0: print("Transaction didn't get broadcasted.")
+                    else: print("Transaction was refused by the miners.")
+                elif state  > 0: print("Transaction was lost in a fork. Try broadcasting again.")#Not sure if this is possible.
+                
                 return False
 
             if confirmations>0 and state==0:
@@ -122,7 +127,7 @@ class Wallet(MasterAccount):
                 break
                 
             print(f"counter {i}; confirmation {confirmations} for tx {tx} at {datetime.datetime.now()}")
-            time.sleep(sleeping_time)
+            time.sleep(sleeping_time*(i*2//3 + 1))
             
 
         print(f"finish {datetime.datetime.now()}")

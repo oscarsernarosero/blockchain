@@ -279,6 +279,22 @@ class Sqlite3Wallet:
         query = query1 + query2 + query3
         #print(query)
         return self.execute_w_res(query)
+    
+    def get_utxo_info(self, tx_id, out_index):
+        """
+        Searches the database for a specific utxo and retreives its info.
+        self.conn: internal database driver transaction.
+        wallet: String, The wallet extended private key.
+        tx_id: transaction id of the utxo.
+        out_index: index of the output.
+        Returns: List of touples [(tx_id, out_index, amount)]
+        """
+        query1 = f"SELECT Utxos.tx_id, Utxos.out_index, Utxos.amount, Addresses.path, Addresses.acc_index, Addresses.address,\n "
+        query2 = f"Addresses.type \nFROM Utxos INNER JOIN Addresses \nON Utxos.address = Addresses.address\n"
+        query3 = f"WHERE Utxos.tx_id = '{tx_id}' AND Utxos.out_index = {out_index};"
+        query = query1 + query2 + query3
+        print(query)
+        return self.execute_w_res(query)
 
     def get_unused_addresses(self,wallet, days_range=None, max_days=None):
         """
@@ -345,9 +361,9 @@ class Sqlite3Wallet:
         confirmed: Int/Boolean 0=False, 1=True; the current state of confirmation of the transaction in the actual blockchain.
         """
         query = f"SELECT * FROM Utxos WHERE  tx_id = '{tx_id}' AND out_index = {out_index}"
-        #print(query)
+        print(query)
         result = self.execute_w_res(query)
-        #print(f"result of looking_for coins: {result}")
+        print(f"result of looking_for coins: {result}")
         if len(result)>0:
             if result[0][6] != confirmed:
                 query = f"UPDATE Utxos \nSET confirmed = {confirmed} WHERE tx_id = '{tx_id}' AND out_index = {out_index} "

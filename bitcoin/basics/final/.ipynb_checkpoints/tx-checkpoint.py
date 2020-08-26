@@ -548,6 +548,12 @@ class Tx:
         
         for input_index,tx_input in enumerate(self.tx_ins):
             
+            p2sh_p2wsh = False
+            script_pubkey = tx_input.script_pubkey(testnet=self.testnet)
+            if script_pubkey.is_p2sh_script_pubkey():
+                if len(script_pubkey.cmds[1]) == 32:
+                    p2sh_p2wsh = True
+            
             if segwit: 
                 cmds_copy = self.tx_ins[input_index].witness
                 print(f"segwit commands: {cmds_copy}")

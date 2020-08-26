@@ -146,6 +146,7 @@ class MultSigAccount():
         #self.address = h160_to_p2sh_address(hash160(serialized_redeem), testnet=self.testnet)
         self.addr_type = addr_type.lower()
         self.privkey_index = index
+        self.segwit = segwit
         
       
         if self.addr_type == "p2sh":
@@ -215,7 +216,7 @@ class SHMAccount(Xtended_pubkey):
         if len(public_key_list) != (n-1):
             raise Exception("n and the amount of public keys don't match. The amount of public keys must always be n-1.")
         
-        
+        print(f"ini shm account _privkey: {_privkey}")
         index = None
         #getting the index of the private key in the list of public keys
         if _privkey is not None:
@@ -233,7 +234,7 @@ class SHMAccount(Xtended_pubkey):
         self.n = n
         self.testnet = testnet
         self.addr_type = addr_type.lower()
-        #self.privkey_index = index
+        self.privkey_index = index
         
     def get_deposit_address(self,index=0):
         """
@@ -248,13 +249,14 @@ class SHMAccount(Xtended_pubkey):
         address = self.get_address(serialized_redeem)
         return address
     
-    def get_deposit_account(self,date,index=0):
+    def get_deposit_account(self,date=None,index=0):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        if self.privkey is None: raise Exception("There is no private key for the account")
-        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
+        #if self.privkey is None: raise Exception("There is no private key for the account")
+        if date is None: date_account = self.xtended_pubkey.get_child_from_path(f'm/0/{index}')
+        else: date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
         account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
         return account
@@ -272,13 +274,14 @@ class SHMAccount(Xtended_pubkey):
 
         return address
     
-    def get_change_account(self,date,index=0):
+    def get_change_account(self,date=None,index=0):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
         if self.privkey is None: raise Exception("There is no private key for the account")
-        date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
+        if date is None: date_account = self.xtended_pubkey.get_child_from_path(f'm/{index}')
+        else: date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
         all_public_keys = self.public_keys + [date_account.public_key]
         account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
         return account
