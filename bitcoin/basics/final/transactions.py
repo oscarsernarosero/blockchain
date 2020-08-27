@@ -221,14 +221,12 @@ class Transaction(Transact):
         #Let's return the fake change to our change-account address. 
         if not send_all:
             #we check if we received an address or an account as an argument and convert it if necessary.
-            if isinstance(account,str): address = account
-            else: address = account.address
                 
-            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(address))))
+            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
             elif account.addr_type in ["p2wpkh","p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(address))))
+                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
             elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(address))))
+                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
             else: raise Exception ("Not supported address.")
             
         return tx_outs

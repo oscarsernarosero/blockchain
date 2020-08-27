@@ -227,7 +227,7 @@ class SHMAccount(Xtended_pubkey):
                 if public_key == pubkey:
                     index = i
             if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
-        else: _privkey = None
+        else: self.privkey = None
             
         if master_privkey is not None:
             if isinstance(master_privkey,str): self.master_privkey = self.parse(master_privkey)
@@ -269,8 +269,12 @@ class SHMAccount(Xtended_pubkey):
         
         if self.master_privkey is None and self.privkey is not None: privkey = self.privkey
         elif self.master_privkey is not None and self.privkey is None: 
-            if date is None: privkey = self.master_privkey.get_child_from_path(f'm/0/{index}')
-            else: privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+            if date is None: 
+                xtended_privkey = self.master_privkey.get_child_from_path(f'm/0/{index}')
+                privkey = xtended_privkey.private_key_obj
+            else: 
+                xtended_privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+                privkey = xtended_privkey.private_key_obj
         else: raise Exception("A private key is necessary to create a deposit account")
             
         account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
@@ -301,8 +305,12 @@ class SHMAccount(Xtended_pubkey):
         
         if self.master_privkey is None and self.privkey is not None: privkey = self.privkey
         elif self.master_privkey is not None and self.privkey is None: 
-            if date is None: privkey = self.master_privkey.get_child_from_path(f'm/0/{index}')
-            else: privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+            if date is None: 
+                xtended_privkey = self.master_privkey.get_child_from_path(f'm/1/{index}')
+                privkey = xtended_privkey.private_key_obj
+            else: 
+                xtended_privkey = self.master_privkey.get_child_from_path(f'm/{date}/1/{index}')
+                privkey = xtended_privkey.private_key_obj
         else: raise Exception("A private key is necessary to create a deposit account")
             
         account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
