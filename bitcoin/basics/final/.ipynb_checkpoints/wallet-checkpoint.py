@@ -136,14 +136,16 @@ class Wallet(MasterAccount):
         if state == 0:
             print("transaction not broadcasted")
             self.db.delete_tx(tx)
+            self.close_conn()  
             return False
             
         elif state == 1:
             print("transaction disregarded")
             self.db.delete_tx(tx)
+            self.close_conn()  
             return False
         
-        self.close_conn()    
+          
         elif state == 2: 
             if confirm_tx_sent(tx,state=2):
                 return True

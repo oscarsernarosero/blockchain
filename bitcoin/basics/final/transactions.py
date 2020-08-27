@@ -114,7 +114,7 @@ class Transact:
         #Let's calculate the fee and the change:
         if segwit: tx_size = len(my_tx.serialize().hex())+5
         else: tx_size = len(my_tx.serialize().hex())+len(utxo_list)*64
-        print(f"size of transaction without signatures: {tx_size//3}")
+        print(f"size of transaction without signatures: {tx_size}")
         fee = tx_size * fee_per_byte
         print(f"fee: {fee}")
         return fee
@@ -274,7 +274,7 @@ class Transaction(Transact):
         
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
        
-        fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit)
+        fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit=segwit)
             
         change = self.calculate_change(utxos, fee, [x[1] for x in receivingAddress_w_amount_list])
         
@@ -396,7 +396,7 @@ class MultiSigTransaction(Transaction):
         
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
         
-        fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit)
+        fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit=segwit)
         
         if send_all: 
             my_tx.tx_outs[0].amount -= fee
@@ -435,12 +435,7 @@ class MultiSigTransaction(Transaction):
             
             addr_index = utxo_list[tx_input][4]
             print(f"Address trying to spend from: {utxo_list[tx_input][5]}, path {utxo_list[tx_input][3]}{addr_index}")
-            """
-            privkey = PrivateKey(int.from_bytes(wallet.privkey,"big"))
             
-            account = SHMAccount(wallet.m, wallet.n, str(wallet.master_pubkey), wallet.public_key_list, privkey,
-                                 wallet.addr_type, wallet.testnet, wallet.segwit)
-            """
             if utxo_list[tx_input][3] == "m/1/": 
                 print(f"change account index {addr_index}")
                 signing_account = account.get_change_account(index=addr_index) 
@@ -512,7 +507,7 @@ class MultiSigTransaction(Transaction):
     
     @classmethod
     def create_from_wallet(self, utxo_list, receivingAddress_w_amount_list, 
-               SHMaccount, 
+               multi_sig_account, 
                change_address, 
                fee=None, #Modify code to allow manual fee!!!
                  segwit=False, send_all=False):
@@ -522,12 +517,12 @@ class MultiSigTransaction(Transaction):
         [(tx_id, out_index, amount, path, account_index, address, type), ... ].
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
-        wallet: must be a multi-signature wallet such as SHDSafeWAllet object. 
+        multi_sig_account: must be a multi-signature account such as SHMAccount or an FHMAccount object. 
         change_address: String. The address to receive the change.
         If fee is specifyed, then the custom fee will be applied.
         """
         #testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
-        testnet = SHMaccount.testnet
+        testnet = multi_sig_account.testnet
         #Maybe, we can create the change account inside this method instead of receiving it through the arguments.
         if send_all:  tx_outs = self.get_outputs(receivingAddress_w_amount_list, send_all = send_all)
         else:         tx_outs = self.get_outputs(receivingAddress_w_amount_list, account = change_address)
@@ -539,14 +534,16 @@ class MultiSigTransaction(Transaction):
         fee, change, transaction = self.unsigned_tx_from_wallet(tx_ins, tx_outs, testnet, segwit,
                                                                 utxos,receivingAddress_w_amount_list, 
                                                                 utxo_list, send_all)
-        transaction = self.sign1by1_with_wallet(utxo_list, transaction, SHMaccount)
-        final_tx =  self.verify_signatures_with_wallet(transaction, SHMaccount)
+        
+        transaction = self.sign1by1_with_wallet(utxo_list, transaction, multi_sig_account)
+        final_tx =  self.verify_signatures_with_wallet(transaction, multi_sig_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
             return (MultiSigTransaction(transaction, None, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit),False)
         else:
             print("transaction ready!")
             return (final_tx,True)
+        
     
     @classmethod
     def sign_received_tx(self,multisig_transaction,sender_account):
@@ -558,22 +555,27 @@ class MultiSigTransaction(Transaction):
         final_tx =  self.verify_signatures(signed_tx, sender_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
-            return MultiSigTransaction(signed_tx, sender_account, multisig_transaction.tx_ins,multisig_transaction.utxos ,multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change, multisig_transaction.testnet, multisig_transaction.segwit), False
+            return MultiSigTransaction(signed_tx, sender_account, multisig_transaction.tx_ins,multisig_transaction.utxos ,
+                                       multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change,
+                                       multisig_transaction.testnet, multisig_transaction.segwit), False
         else:
             print("TRANSACTION READY!\nRun serialize().hex() to get the raw transaction.")
             return final_tx, True
         
+        
     @classmethod
-    def sign_received_tx_with_wallet(self,utxo_list, multisig_transaction,wallet):
+    def sign_received_tx_with_wallet(self,utxo_list, multisig_transaction, multi_sig_account):
         """
         multisig_transaction: must be a MultiSigTransaction object.
         sender_account: must be a MultSigAccount object.
         """
-        signed_tx = self.sign1by1_with_wallet(utxo_list, multisig_transaction.transaction,wallet)
-        final_tx =  self.verify_signatures_with_wallet(signed_tx, wallet)
+        signed_tx = self.sign1by1_with_wallet(utxo_list, multisig_transaction.transaction, multi_sig_account)
+        final_tx =  self.verify_signatures_with_wallet(signed_tx, multi_sig_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
-            return MultiSigTransaction(signed_tx, None, multisig_transaction.tx_ins,multisig_transaction.utxos ,multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change, multisig_transaction.testnet, multisig_transaction.segwit), False
+            return MultiSigTransaction(signed_tx, None, multisig_transaction.tx_ins,multisig_transaction.utxos ,
+                                       multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change,
+                                       multisig_transaction.testnet, multisig_transaction.segwit), False
         else:
             print("TRANSACTION READY!\nRun serialize().hex() to get the raw transaction.")
             return final_tx, True

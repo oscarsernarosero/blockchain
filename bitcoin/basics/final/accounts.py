@@ -190,7 +190,8 @@ class SHMAccount(Xtended_pubkey):
     account has to be shared with the owners of the public keys and only a valid private key will incorporate this wallet
     into their wallets.
     """
-    def __init__(self,m,n, xtended_pubkey, public_key_list, _privkey=None, addr_type="p2sh", testnet=False, segwit=True):
+    def __init__(self,m,n, xtended_pubkey, public_key_list, _privkey=None, master_privkey=None,addr_type="p2sh", 
+                 testnet=False, segwit=True):
         """
         Initialize the account with 1 master_public_key in the String form and a list of public keys.
         m: the minumin amount of signatures required to spend the money.
@@ -226,6 +227,12 @@ class SHMAccount(Xtended_pubkey):
                 if public_key == pubkey:
                     index = i
             if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
+        else: _privkey = None
+            
+        if master_privkey is not None:
+            if isinstance(master_privkey,str): self.master_privkey = self.parse(master_privkey)
+            else: self.master_privkey = master_privkey
+        else: self.master_privkey = None
 
         self.public_keys = public_key_list
         
@@ -257,8 +264,16 @@ class SHMAccount(Xtended_pubkey):
         #if self.privkey is None: raise Exception("There is no private key for the account")
         if date is None: date_account = self.xtended_pubkey.get_child_from_path(f'm/0/{index}')
         else: date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
+            
         all_public_keys = self.public_keys + [date_account.public_key]
-        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
+        if self.master_privkey is None and self.privkey is not None: privkey = self.privkey
+        elif self.master_privkey is not None and self.privkey is None: 
+            if date is None: privkey = self.master_privkey.get_child_from_path(f'm/0/{index}')
+            else: privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+        else: raise Exception("A private key is necessary to create a deposit account")
+            
+        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
         return account
 
     def get_change_address(self,index=0):
@@ -279,11 +294,18 @@ class SHMAccount(Xtended_pubkey):
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        if self.privkey is None: raise Exception("There is no private key for the account")
-        if date is None: date_account = self.xtended_pubkey.get_child_from_path(f'm/{index}')
+        if date is None: date_account = self.xtended_pubkey.get_child_from_path(f'm/1/{index}')
         else: date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/1/{index}')
+            
         all_public_keys = self.public_keys + [date_account.public_key]
-        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
+        if self.master_privkey is None and self.privkey is not None: privkey = self.privkey
+        elif self.master_privkey is not None and self.privkey is None: 
+            if date is None: privkey = self.master_privkey.get_child_from_path(f'm/0/{index}')
+            else: privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+        else: raise Exception("A private key is necessary to create a deposit account")
+            
+        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
         return account
 
         
@@ -390,10 +412,17 @@ class FHMAccount(Xtended_pubkey):
         index: index of the deposit address.
         """
         #if self.privkey is None: raise Exception("There is no private key for the account")
-        if date is None: date_accounts = [x.get_child_from_path(f'm/0/{index}') for x in self.xtended_pubkey_list]
-        else: date_accounts = [x.get_child_from_path(f'm/{date}/0/{index}') for x in self.xtended_pubkey_list]
+        if date is None: 
+            date_accounts = [x.get_child_from_path(f'm/0/{index}') for x in self.xtended_pubkey_list]
+            privkey = self.master_privkey.get_child_from_path(f'm/0/{index}') 
+        else: 
+            date_accounts = [x.get_child_from_path(f'm/{date}/0/{index}') for x in self.xtended_pubkey_list]
+            privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
+            
         all_public_keys = [x.public_key for x in date_accounts]
-        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
+        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
         return account
 
     def get_change_address(self,index=0):
@@ -413,10 +442,17 @@ class FHMAccount(Xtended_pubkey):
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        if date is None: date_accounts = [x.get_child_from_path(f'm/1/{index}') for x in self.xtended_pubkey_list]
-        else: date_accounts = [x.get_child_from_path(f'm/{date}/1/{index}') for x in self.xtended_pubkey_list]
+        if date is None: 
+            date_accounts = [x.get_child_from_path(f'm/1/{index}') for x in self.xtended_pubkey_list]
+            privkey = self.master_privkey.get_child_from_path(f'm/1/{index}') 
+        else: 
+            date_accounts = [x.get_child_from_path(f'm/{date}/1/{index}') for x in self.xtended_pubkey_list]
+            privkey = self.master_privkey.get_child_from_path(f'm/{date}/1/{index}')
+            
         all_public_keys = [x.public_key for x in date_accounts]
-        account = MultSigAccount(self.m, self.privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
+        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        
         return account
 
         

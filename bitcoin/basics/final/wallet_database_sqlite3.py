@@ -59,6 +59,18 @@ class Sqlite3Wallet:
         query = query1+query2+query3+query4
         #print(query)
         return self.execute(query)
+    
+    def create_HDMWallet_table(self):
+        """
+        name is the primary key
+        """
+        query1 = "CREATE TABLE IF NOT EXISTS HDMWallet (name text NOT NULL PRIMARY KEY,\n "
+        query2 = " master_pubkey_list text NOT NULL, m INT NOT NULL, n INT NOT NULL, xpriv text NOT NULL, \n "
+        query3 = " addr_type text NOT NULL, testnet INT NOT NULL, segwit INT NOT NULL,\n "
+        query4 = " parent_name text, safe_index INT\n) WITHOUT ROWID;"
+        query = query1+query2+query3+query4
+        #print(query)
+        return self.execute(query)
 
     def create_address_table(self):
         query1 =f"CREATE TABLE IF NOT EXISTS Addresses ( address text NOT NULL PRIMARY KEY,\nacc_index INT NOT NULL,"
@@ -130,6 +142,23 @@ class Sqlite3Wallet:
         """
         query1 = "INSERT OR IGNORE INTO SHDSafeWallet (name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name "
         query2 = f',safe_index) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}","{addr_type}",'
+        query3 = f"{testnet},{segwit},'{parent_name}',{safe_index}) ;"
+        query = query1 + query2 + query3
+        print(query)
+        return self.execute(query)
+    
+        query1 = "CREATE TABLE IF NOT EXISTS SHDSafeWallet (name text NOT NULL PRIMARY KEY,\n "
+        query2 = " master_pubkey_list text NOT NULL, m INT NOT NULL, n INT NOT NULL, xpriv text NOT NULL, \n "
+        query3 = " addr_type text NOT NULL, testnet INT NOT NULL, segwit INT NOT NULL,\n "
+        query4 = " parent_name text, safe_index INT\n) WITHOUT ROWID;"
+    
+    def new_HDMWallet(self,name,master_pubkey_list,m,n,xpriv,addr_type,testnet,segwit,parent_name,safe_index):
+        """
+        Creates a new fully HD multi signature Wallet in the database.
+        to do...
+        """
+        query1 = "INSERT OR IGNORE INTO HDMWallet (name,master_pubkey_list,m,n,xpriv,addr_type,testnet,segwit,parent_name "
+        query2 = f',safe_index) \nVALUES("{name}","{master_pubkey_list}",{m},{n},"{xpriv}","{addr_type}",'
         query3 = f"{testnet},{segwit},'{parent_name}',{safe_index}) ;"
         query = query1 + query2 + query3
         print(query)
@@ -392,6 +421,10 @@ class Sqlite3Wallet:
     
     def recover_SHDSafeWallet(self,name):
         query = f"SELECT * FROM SHDSafeWallet WHERE name='{name}'"
+        return self.execute_w_res(query)
+    
+    def recover_HDMWallet(self,name):
+        query = f"SELECT * FROM HDMWallet WHERE name='{name}'"
         return self.execute_w_res(query)
     
     def get_max_index(self, account, wallet):
