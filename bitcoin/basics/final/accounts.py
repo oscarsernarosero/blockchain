@@ -386,9 +386,10 @@ class FHMAccount(Xtended_pubkey):
         index = -1
         #getting the index of the private key in the list of public keys
         self.master_privkey = master_privkey
-        pubkey = self.master_privkey.xtended_public_key
+        pubkey = str(self.master_privkey.xtended_public_key)
         for i,public_key in enumerate(xtended_pubkey_list):
-            if public_key == pubkey:
+            print(f"public key {i} in list: {public_key}")
+            if str(public_key) == pubkey:
                 index = i
         if index < 0: raise Exception ("Private key must correspond to one of the public keys.")
 
@@ -429,7 +430,7 @@ class FHMAccount(Xtended_pubkey):
             
         all_public_keys = [x.public_key for x in date_accounts]
         
-        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        account = MultSigAccount(self.m, privkey.private_key_obj.secret, all_public_keys, self.addr_type, self.testnet)
         
         return account
 
@@ -459,7 +460,7 @@ class FHMAccount(Xtended_pubkey):
             
         all_public_keys = [x.public_key for x in date_accounts]
         
-        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        account = MultSigAccount(self.m, privkey.private_key_obj.secret, all_public_keys, self.addr_type, self.testnet)
         
         return account
 

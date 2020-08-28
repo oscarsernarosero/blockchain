@@ -105,7 +105,7 @@ class Transact:
         return fee
     
     @classmethod
-    def calculate_fee_w_master(self,utxo_list, my_tx, fee_per_byte = 12, segwit = False):
+    def calculate_fee_w_master(self,utxo_list, my_tx, fee_per_byte = 3, segwit = False):
         """
         privkey: can be just one or a list of private keys in the case of multisignature.
         """
