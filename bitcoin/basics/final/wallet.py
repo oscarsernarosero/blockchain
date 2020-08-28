@@ -175,7 +175,7 @@ class Wallet(MasterAccount):
             
             if last_index is None: i = 0
             else: i = last_index + 1
-            
+            self.close_conn()
         return i
 
     def get_unused_addresses_list(self, change_addresses=False, range_of_days=None, last_day_range=None):
