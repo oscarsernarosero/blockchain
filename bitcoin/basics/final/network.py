@@ -364,6 +364,7 @@ class SimpleNode:
         # create a version message
         version = VersionMessage()
         # send the command
+        print(f"version: {version}")
         self.send(version)
         # wait for a verack message
         self.wait_for(VerAckMessage)
@@ -371,6 +372,7 @@ class SimpleNode:
     def send(self, message):
         '''Send a message to the connected node'''
         # create a network envelope
+        print(f"message: {message}")
         envelope = NetworkEnvelope(
             message.command, message.serialize(), testnet=self.testnet)
         if self.logging:

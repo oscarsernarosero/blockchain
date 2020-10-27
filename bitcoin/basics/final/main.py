@@ -42,7 +42,7 @@ class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
     ''' Adds selection and focus behaviour to the view. '''
 
 
-class SelectableLabel(RecycleDataViewBehavior, Label):
+class SelectWallet(RecycleDataViewBehavior, Label):
     ''' Add selection support to the Label '''
     index = None
     selected = BooleanProperty(False)
@@ -51,12 +51,12 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
     def refresh_view_attrs(self, rv, index, data):
         ''' Catch and handle the view changes '''
         self.index = index
-        return super(SelectableLabel, self).refresh_view_attrs(
+        return super(SelectWallet, self).refresh_view_attrs(
             rv, index, data)
 
     def on_touch_down(self, touch):
         ''' Add selection on touch down '''
-        if super(SelectableLabel, self).on_touch_down(touch):
+        if super(SelectWallet, self).on_touch_down(touch):
             return True
         if self.collide_point(*touch.pos) and self.selectable:
             return self.parent.select_with_touch(self.index, touch)
@@ -70,6 +70,12 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
             app = App.get_running_app()
             sm = app.sm
             
+            
+            ########## new ##########
+            sm.add_widget(WalletTypeScreen(name="WalletType"))
+            
+            ######### End New ##########
+            
             sm.add_widget(MainScreen(name="Main"))
             
             words = app.db.get_words_from_wallet(rv.data[index]["text"])
@@ -81,19 +87,166 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
             app.wallets.append({f"{rv.data[index]['text']}": _wallet})
             app.current_wallet = rv.data[index]['text']
             print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            
+            ######## original ########
+            """
             Clock.schedule_once(self.go_to_main, 0.7)                    
             #sm.switch_to(Screen(name="Main"), direction='right')
+            """
+            ######## End of original ########
+            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
                                 
         else:
             print("selection removed for {0}".format(rv.data[index]))
+            
+        
                                 
     def go_to_main(self,obj):
         app = App.get_running_app()
         sm = app.sm
         #sm.switch_to(Screen(name="Main"), direction='right')
         sm.current = "Main"
+        
+    def go_to_wallet_type(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        #sm.switch_to(Screen(name="Main"), direction='right')
+        sm.current = "WalletType"
+        
 
+class SelectDay(SelectWallet, Label):
+
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            
+            print("selection changed to {0}".format(rv.data[index]))
+            app = App.get_running_app()
+            sm = app.sm
+            
+            
+            ########## new ##########
+            #sm.add_widget(WalletTypeScreen(name="WalletType"))
+            
+            ######### End New ##########
+            
+            #sm.add_widget(MainScreen(name="Main"))
+            
+            words = app.db.get_words_from_wallet(rv.data[index]["text"])
+            #the result of the query will come in the form [(result,)]. Therefore, we  
+            #will select the datum in result[0][0].
+            print(f"words from db: {words[0][0]}")
+            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
+            
+            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
+            ######## original ########
+            """
+            Clock.schedule_once(self.go_to_main, 0.7)                    
+            #sm.switch_to(Screen(name="Main"), direction='right')
+            """
+            ######## End of original ########
+            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+            
+class SelectWeek(SelectWallet, Label):
+
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            
+            print("selection changed to {0}".format(rv.data[index]))
+            app = App.get_running_app()
+            sm = app.sm
+            
+            
+            ########## new ##########
+            sm.add_widget(WalletTypeScreen(name="WalletType"))
+            
+            ######### End New ##########
+            
+            sm.add_widget(MainScreen(name="Main"))
+            
+            words = app.db.get_words_from_wallet(rv.data[index]["text"])
+            #the result of the query will come in the form [(result,)]. Therefore, we  
+            #will select the datum in result[0][0].
+            print(f"words from db: {words[0][0]}")
+            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
+            
+            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
+            ######## original ########
+            """
+            Clock.schedule_once(self.go_to_main, 0.7)                    
+            #sm.switch_to(Screen(name="Main"), direction='right')
+            """
+            ######## End of original ########
+            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+                            
+class SelectStore(SelectWallet, Label):
+
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            
+            print("selection changed to {0}".format(rv.data[index]))
+            app = App.get_running_app()
+            sm = app.sm
+            
+            Clock.schedule_once(self.go_to_store, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_to_store(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "StoreSafesScreen"   
+        
+class SelectYear(SelectWallet, Label):
+
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected: Clock.schedule_once(self.go_to_year, 0.7)  
+        else: print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_to_year(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "CorporateScreen"   
+        
+        
+class SelectAccount(SelectWallet, Label):
+
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            
+            Clock.schedule_once(self.go_to_store, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_to_store(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "StoreSafesScreen"   
 
 class WalletScreen(Screen):
     def __init__(self, **kwargs):
@@ -231,7 +384,92 @@ class MainScreen(Screen):
         return url2
         
 
+class WalletTypeScreen(Screen):
+    
+    public_key = StringProperty()
+    
+    def on_pre_enter(self):
+        app = App.get_running_app() 
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet.start_conn()
+        self.public_key = str(my_wallet.xtended_public_key)
         
+class StoreListScreen(Screen):
+    font_size = "20sp"
+    total= StringProperty()
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        app = App.get_running_app()
+        store_list = app.store_list
+        no_wallet_msg ="You don't have any stores added yet." 
+        if len(store_list)>0:
+            self.ids.store_list.data = [{'text': x} for x in store_list]
+        else:
+            self.ids.rv.data = [{'text': no_wallet_msg}]
+    def on_pre_enter(self):
+        self.total = "A lot"
+        
+        
+class StoreSafesScreen(Screen):
+    font_size = "20sp"
+    font_total_size = "30sp"
+    font_label_size = "15sp"
+    total= StringProperty()
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        app = App.get_running_app()
+        store_list = app.store_list
+        no_wallet_msg ="You don't have any stores added yet." 
+        if len(store_list)>0:
+            self.ids.weeksafe_list.data = [{'text': x} for x in store_list]
+            self.ids.daysafe_list.data = [{'text': x} for x in store_list]
+        else:
+            self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
+            self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
+    def on_pre_enter(self):
+        self.total = "A lot"
+        
+class YearListScreen(Screen):
+    font_size = "20sp"
+    
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        app = App.get_running_app()
+        #year_list = app.store_list
+        year_list = [2020,2019]
+        no_data_msg ="You don't have any year accounts yet." 
+        if len(year_list)>0:
+            self.ids.year_list.data = [{'text': str(x)} for x in year_list]
+        else:
+            self.ids.year_list.data = [{'text': no_data_msg}]
+            
+            
+class CorporateScreen(Screen):
+    font_size = "20sp"
+    total= StringProperty()
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        app = App.get_running_app()
+        #year_list = app.store_list
+        account_list = ["Account 1","Account 2","Account 3","Account 5"]
+        no_data_msg ="You don't have any accounts yet." 
+        if len(account_list)>0:
+            self.ids.account_list.data = [{'text': x} for x in account_list]
+        else:
+            self.ids.account_list.data = [{'text': no_data_msg}]
+            
+    def on_pre_enter(self):
+        self.total = "A lot"
+            
 class SendScreen(Screen):
  
     def paste(self):
@@ -651,8 +889,13 @@ class walletguiApp(App):
     my_wallet_names = ListProperty()
     wallets = ListProperty()
     current_wallet = StringProperty()
+    store_list=ListProperty()
     db = ObjectProperty()
     sm = ObjectProperty()
+    
+    ###### test data #####
+    store_list = ["test_Store1","test_Store2","test_Store3","test_Store4","test_Store5"]
+    #####################
     
     
     current_wallet = None
@@ -678,7 +921,11 @@ class walletguiApp(App):
         self.sm.add_widget(WalletScreen())
         self.sm.add_widget(MainScreen())
         self.sm.add_widget(ReceiveScreen())
-        self.sm.add_widget(SendScreen())                       
+        self.sm.add_widget(SendScreen())  
+        self.sm.add_widget(StoreListScreen())  
+        self.sm.add_widget(StoreSafesScreen())
+        self.sm.add_widget(YearListScreen())
+        self.sm.add_widget(CorporateScreen())
         return self.sm
 
     def on_stop(self):
