@@ -110,6 +110,25 @@
             width: 1
             rectangle: self.x, self.y, self.width, self.height
             
+<SelectPayment>:
+    # Draw a background to indicate selection
+    size_hint: 1,1
+    halign: "left"
+    pos_hint: {"center_x":0}
+    canvas.before:
+        Color:
+            rgba: (.0, 0.9, .1, .3) if self.selected else (0.5, 0.5, 0.5, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size 
+        Color:
+            rgba: (0.2,0.2,0.2,1)
+        Line:
+            width: 1
+            rectangle: self.x, self.y, self.width, self.height
+
+
+
 <WalletScreen>:
     id: wallets
     name: "Wallets"
@@ -772,11 +791,23 @@
     id: store_list_screen
     name: "StoreList"
     
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "WalletType"
+            root.manager.transition.direction = "left"
+    
     BoxLayout:
         orientation: "vertical"
         spacing: 50
         padding: 50
                 
+        
+        
+        
         Label:
             size_hint: 1, 0.1
             halign: "auto"
@@ -832,6 +863,16 @@
     id: store_safes_screen
     name: "StoreSafesScreen"
     
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "StoreList"
+            root.manager.transition.direction = "left"
+    
+    
     BoxLayout:
         orientation: "vertical"
         spacing: 30
@@ -880,7 +921,7 @@
             
         RecycleView:
             id: daysafe_list
-            viewclass: 'SelectWallet'
+            viewclass: 'SelectDay'
             SelectableRecycleBoxLayout:
                 default_size: 1, dp(80)
                 default_size_hint: 1, None
@@ -951,6 +992,15 @@
     id: year_list_screen
     name: "YearList"
     
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "WalletType"
+            root.manager.transition.direction = "left"
+    
     BoxLayout:
         orientation: "vertical"
         spacing: 50
@@ -998,6 +1048,16 @@
 <CorporateScreen>:
     id: corporate_screen
     name: "CorporateScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "YearList"
+            root.manager.transition.direction = "left"
+ 
     
     BoxLayout:
         orientation: "vertical"
@@ -1063,7 +1123,7 @@
             size: 5,5
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: 
-                #app.root.current = "Wallets"
+                app.root.current = "CorporateTransferScreen"
                 root.manager.transition.direction = "right"
                 
         Button: 
@@ -1073,7 +1133,7 @@
             size: 5,5
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: 
-                #app.root.current = "Wallets"
+                app.root.current = "ReceiveAccountScreen"
                 root.manager.transition.direction = "right"
         
         Button: 
@@ -1083,5 +1143,1010 @@
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: 
                 app.root.current = "WalletType"
-                root.manager.transition.direction = "right"                
+                root.manager.transition.direction = "right"        
+                
+                                
+<CorporateTransferScreen>:
+    id: corporate_transfer_screen
+    name: "CorporateTransferScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 50
+        padding: 50
+        
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_transfer_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "-- TRANSFER --"
+        
+        
+        Button: 
+            id: transfer_all
+            text: "Transfer All"
+            size_hint: 1, 0.3
+            size: 5,5
+            #pos_hint: {'center_x':1, 'center_y': 0.25}
+            on_press: 
+                app.root.current = "CorporateTransferAllScreen"
+                root.manager.transition.direction = "right"
+            
+        Button: 
+            id: from_account
+            text: "From Specific\nAccount."
+            size_hint: 1, 0.3
+            size: 5,5
+            #pos_hint: {'center_x':1, 'center_y': 0.25}
+            on_press: 
+                app.root.current = "CorporateTransferFromAccountScreen"
+                root.manager.transition.direction = "right"
+                
+        Button: 
+            id: multiple_payments
+            text: "Make Multiple\nPayments"
+            size_hint: 1, 0.3
+            size: 5,5
+            #pos_hint: {'center_x':1, 'center_y': 0.25}
+            on_press: 
+                app.root.current = "MultiplePaymentScreen"
+                root.manager.transition.direction = "right"
      
+     
+<CorporateTransferFromAccountScreen>:
+    id: corporate_transfer_from_account_screen
+    name: "CorporateTransferFromAccountScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateTransferScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 50
+        padding: 50
+        
+        Label:
+            size_hint: 1, 0.5
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_transfer_from_account_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "-- TRANSFER FROM A SPECIFIC ACCOUNT --"
+
+        
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_transfer_from_account_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "From Account:"
+        
+        Spinner:
+            id: account_spinner
+            size_hint: 1, 0.5
+            size: 100, 44
+            pos_hint: {'center': (.5, .5)}
+            text: 'Select Account'
+            #values: 'Home', 'Work', 'Other', 'Custom'
+            on_value:
+            
+                
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            padding: 1
+            size_hint: 1,0.5
+            
+            Label:
+                size_hint: 1, 1
+                halign: "left"
+                valign: "middle"
+                font_name: "Arial Black"
+                font_size:  corporate_transfer_from_account_screen.font_size
+                color: 0,1,0,1
+                text_size: root.width*0.4, None
+                size: self.texture_size
+                text: "To address:"
+
+            Button:
+                #source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                #background_normal: 'images/QR.png'
+                text: "From QRCode"
+                size_hint: None, None
+                size: 250,100
+                pos_hint: {'center_x':.5, 'center_y': .5} 
+                on_press: send.scan_qr()
+        
+        TextInput:
+            id: address
+            size_hint:1,0.5
+            multiline: True
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+        
+        GridLayout:
+            spacing: 2
+            cols: 2
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,0.3
+                halign: "left"
+                text: "Amount :  "
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Units:"
+            TextInput:
+                id: amount
+                padding: [30,0,0,0]
+                size_hint:1,0.3
+                halign: "right"
+                multiline: False 
+            Spinner:
+                id: denomination
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Bitcoins"
+                values: "Bitcoins","Satoshis"
+
+        Button: 
+            text:"SEND"
+            on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        
+<MultiplePaymentScreen>:
+    id: multiple_payment_screen
+    name: "MultiplePaymentScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateTransferScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 20
+        padding: 20
+        size_hint: 1,1
+        
+        Label:
+            size_hint: 1, None
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  multiple_payment_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "-- MULTIPLE PAYMENTS --"
+
+        
+        Label:
+            size_hint: 1, None
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  multiple_payment_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "From Account:"
+        
+        Spinner:
+            id: account_spinner
+            size_hint: 1, 0.2
+            size: 100, 44
+            pos_hint: {'center': (.5, .5)}
+            text: 'Select Account'
+            #values: 'Home', 'Work', 'Other', 'Custom'
+            on_value:
+            
+                
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            padding: 1
+            size_hint: 1,None
+            
+            Label:
+                size_hint: 1, None
+                halign: "left"
+                valign: "middle"
+                font_name: "Arial Black"
+                font_size:  multiple_payment_screen.font_size
+                color: 0,1,0,1
+                text_size: root.width*0.4, None
+                size: self.texture_size
+                text: "To address:"
+
+            Button:
+                #source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                #background_normal: 'images/QR.png'
+                text: "From QRCode"
+                size_hint: None, None
+                size: 250,50
+                #pos_hint: {'center_x':.5, 'center_y': .5} 
+                on_press: send.scan_qr()
+        
+        TextInput:
+            id: address
+            size_hint:1,0.2
+            multiline: False
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+        
+        GridLayout:
+            spacing: 2
+            cols: 2
+            size_hint: 1,None
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,0.2
+                halign: "left"
+                text: "Amount :  "
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.2
+                halign: "left"
+                text: "Units:"
+            TextInput:
+                id: amount
+                padding: [30,0,0,0]
+                size_hint:1,0.2
+                halign: "right"
+                multiline: False 
+            Spinner:
+                id: denomination
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.2
+                halign: "left"
+                text: "Bitcoins"
+                values: "Bitcoins","Satoshis"
+
+        Label:
+            size_hint: 1, None
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  multiple_payment_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Name of this payment:"
+        
+        TextInput:
+            id: tx_allias
+            size_hint:1,0.2
+            multiline: False
+        
+        Button: 
+            text:"ADD PAYMENT"
+            size_hint: 1,0.2
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"   
+            
+        BoxLayout:
+            orientation: "vertical"
+            spacing: 20
+            padding: 20
+            size_hint:1,2
+        
+            RecycleView:
+                id: payment_list
+                viewclass: 'SelectPayment'
+                SelectableRecycleBoxLayout:
+                    default_size: 1, dp(80)
+                    default_size_hint: 1, None
+                    size_hint: 1,None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    multiselect: False
+                    touch_multiselect: False
+                    canvas.before:
+                        Color:
+                            rgba: (0.9, 0.9, 0.9, 1)
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+
+
+            Button: 
+                text:"REVIEW"
+                #on_press: send.confirm_popup()
+                font_name: "Arial Black"
+                font_size: "20sp"  
+                size_hint: 1,0.2
+
+<ReceiveAccountScreen>:
+    id: receive_account_screen
+    name: "ReceiveAccountScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateTransferScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        padding: [20,20,20,20]
+        spacing:20
+        
+        
+                    
+        Label:
+            size_hint: 1,None
+            font_name: "Arial Black"
+            font_size: receive_account_screen.font_size
+            color: 0,1,0,1
+            text: "-- RECEIVE THROUGH ACCOUNT --"
+            halign: "center"
+            multiline: True
+            
+        Label:
+            size_hint: 1,None
+            font_name: "Arial Black"
+            font_size: receive_account_screen.font_size
+            color: 0,1,0,1
+            text: "Receive through account:"
+            halign: "center"
+            multiline: True
+        
+        Spinner:
+            id: account_spinner
+            size_hint: 1, 0.1
+            padding: [15,15]
+            pos_hint: {'center': (.5, .5)}
+            text: 'Select Account'
+            #values: 'Home', 'Work', 'Other', 'Custom'
+            on_value:
+        
+        Button: 
+            text:"Create New Account"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"  
+            size_hint: 1,0.2
+
+        Button:
+            id: qrcode
+            background_normal: 'images/QR.png'
+            size_hint: None, None
+            size: 400,400
+            pos_hint: {'center_x':.5, 'center_y': .5} 
+            #on_press: send.scan_qr()
+        
+        Label:
+            id: address
+            size_hint: 1,None
+            font_name: "Arial Black"
+            font_size: receive_account_screen.font_size
+            color: 0,1,0,1
+            text: "Your address will show up here"
+            halign: "center"
+            multiline: True
+        
+        Button:
+            size_hint: 1,0.2
+            size: 280, 100
+            font_name: "Arial Black"
+            font_size: "20sp"
+            background_color: 0.6,1,0.8,1
+            padding: 0,50
+            text:"GO BACK"
+            on_press:
+                app.root.current = "Main"
+                root.manager.transition.direction = "right"  
+                
+            canvas.before:
+                Color:
+                    rgba: (0,0.7,0,1)
+                Line:
+                    width: 2.1
+                    rectangle: self.x, self.y, self.width, self.height
+                
+
+<DaySafeScreen>:
+    id: day_safe_screen
+    name: "DaySafeScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateTransferScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        padding: [20,20,20,20]
+        spacing:20
+        
+        
+                    
+        Label:
+            size_hint: 1,0.1
+            font_name: "Arial Black"
+            font_size: day_safe_screen.font_size
+            color: 0,1,0,1
+            text: "-- DAY SAFE --"
+            halign: "center"
+            multiline: True
+            
+        
+        BoxLayout:
+            size_hint: 1,0.1
+            orientation: "horizontal"
+            padding: 0
+            spacing:20
+        
+            Label:
+                size_hint: 1,0.1
+                font_name: "Arial Black"
+                font_size: day_safe_screen.font_size
+                color: 0,1,0,1
+                text: "Total:"
+                halign: "center"
+                valign: "top"
+                multiline: True
+
+            Label:
+                id: total
+                size_hint: 1,0.1
+                font_name: "Arial Black"
+                font_size: day_safe_screen.font_size
+                color: 0,1,0,1
+                text: "A lot"
+                halign: "center"
+                multiline: True
+        
+        
+        GridLayout:
+            spacing: 0
+            cols: 2
+            size_hint: 1,1
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Monday :  "
+            Label:
+                id: monday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+                
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Tuesday :  "
+            Label:
+                id: tuesday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+                
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Wednesday :  "
+            Label:
+                id: wednesday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+                
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Thursday :  "
+            Label:
+                id: thursday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+            
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Friday :  "
+            Label:
+                id: friday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+                
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Saturday :  "
+            Label:
+                id: saturday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.2
+                halign: "left"
+                text: "xxx"
+                
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,None
+                halign: "left"
+                text: "Sunday :  "
+            Label:
+                id: sunday
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,None
+                halign: "left"
+                text: "xxx"
+                
+        Button: 
+            text:"Transfer"
+            font_name: "Arial Black"
+            font_size: "20sp"  
+            size_hint: 1,0.1
+            on_press:
+                app.root.current = "DaySafeTransferScreen"
+                root.manager.transition.direction = "right"
+                
+
+        Button:
+            text:"Transfer All to\nWeek Safe"
+            size_hint: 1, 0.2
+            
+            pos_hint: {'center_x':.5, 'center_y': .5} 
+            #on_press: send.scan_qr()
+   
+   
+<DaySafeTransferScreen>:
+    id: day_safe_transfer_screen
+    name: "DaySafeTransferScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "DaySafeScreen"
+            root.manager.transition.direction = "left"
+    
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 20
+        padding: 40
+        
+        Label:
+            size_hint: 1, 0.5
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  day_safe_transfer_screen.font_size
+            color: 0,1,0,1
+            text: "-- TRANSFER FROM DAY SAFE --"
+
+        
+        
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            padding: 1
+            size_hint: 1,0.5
+            
+            Label:
+                size_hint: 1, 1
+                halign: "left"
+                valign: "middle"
+                font_name: "Arial Black"
+                font_size:  day_safe_transfer_screen.font_size
+                color: 0,1,0,1
+                text: "To address:"
+
+            Button:
+                #source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                #background_normal: 'images/QR.png'
+                text: "From QRCode"
+                size_hint: None, None
+                size: 250,50
+                pos_hint: {'center_x':.5, 'center_y': .5} 
+                on_press: send.scan_qr()
+        
+        TextInput:
+            id: address
+            size_hint:1,0.5
+            multiline: True
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+        
+        GridLayout:
+            spacing: 2
+            cols: 2
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,0.3
+                halign: "left"
+                text: "Amount :  "
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Units:"
+            TextInput:
+                id: amount
+                padding: [30,0,0,0]
+                size_hint:1,0.3
+                halign: "right"
+                multiline: False 
+            Spinner:
+                id: denomination
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Bitcoins"
+                values: "Bitcoins","Satoshis"
+
+        Label:
+            size_hint: 1, 0.5
+            halign: "auto"
+            valign: "bottom"
+            font_name: "Arial Black"
+            font_size:  day_safe_transfer_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "From day:"
+        
+        Spinner:
+            id: account_spinner
+            size_hint: 1, 0.5
+            size: 100, 44
+            pos_hint: {'center': (.5, .5)}
+            text: 'Select Day'
+            values: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+            on_value:
+             
+        Button: 
+            text:"Send From\nThis Day"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size: 20
+            color: 0,1,0,1
+            text: "-- Or --"
+
+        Button: 
+            text:"Send From\nAnywhere"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial"
+            font_size: 20
+            color: 0,1,0,1
+            text: "-- Or --"
+        
+        Button: 
+            text:"Send All to\nWeek Safe"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+
+
+<WeekSafeScreen>:
+    id: week_safe_screen
+    name: "WeekSafeScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "DaySafeScreen"
+            root.manager.transition.direction = "left"
+    
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 20
+        padding: 40
+        
+        Label:
+            size_hint: 1, 0.5
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_screen.font_size
+            color: 0,1,0,1
+            text: "-- WEEK SAFES --"
+
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Total:"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            #text: week_safe_screen.total
+            text: "A lot"
+        
+        RecycleView:
+            id: weeksafe_list
+            viewclass: 'SelectWeek'
+            
+            SelectableRecycleBoxLayout:
+                default_size: 1, dp(80)
+                default_size_hint: 1, None
+                size_hint: 1,None
+                height: self.minimum_height
+                orientation: 'vertical'
+                multiselect: False
+                touch_multiselect: False
+                canvas.before:
+                    Color:
+                        rgba: (0.9, 0.9, 0.9, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+        
+        
+        Button: 
+            text:"Send All to\nCorporate's Safe"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        
+                   
+                   
+<WeekSafeTransferScreen>:
+    id: week_safe_transfer_screen
+    name: "WeekSafeTransferScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "WeekSafeScreen"
+            root.manager.transition.direction = "left"
+    
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 20
+        padding: 40
+        
+        Label:
+            size_hint: 1, 0.5
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_transfer_screen.font_size
+            color: 0,1,0,1
+            text: "-- TRANSFER FROM DAY SAFE --"
+
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_transfer_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Total:"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  week_safe_transfer_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            #text: week_safe_transfer_screen.total
+            text: "A lot"
+        
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 5
+            padding: 1
+            size_hint: 1,0.5
+            
+            Label:
+                size_hint: 1, 1
+                halign: "left"
+                valign: "middle"
+                font_name: "Arial Black"
+                font_size:  week_safe_transfer_screen.font_size
+                color: 0,1,0,1
+                text: "To address:"
+
+            Button:
+                #source: 'https://cdn.osxdaily.com/wp-content/uploads/2017/10/read-qr-code-iphone-ipad.jpg'
+                #background_normal: 'images/QR.png'
+                text: "From QRCode"
+                size_hint: None, None
+                size: 250,50
+                pos_hint: {'center_x':.5, 'center_y': .5} 
+                on_press: send.scan_qr()
+        
+        TextInput:
+            id: address
+            size_hint:1,0.5
+            multiline: True
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+        
+        GridLayout:
+            spacing: 2
+            cols: 2
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:1,0.3
+                halign: "left"
+                text: "Amount :  "
+            Label:
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Units:"
+            TextInput:
+                id: amount
+                padding: [30,0,0,0]
+                size_hint:1,0.3
+                halign: "right"
+                multiline: False 
+            Spinner:
+                id: denomination
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.5,0.3
+                halign: "left"
+                text: "Bitcoins"
+                values: "Bitcoins","Satoshis"
+
+        
+             
+        Button: 
+            text:"Send"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size: 20
+            color: 0,1,0,1
+            text: "-- Or --"
+
+        Button: 
+            text:"Send All to\nCorporate Safe"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial"
+            font_size: 20
+            color: 0,1,0,1
+            text: "-- Or --"
+        
+        Button: 
+            text:"Make Multiple\nPayments"
+            #on_press: send.confirm_popup()
+            font_name: "Arial Black"
+            font_size: "20sp"
+                   

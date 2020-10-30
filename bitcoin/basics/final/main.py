@@ -115,43 +115,21 @@ class SelectWallet(RecycleDataViewBehavior, Label):
 
 class SelectDay(SelectWallet, Label):
 
-
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
-            
             print("selection changed to {0}".format(rv.data[index]))
-            app = App.get_running_app()
-            sm = app.sm
-            
-            
-            ########## new ##########
-            #sm.add_widget(WalletTypeScreen(name="WalletType"))
-            
-            ######### End New ##########
-            
-            #sm.add_widget(MainScreen(name="Main"))
-            
-            words = app.db.get_words_from_wallet(rv.data[index]["text"])
-            #the result of the query will come in the form [(result,)]. Therefore, we  
-            #will select the datum in result[0][0].
-            print(f"words from db: {words[0][0]}")
-            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
-            
-            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            ######## original ########
-            """
-            Clock.schedule_once(self.go_to_main, 0.7)                    
-            #sm.switch_to(Screen(name="Main"), direction='right')
-            """
-            ######## End of original ########
-            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
+            Clock.schedule_once(self.go_to_day, 0.7)  
                                 
         else:
             print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_to_day(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "DaySafeScreen"
+        
             
 class SelectWeek(SelectWallet, Label):
 
@@ -159,58 +137,23 @@ class SelectWeek(SelectWallet, Label):
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected:
+        if is_selected: Clock.schedule_once(self.go_to_week_safe, 0.7)  
+        else: print("selection removed for {0}".format(rv.data[index]))
             
-            print("selection changed to {0}".format(rv.data[index]))
-            app = App.get_running_app()
-            sm = app.sm
-            
-            
-            ########## new ##########
-            sm.add_widget(WalletTypeScreen(name="WalletType"))
-            
-            ######### End New ##########
-            
-            sm.add_widget(MainScreen(name="Main"))
-            
-            words = app.db.get_words_from_wallet(rv.data[index]["text"])
-            #the result of the query will come in the form [(result,)]. Therefore, we  
-            #will select the datum in result[0][0].
-            print(f"words from db: {words[0][0]}")
-            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
-            
-            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            ######## original ########
-            """
-            Clock.schedule_once(self.go_to_main, 0.7)                    
-            #sm.switch_to(Screen(name="Main"), direction='right')
-            """
-            ######## End of original ########
-            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
+    def go_to_week_safe(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "WeekSafeTransferScreen"   
                             
 class SelectStore(SelectWallet, Label):
-
 
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected:
+        if is_selected: Clock.schedule_once(self.go_to_year, 0.7)                         
+        else: print("selection removed for {0}".format(rv.data[index]))
             
-            print("selection changed to {0}".format(rv.data[index]))
-            app = App.get_running_app()
-            sm = app.sm
-            
-            Clock.schedule_once(self.go_to_store, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
-            
-    def go_to_store(self,obj):
+    def go_to_year(self,obj):
         app = App.get_running_app()
         sm = app.sm
         sm.current = "StoreSafesScreen"   
@@ -248,6 +191,23 @@ class SelectAccount(SelectWallet, Label):
         sm = app.sm
         sm.current = "StoreSafesScreen"   
 
+class SelectPayment(SelectWallet, Label):
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            
+            Clock.schedule_once(self.go_to_store, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_to_store(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        #sm.current = "StoreSafesScreen"           
+        
 class WalletScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
@@ -469,6 +429,53 @@ class CorporateScreen(Screen):
             
     def on_pre_enter(self):
         self.total = "A lot"
+
+        
+class CorporateTransferScreen(Screen):
+    font_size = "20sp"
+    
+class CorporateTransferFromAccountScreen(Screen):
+    font_size = "20sp"
+    
+    
+class CorporateTransferAllScreen(Screen):
+    font_size = "20sp"
+    
+    
+class MultiplePaymentScreen(Screen):
+    font_size = "12sp"
+    def __init__(self, **kwargs):
+        super().__init__()
+        app = App.get_running_app()
+        #year_list = app.store_list
+        payment_list = ["Payment 1","Payment 2","Payment 3","Payment 5"]
+        no_data_msg ="You don't have an payments yet." 
+        if len(payment_list)>0:
+            self.ids.payment_list.data = [{'text': x} for x in payment_list]
+        else:
+            self.ids.payment_list.data = [{'text': no_data_msg}]
+    
+    
+class ReceiveAccountScreen(Screen):
+    font_size = "15sp"
+    
+    
+class DaySafeScreen(Screen):
+    font_size = "20sp"
+    
+    
+class WeekSafeScreen(Screen):
+    font_size = "20sp"
+    
+    
+class DaySafeTransferScreen(Screen):
+    font_size = "15sp"
+    
+    
+class WeekSafeTransferScreen(Screen):
+    font_size = "15sp"
+    
+    
             
 class SendScreen(Screen):
  
@@ -926,6 +933,15 @@ class walletguiApp(App):
         self.sm.add_widget(StoreSafesScreen())
         self.sm.add_widget(YearListScreen())
         self.sm.add_widget(CorporateScreen())
+        self.sm.add_widget(CorporateTransferScreen())
+        self.sm.add_widget(CorporateTransferFromAccountScreen())
+        self.sm.add_widget(CorporateTransferAllScreen())
+        self.sm.add_widget(MultiplePaymentScreen())
+        self.sm.add_widget(ReceiveAccountScreen())
+        self.sm.add_widget(DaySafeScreen())
+        self.sm.add_widget(WeekSafeScreen())
+        self.sm.add_widget(DaySafeTransferScreen())
+        self.sm.add_widget(WeekSafeTransferScreen())
         return self.sm
 
     def on_stop(self):
