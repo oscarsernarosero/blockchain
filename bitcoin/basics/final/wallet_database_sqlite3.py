@@ -105,10 +105,18 @@ class Sqlite3Wallet:
         return self.execute(query)
 
     def create_tx_out_table(self):
-        query1 =f"CREATE TABLE IF NOT EXISTS Tx_Outs ( out_index INT NOT NULL,\n amount INT NOT NULL,\ncreated_by text NOT NULL,\n"
+        query1 = "CREATE TABLE IF NOT EXISTS Tx_Outs ( out_index INT NOT NULL,\n amount INT NOT NULL,\ncreated_by text NOT NULL,\n"
         query2 = "script_pubkey text NOT NULL, \n PRIMARY KEY (created_by, out_index)\n"
         query3 = "FOREIGN KEY (created_by)\nREFERENCES Transactions(tx_id) )  WITHOUT ROWID ;"
         query = query1 + query2 + query3
+        #print(query)
+        return self.execute(query)
+    
+    def create_contact_table(self):
+        query1 = "CREATE TABLE IF NOT EXISTS Contacts ( first_name text NOT NULL, last_name text NOT NULL,\n "
+        query2 = "position text NOT NULL, xpub text NOT NULL PRIMARY KEY, phone text) "
+        query3 = " WITHOUT ROWID;"
+        query = query1+query2+query3
         #print(query)
         return self.execute(query)
 
@@ -119,6 +127,7 @@ class Sqlite3Wallet:
         self.create_transaction_table()
         self.create_tx_in_table()
         self.create_tx_out_table()
+        self.create_contact_table()
         return True
 
     def new_wallet(self, xprv, words, name = None, child = 0 ):
@@ -455,6 +464,47 @@ class Sqlite3Wallet:
         self.create_tables()
         return True
     
+    def get_contact(self, xpub):
+        query1 = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        query2 = f"WHERE xpub ='{xpub}' ;"
+        query = query1+query2
+        print(query)
+        return self.execute_w_res(query)
+    
+    def get_contact_by_name(self, first_name,last_name):
+        query1 = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        query2 = f"WHERE first_name ='{first_name}' AND last_name='{last_name}';"
+        query = query1+query2
+        print(query)
+        return self.execute_w_res(query)
+        
+    def get_all_contacts(self):
+        query = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        #print(query)
+        return self.execute_w_res(query)
+    
+    def new_contact(self, first_name, last_name, phone_number, position, xpub):
+        query1 = f"INSERT INTO Contacts (first_name, last_name, phone, position, xpub)\n"
+        query2 = f"VALUES('{first_name}','{last_name}', '{phone_number}', '{position}', '{xpub}') ;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+        
+    def update_contact(self, first_name, last_name, phone_number, position, xpub):
+        query1 = f"UPDATE Contacts SET first_name = '{first_name}', last_name = '{last_name}', "
+        query2 = f"phone = '{phone_number}', position = '{position}', xpub = '{xpub}'\n"
+        query3 = f"WHERE xpub ='{xpub}' ;"
+        query = query1+query2+query3
+        print(query)
+        return self.execute(query)
+    
+    def delete_contact(self, xpub):
+        query1 = f"DELETE FROM Contacts\n"
+        query2 = f"WHERE xpub ='{xpub}' ;"
+        query = query1+query2
+        print(query)
+        return self.execute(query)
+    
     
     
 class Sqlite3Environment:
@@ -530,5 +580,7 @@ class Sqlite3Environment:
         query = query1+query2
         print(query)
         return self.execute_w_res(query)
+        
+    
         
         

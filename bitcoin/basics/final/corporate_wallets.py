@@ -75,7 +75,7 @@ class CorporateSuperWallet(Wallet):
         n: number of signatures than can sign the transaction. Must match with 
         public_key_list's length-1.
         """
-        path = "m/44H/0H/2H"
+        path = "m/44H/0H/1H"
         weekly_safes_acc = self.get_child_from_path(path)
         shm_account = SHMAccount(m,n, str(weekly_safes_acc.xtended_public_key), public_key_list, _privkey=None,
                                  addr_type=addr_type,testnet=testnet, segwit=segwit)

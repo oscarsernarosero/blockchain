@@ -68,15 +68,7 @@ class SelectWallet(RecycleDataViewBehavior, Label):
             
             print("selection changed to {0}".format(rv.data[index]))
             app = App.get_running_app()
-            sm = app.sm
             
-            
-            ########## new ##########
-            sm.add_widget(WalletTypeScreen(name="WalletType"))
-            
-            ######### End New ##########
-            
-            sm.add_widget(MainScreen(name="Main"))
             
             words = app.db.get_words_from_wallet(rv.data[index]["text"])
             #the result of the query will come in the form [(result,)]. Therefore, we  
@@ -84,15 +76,12 @@ class SelectWallet(RecycleDataViewBehavior, Label):
             print(f"words from db: {words[0][0]}")
             _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
             
-            app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
+            if rv.data[index]['text'] not in list_of_wallet_names: app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            else: print("wallet already in memory")
             app.current_wallet = rv.data[index]['text']
             print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            ######## original ########
-            """
-            Clock.schedule_once(self.go_to_main, 0.7)                    
-            #sm.switch_to(Screen(name="Main"), direction='right')
-            """
-            ######## End of original ########
+            
             Clock.schedule_once(self.go_to_wallet_type, 0.7)  
                                 
         else:
@@ -206,7 +195,41 @@ class SelectPayment(SelectWallet, Label):
     def go_to_store(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        #sm.current = "StoreSafesScreen"           
+        #sm.current = "StoreSafesScreen"    
+        
+class SelectContact(SelectWallet, Label):
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        if is_selected:
+            app = App.get_running_app()
+            contact_xpub = rv.data[index]["xpub"]
+            
+            if app.caller == "NewStoreSafeScreen":
+                contact = app.db.get_contact(contact_xpub)
+                current_contact = app.arguments[0]["new_wallet_consigners"]["current"]
+                app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
+                Clock.schedule_once(self.go_back, 0.7) 
+                
+            elif app.caller == "MyContactsScreen":
+                app.arguments[0].update({"current_contact":contact_xpub})
+                Clock.schedule_once(self.see_contact, 0.7) 
+                
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+            
+    def go_back(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller 
+        
+    def see_contact(self,obj):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "ContactInfoScreen"
+        
         
 class WalletScreen(Screen):
     def __init__(self, **kwargs):
@@ -359,6 +382,11 @@ class WalletTypeScreen(Screen):
         my_wallet.start_conn()
         self.public_key = str(my_wallet.xtended_public_key)
         
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+        
 class StoreListScreen(Screen):
     font_size = "20sp"
     total= StringProperty()
@@ -372,8 +400,14 @@ class StoreListScreen(Screen):
             self.ids.store_list.data = [{'text': x} for x in store_list]
         else:
             self.ids.rv.data = [{'text': no_wallet_msg}]
+            
     def on_pre_enter(self):
         self.total = "A lot"
+        
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
         
         
 class StoreSafesScreen(Screen):
@@ -393,11 +427,17 @@ class StoreSafesScreen(Screen):
         else:
             self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
             self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
+            
     def on_pre_enter(self):
         self.total = "A lot"
         
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+        
 class YearListScreen(Screen):
-    font_size = "20sp"
+    font_size = "15sp"
     
     
     def __init__(self, **kwargs):
@@ -411,6 +451,11 @@ class YearListScreen(Screen):
         else:
             self.ids.year_list.data = [{'text': no_data_msg}]
             
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+        
             
 class CorporateScreen(Screen):
     font_size = "20sp"
@@ -429,18 +474,137 @@ class CorporateScreen(Screen):
             
     def on_pre_enter(self):
         self.total = "A lot"
-
+        
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
         
 class CorporateTransferScreen(Screen):
     font_size = "20sp"
     
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+    
 class CorporateTransferFromAccountScreen(Screen):
     font_size = "20sp"
+    
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
     
     
 class CorporateTransferAllScreen(Screen):
     font_size = "20sp"
     
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+
+class NewContactScreen(Screen):
+    font_size = "15sp"
+    
+    def on_pre_enter(self):    
+        app = App.get_running_app()
+        if app.caller == "ContactInfoScreen":
+            first_name, last_name, phone_number, position, xpub = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+            self.ids.first_name.text = first_name
+            self.ids.last_name.text = last_name 
+            self.ids.phone_number.text = phone_number
+            self.ids.position.text = position
+            self.ids.xpub.text = xpub 
+            self.ids.title.text = "-- Edit Contact --"
+            self.ids.go.text = "Save Changes"
+    
+    def add_contact(self):
+        app = App.get_running_app()
+        first_name = self.ids.first_name.text
+        last_name = self.ids.last_name.text
+        phone_number = self.ids.phone_number.text
+        position = self.ids.position.text
+        xpub = self.ids.xpub.text
+        if app.caller != "ContactInfoScreen":
+            app.db.new_contact(first_name, last_name, phone_number, position, xpub)
+            app.sm.current = "YearList"
+            
+        else:
+            app.db.update_contact(first_name, last_name, phone_number, position, xpub)
+            sm = app.sm
+            sm.current = app.caller
+            
+    
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+        
+class NewStoreSafeScreen(Screen):
+    font_size = "15sp"
+    consigners = {}
+    
+    def __init__(self,**kwargs):
+        super().__init__()
+    
+    def add_cosigner(self,cosigner_n):
+        app = App.get_running_app()
+        app.arguments[0]["new_wallet_consigners"].update({"current":cosigner_n})
+        app.caller = "NewStoreSafeScreen"
+        sm = app.sm
+        sm.current = "LookUpContactScreen"  
+        
+    def on_pre_enter(self):
+        app = App.get_running_app()
+        current_args = app.arguments[0]
+        cosigners = current_args["new_wallet_consigners"]
+        print(cosigners)
+        print(f"ids: {self.ids}")
+        self.ids["cosigner_6"].text = "Franklin R"
+        for key in cosigners:
+            if key == "current": continue
+            self.ids[key].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+            
+    def create_store_safe(self):
+        pass
+    
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
+    
+class LookUpContactScreen(Screen):
+    font_size = "15sp"
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.populate_contact_list()
+            
+    def update_result(self):
+        search_for = self.ids.search.text
+        self.populate_contact_list(search_for)
+        
+        
+    def populate_contact_list(self,search_for=""):
+        app = App.get_running_app()
+        contact_list_raw = app.db.get_all_contacts()
+        print(f"all contacts:\n{contact_list_raw}")
+        contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
+                        if x[1].startswith(search_for) or x[0].startswith(search_for)]
+        no_data_msg ="No results found." 
+        if len(contact_list)>0:
+            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1]} for x in contact_list]
+        else:
+            self.ids.contact_list.data = [{'text': no_data_msg}]
+            
+    def select_contact(self):
+        app = App.get_running_app()
+        contact = self.ids.contact_list.data
+        sm = app.sm
+        sm.current = app.caller
+            
     
 class MultiplePaymentScreen(Screen):
     font_size = "12sp"
@@ -455,6 +619,67 @@ class MultiplePaymentScreen(Screen):
         else:
             self.ids.payment_list.data = [{'text': no_data_msg}]
     
+    
+class MyContactsScreen(Screen):
+    font_size = "15sp"
+    
+    def __init__(self, **kwargs):
+        super().__init__()
+        
+        
+    def on_pre_enter(self):   
+        app = App.get_running_app()
+        app.caller = "MyContactsScreen"
+        self.populate_contact_list()
+            
+    def update_result(self):
+        search_for = self.ids.search.text
+        self.populate_contact_list(search_for)
+        
+    def populate_contact_list(self,search_for=""):
+        app = App.get_running_app()
+        contact_list_raw = app.db.get_all_contacts()
+        print(f"all contacts:\n{contact_list_raw}")
+        contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
+                        if x[1].startswith(search_for) or x[0].startswith(search_for)]
+        no_data_msg ="No results found." 
+        if len(contact_list)>0:
+            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1]} for x in contact_list]
+        else:
+            self.ids.contact_list.data = [{'text': no_data_msg}]
+       
+    
+    def select_contact(self):
+        app = App.get_running_app()
+        contact = self.ids.contact_list.data
+        sm = app.sm
+        sm.current = app.caller
+        
+class ContactInfoScreen(Screen):
+    font_size = "15sp"
+    
+    def on_pre_enter(self):    
+        app = App.get_running_app()
+        first_name, last_name, phone_number, position, xpub = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+        self.ids.first_name.text = first_name
+        self.ids.last_name.text = last_name 
+        self.ids.phone_number.text = phone_number
+        self.ids.position.text = position
+        self.ids.xpub.text = xpub 
+        app.caller = "ContactInfoScreen"
+        
+    def edit(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = "NewContactScreen"
+    
+    def delete(self):
+        app = App.get_running_app()
+        sm = app.sm
+        app.db.delete_contact(app.arguments[0]["current_contact"])
+        sm.current = "MyContactsScreen"
+        
+        
     
 class ReceiveAccountScreen(Screen):
     font_size = "15sp"
@@ -471,10 +696,10 @@ class WeekSafeScreen(Screen):
 class DaySafeTransferScreen(Screen):
     font_size = "15sp"
     
+
     
 class WeekSafeTransferScreen(Screen):
-    font_size = "15sp"
-    
+    font_size = "15sp"    
     
             
 class SendScreen(Screen):
@@ -899,6 +1124,9 @@ class walletguiApp(App):
     store_list=ListProperty()
     db = ObjectProperty()
     sm = ObjectProperty()
+    caller = StringProperty()
+    arguments=ListProperty()
+    arguments=[{"new_wallet_consigners":{"current":""}}]
     
     ###### test data #####
     store_list = ["test_Store1","test_Store2","test_Store3","test_Store4","test_Store5"]
@@ -929,6 +1157,7 @@ class walletguiApp(App):
         self.sm.add_widget(MainScreen())
         self.sm.add_widget(ReceiveScreen())
         self.sm.add_widget(SendScreen())  
+        self.sm.add_widget(WalletTypeScreen())
         self.sm.add_widget(StoreListScreen())  
         self.sm.add_widget(StoreSafesScreen())
         self.sm.add_widget(YearListScreen())
@@ -942,6 +1171,11 @@ class walletguiApp(App):
         self.sm.add_widget(WeekSafeScreen())
         self.sm.add_widget(DaySafeTransferScreen())
         self.sm.add_widget(WeekSafeTransferScreen())
+        self.sm.add_widget(NewContactScreen())
+        self.sm.add_widget(NewStoreSafeScreen())
+        self.sm.add_widget(LookUpContactScreen())
+        self.sm.add_widget(MyContactsScreen())
+        self.sm.add_widget(ContactInfoScreen())
         return self.sm
 
     def on_stop(self):

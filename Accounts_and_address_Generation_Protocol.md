@@ -65,9 +65,11 @@ The path generation for account and addresses in this wallet complies with stand
 | Account Path | Purpose |
 | --- | -- |
 | m/44'/0'/0' | Store-Wallet Parent Account |
-| m/44'/0'/1' | Daily-Safe-Address Parent Account |
-| m/44'/0'/2' | Weekly-Safe-Address Parent Account |
+| m/44'/0'/1' | Daily/Weekly* Safe-Address Parent Account |
 | m/44'/0'/3' | Annual-Corporate Parent Account |
+
+
+*Notice that Daily-Safe and Weekly-Safe accounts share the same parent account. This is for convinience reasons since it would be a lot easier to share a single account than 2 different accounts for the creation of the store safe accounts. For week safes, the account indices are always less than 9953 due to the way they are constructed. And the day safes indices are always greater than 201001. Because of this, there is no risk of overlaping indices allowing us to use a single parent account for both purposes.
 
 ### Manager Wallet Generation
 
@@ -162,16 +164,16 @@ These addresses are also multisignature addresses. For each store, it will be al
 
 The required signatures to conduct a fund transfer will be 2 out of 5.
 
-Similar to the Daily Safe Accounts, these Weekly Safe Accounts are grandchild accounts descending directly from a single child account from the the CEO main account: m/44'/0'/2'. The indices that these grandchild accounts will have will obey to the number of the week in the year for which it will be created. Therefore, if today were December the 31st of 2020, the account that would be able to sign the Weekly Safe Address of that week will be the account m/44'/0'/2'/2053' from the CEO's main account.
+Similar to the Daily Safe Accounts, these Weekly Safe Accounts are grandchild accounts descending directly from a single child account from the the CEO main account: m/44'/0'/1'. The indices that these grandchild accounts will have will obey to the number of the week in the year for which it will be created. Therefore, if today were December the 31st of 2020, the account that would be able to sign the Weekly Safe Address of that week will be the account m/44'/0'/1'/2053' from the CEO's main account.
 
 | Path | Purpose |
 | --- | -- |
-| m/44'/0'/2' | Weekly-Safe-Address Parent Account |
-| m/44'/0'/2'/YYN' | Weekly-Safe-Address Parent Account |
-| m/44'/0'/2'/YYN'/0 | Weekly-Safe Deposit Account |
-| m/44'/0'/2'/YYN'/0/0 | Weekly Safe Deposit Address |
-| m/44'/0'/2'/YYN'/1 | Weekly-Safe Change Account |
-| m/44'/0'/2'/YYN'/n | Weekly-Safe Change Addresses |
+| m/44'/0'/1' | Weekly-Safe-Address Parent Account |
+| m/44'/0'/1'/YYWW' | Weekly-Safe-Address Parent Account |
+| m/44'/0'/1'/YYWW'/0 | Weekly-Safe Deposit Account |
+| m/44'/0'/1'/YYWW'/0/0 | Weekly Safe Deposit Address |
+| m/44'/0'/1'/YYWW'/1 | Weekly-Safe Change Account |
+| m/44'/0'/1'/YYWW'/1/n | Weekly-Safe Change Addresses |
 
 Same as for the daily safe accounts, the reason for change and deposit accounts not to be hardened accounts is to be able to give the stores the autonomy to generate change addresses.
 
