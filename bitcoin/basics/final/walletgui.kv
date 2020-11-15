@@ -2318,6 +2318,26 @@
             #on_double_tap: send.paste()
             #on_focus:
                 #send.paste()
+        
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  new_contact_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Store-Safe Public Key:"
+            
+        TextInput:
+            id: safe_pubkey
+            size_hint:1,0.5
+            multiline: True
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+        
         Label:
             size_hint: 1, 0.1
             halign: "auto"

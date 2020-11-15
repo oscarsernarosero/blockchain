@@ -27,16 +27,35 @@ class MasterAccount(Xtended_privkey):
         print(f"Copy these words for future recovery:\n{mnemonic.words}")
         
         self.words = mnemonic.words
+        self.passphrase = passphrase
         
         print(int.from_bytes(mnemonic.seed,"big"))
         return self.from_bip39_seed(int.from_bytes(mnemonic.seed,"big"), testnet = testnet)
         
     @classmethod
     def recover_from_words(self,mnemonic_list = None, entropy = 128,  passphrase="", testnet = False):
+        """
+        reconstruct a Master account/wallet with the mnemonic phrase. It could be either a list of words \
+        or a single string with all the words separated by a space.
+        mnemonic_list: List or String.
+        entropy: deprecated. Not necessary since the amount of words gives away the entropy.
+        passphrase: String. Passphrase to 'salt' the generation of the unique value with the passphrase. 
+        testnet: Boolean.
+        
+        """
+        
         if isinstance(mnemonic_list,str):
             mnemonic_list = mnemonic_list.split()
             
         self.words = mnemonic_list
+        self.passphrase = passphrase
+        
+        if   len(self.words) == 12: entropy = 128
+        elif len(self.words) == 15: entropy = 160
+        elif len(self.words) == 18: entropy = 192
+        elif len(self.words) == 21: entropy = 224
+        elif len(self.words) == 24: entropy = 256
+        
         
         mnemonic = Mnemonic.recover_from_words(mnemonic_list=mnemonic_list, entropy= entropy,  passphrase=passphrase)
         print(int.from_bytes(mnemonic.seed,"big"))

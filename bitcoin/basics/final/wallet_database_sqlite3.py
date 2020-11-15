@@ -43,7 +43,7 @@ class Sqlite3Wallet:
         
     def create_wallet_table(self):
         query1 =  f"CREATE TABLE IF NOT EXISTS Wallets ( xprv text NOT NULL PRIMARY KEY,\n "
-        query2 = f"name text, words text NOT NULL, child INT) WITHOUT ROWID;"
+        query2 = f"name text, words text NOT NULL, passphrase text, child INT) WITHOUT ROWID;"
         query = query1+query2
         #print(query)
         return self.execute(query)
@@ -114,7 +114,7 @@ class Sqlite3Wallet:
     
     def create_contact_table(self):
         query1 = "CREATE TABLE IF NOT EXISTS Contacts ( first_name text NOT NULL, last_name text NOT NULL,\n "
-        query2 = "position text NOT NULL, xpub text NOT NULL PRIMARY KEY, phone text) "
+        query2 = "position text NOT NULL, xpub text NOT NULL PRIMARY KEY, phone text, safe_pubkey text) "
         query3 = " WITHOUT ROWID;"
         query = query1+query2+query3
         #print(query)
@@ -479,20 +479,20 @@ class Sqlite3Wallet:
         return self.execute_w_res(query)
         
     def get_all_contacts(self):
-        query = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        query = f"SELECT first_name, last_name, phone, position, xpub, safe_pubkey FROM Contacts\n"
         #print(query)
         return self.execute_w_res(query)
     
-    def new_contact(self, first_name, last_name, phone_number, position, xpub):
-        query1 = f"INSERT INTO Contacts (first_name, last_name, phone, position, xpub)\n"
-        query2 = f"VALUES('{first_name}','{last_name}', '{phone_number}', '{position}', '{xpub}') ;"
+    def new_contact(self, first_name, last_name, phone_number, position, xpub, safe_pubkey):
+        query1 = f"INSERT INTO Contacts (first_name, last_name, phone, position, xpub, safe_pubkey)\n"
+        query2 = f"VALUES('{first_name}','{last_name}', '{phone_number}', '{position}', '{xpub}', '{safe_pubkey}') ;"
         query = query1+query2
         print(query)
         return self.execute(query)
         
-    def update_contact(self,original_xpub, first_name, last_name, phone_number, position, xpub):
+    def update_contact(self,original_xpub, first_name, last_name, phone_number, position, xpub, safe_pubkey):
         query1 = f"UPDATE Contacts SET first_name = '{first_name}', last_name = '{last_name}', "
-        query2 = f"phone = '{phone_number}', position = '{position}', xpub = '{xpub}'\n"
+        query2 = f"phone = '{phone_number}', position = '{position}', xpub = '{xpub}'\n, safe_pubkey = '{safe_pubkey}'"
         query3 = f"WHERE xpub ='{original_xpub}' ;"
         query = query1+query2+query3
         print(query)

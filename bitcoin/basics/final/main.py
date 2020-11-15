@@ -1,6 +1,7 @@
 import kivy
 kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
+from corporate_wallets import CorporateSuperWallet, StoreWallet, ManagerWallet, SHDSafeWallet, HDMWallet
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 import qrcode
 from urllib.request import Request, urlopen
@@ -530,12 +531,13 @@ class NewContactScreen(Screen):
         phone_number = self.ids.phone_number.text
         position = self.ids.position.text
         xpub = self.ids.xpub.text
+        safe_pubkey = self.ids.safe_pubkey.text
         if app.caller != "ContactInfoScreen":
-            app.db.new_contact(first_name, last_name, phone_number, position, xpub)
+            app.db.new_contact(first_name, last_name, phone_number, position, xpub,safe_pubkey)
             app.sm.current = "YearList"
             
         else:
-            app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub)
+            app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub,safe_pubkey)
             app.arguments[0].update({"current_contact":xpub})
             sm = app.sm
             sm.current = app.caller
@@ -584,7 +586,42 @@ class NewStoreSafeScreen(Screen):
                 cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
             
     def create_store_safe(self):
-        pass
+        app = App.get_running_app()
+        current_args = app.arguments[0]
+        index=None
+        for i,w in enumerate(app.wallets):
+            print(f"w.keys(): {w.keys()}")
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        wallet = app.wallets[index][app.current_wallet]
+        #wallet.start_conn()
+        app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
+                                                              passphrase=wallet.passphrase,
+                                                              testnet = wallet.testnet)
+        print(f"app.corporate_wallet: {app.corporate_wallet}")
+        
+        alias = self.ids.store_name.text
+        if alias is None: raise Exception("Must provide a name/alias for the store")
+        n = int(self.ids.n.text)
+        cosigners = current_args["new_wallet_consigners"]
+        if len(cosigners) < (n-1): raise Exception("Not enough cosigners selected")
+        pubkey_list = []
+        for key in cosigners:
+            if key == "current": continue
+            pubkey_list.append(cosigners[key][0][4])
+        
+        
+        print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
+            
+        try:
+            safe = SHDSafeWallet.from_master_privkey(alias,pubkey_list,
+                                                master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
+                                               n=n,testnet=wallet.testnet)
+        except:
+            print("Could not create SHDSafeWallet.")
+            
+                                               
     
     def update_n(self,string_n):
         app = App.get_running_app()
@@ -703,12 +740,13 @@ class ContactInfoScreen(Screen):
     
     def on_pre_enter(self):    
         app = App.get_running_app()
-        first_name, last_name, phone_number, position, xpub = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+        first_name,last_name,phone_number,position,xpub,safe_pubkey = app.db.get_contact(app.arguments[0]["current_contact"])[0]
         self.ids.first_name.text = first_name
         self.ids.last_name.text = last_name 
         self.ids.phone_number.text = phone_number
         self.ids.position.text = position
         self.ids.xpub.text = xpub 
+        self.ids.safe_pubkey.text = safe_pubkey
         app.caller = "ContactInfoScreen"
         
     def edit(self):
@@ -1170,6 +1208,7 @@ class walletguiApp(App):
     wallets = ListProperty()
     current_wallet = StringProperty()
     store_list=ListProperty()
+    corporate_wallet = ObjectProperty()
     db = ObjectProperty()
     sm = ObjectProperty()
     caller = StringProperty()
