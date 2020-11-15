@@ -490,10 +490,10 @@ class Sqlite3Wallet:
         print(query)
         return self.execute(query)
         
-    def update_contact(self, first_name, last_name, phone_number, position, xpub):
+    def update_contact(self,original_xpub, first_name, last_name, phone_number, position, xpub):
         query1 = f"UPDATE Contacts SET first_name = '{first_name}', last_name = '{last_name}', "
         query2 = f"phone = '{phone_number}', position = '{position}', xpub = '{xpub}'\n"
-        query3 = f"WHERE xpub ='{xpub}' ;"
+        query3 = f"WHERE xpub ='{original_xpub}' ;"
         query = query1+query2+query3
         print(query)
         return self.execute(query)

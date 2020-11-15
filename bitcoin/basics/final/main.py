@@ -507,11 +507,14 @@ class CorporateTransferAllScreen(Screen):
 
 class NewContactScreen(Screen):
     font_size = "15sp"
+    original_xpub = ""
     
     def on_pre_enter(self):    
         app = App.get_running_app()
+        
         if app.caller == "ContactInfoScreen":
             first_name, last_name, phone_number, position, xpub = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+            self.original_xpub = xpub
             self.ids.first_name.text = first_name
             self.ids.last_name.text = last_name 
             self.ids.phone_number.text = phone_number
@@ -532,7 +535,8 @@ class NewContactScreen(Screen):
             app.sm.current = "YearList"
             
         else:
-            app.db.update_contact(first_name, last_name, phone_number, position, xpub)
+            app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub)
+            app.arguments[0].update({"current_contact":xpub})
             sm = app.sm
             sm.current = app.caller
             
@@ -550,6 +554,9 @@ class NewStoreSafeScreen(Screen):
         super().__init__()
     
     def add_cosigner(self,cosigner_n):
+        if isinstance(cosigner_n, Button):
+            cosigner_n = cosigner_n.id
+        print(f"cosigner_n: {cosigner_n}")
         app = App.get_running_app()
         app.arguments[0]["new_wallet_consigners"].update({"current":cosigner_n})
         app.caller = "NewStoreSafeScreen"
@@ -561,19 +568,55 @@ class NewStoreSafeScreen(Screen):
         current_args = app.arguments[0]
         cosigners = current_args["new_wallet_consigners"]
         print(cosigners)
-        print(f"ids: {self.ids}")
-        self.ids["cosigner_6"].text = "Franklin R"
         for key in cosigners:
             if key == "current": continue
-            self.ids[key].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+            try: 
+                self.ids[key].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+                self.ids[key].background_color = (0.3,0.6,1,1)
+            except: 
+                #Since the ids can't be added from python, it is necessary to look for
+                #the buttons this way. Since this way is slower, it is ok to leave the
+                #option for the faster method as the default.
+                cosigner_box = self.ids.cosigner_box
+                print(cosigner_box)
+                i = len(cosigner_box.children) - int(key[-1])
+                cosigner_box.children[i].children[0].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+                cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
             
     def create_store_safe(self):
         pass
     
+    def update_n(self,string_n):
+        app = App.get_running_app()
+        cosigner_box = self.ids.cosigner_box
+        n = int(string_n)
+        children = [child for child in cosigner_box.children]
+        kids = len(children)
+        if n < kids:
+            for kid in range(kids - n):
+                cosigner_box.remove_widget(children[ kid ])
+                
+        elif n > kids:
+            for kid in range( n - kids):
+                i = kids + kid + 1
+                box = BoxLayout(orientation='horizontal', spacing = 20)
+                label = Label(size_hint= (0.7, 0.1), halign= "auto", valign= "top", font_name= "Arial Black",
+                    font_size=  self.font_size, color= (0,1,0,1), multiline= True,
+                    text= f"Cosigner {i}:")
+                button = Button(id=f"cosigner_{i}", text="Add Cosigner", 
+                                font_name= "Arial Black", 
+                                font_size= "12sp", size_hint= (1.2, 0.5))
+                
+                button.bind(on_press= self.add_cosigner)
+                box.add_widget(label)
+                box.add_widget(button)
+                cosigner_box.add_widget(box)
+                
+    
     def go_back(self):
         app = App.get_running_app()
         sm = app.sm
-        sm.current = app.caller
+        sm.current = "YearList"
     
 class LookUpContactScreen(Screen):
     font_size = "15sp"
@@ -691,6 +734,11 @@ class DaySafeScreen(Screen):
     
 class WeekSafeScreen(Screen):
     font_size = "20sp"
+    
+    def go_back(self):
+        app = App.get_running_app()
+        sm = app.sm
+        sm.current = app.caller
     
     
 class DaySafeTransferScreen(Screen):

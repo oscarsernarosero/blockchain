@@ -2413,146 +2413,154 @@
                 halign: "left"
                 text: "6"
                 values: "3","4","5","6","7","8"
+                on_text: new_store_safe_screen.update_n(self.text)
                 
                 
         BoxLayout:
-            orientation: "horizontal"
+            orientation: "vertical"
             spacing: 20
-            
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 1:"
+            padding: 0
+            size_hint: 1, 6
+            id: cosigner_box
+        
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
 
-            Button: 
-                id: cosigner_1
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_1")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
-                
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 20
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 2:"
 
-            Button: 
-                id: cosigner_2
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_2")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
-                
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 20
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 3:"
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 1:"
 
-            Button: 
-                id: cosigner_3
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_3")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
-                
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 20
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 4:"
+                Button: 
+                    id: cosigner_1
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_1")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
 
-            Button: 
-                id: cosigner_4
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_4")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
-                
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 20
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 5:"
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
 
-            Button: 
-                id: cosigner_5
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_5")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
-                
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 20
-            
-            Label:
-                size_hint: 0.7, 0.1
-                halign: "auto"
-                valign: "top"
-                font_name: "Arial Black"
-                font_size:  new_store_safe_screen.font_size
-                color: 0,1,0,1
-                multiline: True
-                size: self.texture_size
-                text: "Cosigner 6:"
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 2:"
 
-            Button: 
-                id: cosigner_6
-                text:"Add Cosigner"
-                on_press: new_store_safe_screen.add_cosigner("cosigner_6")
-                font_name: "Arial Black"
-                font_size: "12sp"
-                size_hint: 1.2, 0.5
+                Button: 
+                    id: cosigner_2
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_2")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
+
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 3:"
+
+                Button: 
+                    id: cosigner_3
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_3")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
+
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 4:"
+
+                Button: 
+                    id: cosigner_4
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_4")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
+
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 5:"
+
+                Button: 
+                    id: cosigner_5
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_5")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
+
+            BoxLayout:
+                orientation: "horizontal"
+                spacing: 20
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size
+                    color: 0,1,0,1
+                    multiline: True
+                    size: self.texture_size
+                    text: "Cosigner 6:"
+
+                Button: 
+                    id: cosigner_6
+                    text:"Add Cosigner"
+                    on_press: new_store_safe_screen.add_cosigner("cosigner_6")
+                    font_name: "Arial Black"
+                    font_size: "12sp"
+                    size_hint: 1.2, 0.5
                 
 
         Button: 
@@ -2645,7 +2653,7 @@
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
         on_press:
-            app.root.current = "WeekSafeScreen"
+            app.root.current = "YearList"
             root.manager.transition.direction = "left"
     
     
@@ -2702,7 +2710,14 @@
                         pos: self.pos
                         size: self.size
                 
-
+        Button: 
+            text:"New Conctact"
+            on_press: 
+                app.root.current = "NewContactScreen"
+                root.manager.transition.direction = "left"
+            font_name: "Arial Black"
+            font_size: "20sp"
+            
  
 <ContactInfoScreen>:
     id: contact_info_screen
