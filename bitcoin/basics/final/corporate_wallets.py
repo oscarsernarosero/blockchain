@@ -18,6 +18,12 @@ This file contains the different kind of corporate wallets that exists in this p
 
 class CorporateSuperWallet(Wallet):
     
+    def get_daily_safe_pubkey(self):
+        path = "m/44H/0H/1H"
+        daily_safes_acc = self.get_child_from_path(path)
+        return daily_safes_acc.private_key_obj.point.sec()
+    
+    
     def create_store_account(self, store_code):
         """
         Returns the master private key of the store with index 'store_code'.
@@ -253,7 +259,7 @@ class SHDSafeWallet(Wallet):
         self.safe_index = safe_index
         
         #save the new wallet in the database
-        #but first, lets convert the public keys to bytes to avoid problems in the database
+        #but first, lets convert the public keys to int to avoid problems in the database
         int_pubkeys = [int.from_bytes(x,"big") for x in self.public_key_list]
         if self.privkey is not None: int_privkey = int.from_bytes(self.privkey,"big")
         else: int_privkey = None

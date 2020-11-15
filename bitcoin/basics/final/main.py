@@ -514,13 +514,16 @@ class NewContactScreen(Screen):
         app = App.get_running_app()
         
         if app.caller == "ContactInfoScreen":
-            first_name, last_name, phone_number, position, xpub = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+            first_name,last_name,phone_number,position,xpub,safe_pubkey=app.db.get_contact(app.arguments[0]["current_contact"])[0]
             self.original_xpub = xpub
             self.ids.first_name.text = first_name
             self.ids.last_name.text = last_name 
-            self.ids.phone_number.text = phone_number
+            if phone_number is not None: self.ids.phone_number.text = phone_number
+            else: self.ids.phone_number.text = ""
             self.ids.position.text = position
             self.ids.xpub.text = xpub 
+            if safe_pubkey is not None: self.ids.safe_pubkey.text = safe_pubkey 
+            else: self.ids.safe_pubkey.text = ""
             self.ids.title.text = "-- Edit Contact --"
             self.ids.go.text = "Save Changes"
     
@@ -609,7 +612,7 @@ class NewStoreSafeScreen(Screen):
         pubkey_list = []
         for key in cosigners:
             if key == "current": continue
-            pubkey_list.append(cosigners[key][0][4])
+            pubkey_list.append(int(cosigners[key][0][5]).to_bytes(33,"big"))
         
         
         print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
@@ -618,8 +621,7 @@ class NewStoreSafeScreen(Screen):
             safe = SHDSafeWallet.from_master_privkey(alias,pubkey_list,
                                                 master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
                                                n=n,testnet=wallet.testnet)
-        except:
-            print("Could not create SHDSafeWallet.")
+        except: print("Could not create SHDSafeWallet.")
             
                                                
     
@@ -743,10 +745,12 @@ class ContactInfoScreen(Screen):
         first_name,last_name,phone_number,position,xpub,safe_pubkey = app.db.get_contact(app.arguments[0]["current_contact"])[0]
         self.ids.first_name.text = first_name
         self.ids.last_name.text = last_name 
-        self.ids.phone_number.text = phone_number
+        if phone_number is not None: self.ids.phone_number.text = phone_number
+        else: self.ids.phone_number.text = ""
         self.ids.position.text = position
         self.ids.xpub.text = xpub 
-        self.ids.safe_pubkey.text = safe_pubkey
+        if safe_pubkey is not None: self.ids.safe_pubkey.text = safe_pubkey
+        else: self.ids.safe_pubkey.text = ""
         app.caller = "ContactInfoScreen"
         
     def edit(self):

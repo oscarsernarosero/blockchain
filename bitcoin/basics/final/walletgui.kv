@@ -2895,6 +2895,7 @@
 
         Label:
             id: xpub
+            shorten: True
             size_hint: 1, 0.5
             halign: "left"
             valign: "middle"
@@ -2904,6 +2905,22 @@
             text_size: root.width*0.7, None
             size: self.texture_size
         
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  contact_info_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Store-Safe Public Key:"
+            
+        Label:
+            id: safe_pubkey
+            shorten: True
+            size_hint:1,0.5
+            multiline: True
         
         BoxLayout:
             orientation: "horizontal"

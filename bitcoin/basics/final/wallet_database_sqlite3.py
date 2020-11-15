@@ -465,14 +465,14 @@ class Sqlite3Wallet:
         return True
     
     def get_contact(self, xpub):
-        query1 = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        query1 = f"SELECT first_name, last_name, phone, position, xpub, safe_pubkey FROM Contacts\n"
         query2 = f"WHERE xpub ='{xpub}' ;"
         query = query1+query2
         print(query)
         return self.execute_w_res(query)
     
     def get_contact_by_name(self, first_name,last_name):
-        query1 = f"SELECT first_name, last_name, phone, position, xpub FROM Contacts\n"
+        query1 = f"SELECT first_name, last_name, phone, position, xpub, safe_pubkey FROM Contacts\n"
         query2 = f"WHERE first_name ='{first_name}' AND last_name='{last_name}';"
         query = query1+query2
         print(query)
