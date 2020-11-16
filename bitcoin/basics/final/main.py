@@ -11,6 +11,7 @@ import pyperclip
 import time, threading
 from datetime import date, timedelta
 
+
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
 from kivy.base import EventLoop
@@ -80,7 +81,8 @@ class SelectWallet(RecycleDataViewBehavior, Label):
             _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
             
             list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            if rv.data[index]['text'] not in list_of_wallet_names: 
+                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
             else: print("wallet already in memory")
             app.current_wallet = rv.data[index]['text']
             print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
@@ -146,11 +148,16 @@ class SelectStore(SelectWallet, Label):
             print("selection changed to {0}".format(rv.data[index]))
             app = App.get_running_app()
             
+            #We recreate the wallet with the info stored in the database and save it in the variable _wallet.
             _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
             
+            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
             list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            if rv.data[index]['text'] not in list_of_wallet_names: 
+                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
             else: print("wallet already in memory")
+                
+            #We update the name of the current wallet.
             app.current_wallet = rv.data[index]['text']
             print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
             
@@ -396,6 +403,22 @@ class WalletTypeScreen(Screen):
                 index=i
                 break
         my_wallet = app.wallets[index][app.current_wallet]
+        
+        if isinstance( my_wallet, SHDSafeWallet) or isinstance( my_wallet, HDMWallet):
+            print("wallet is not a Wallet")
+            
+            app.current_wallet = my_wallet.parent_name
+            if app.current_wallet is None: app.current_wallet = app.last_wallet
+            print(f"app.current_wallet {app.current_wallet}")
+            index=None
+            for i,w in enumerate(app.wallets):
+                if list(w.keys())[0] == app.current_wallet: 
+                    index=i
+                    break
+            print(f"index {index}")
+            my_wallet = app.wallets[index][app.current_wallet]
+            
+        print(f"my_wallet class: {type(my_wallet)}")   
         my_wallet.start_conn()
         self.public_key = str(my_wallet.xtended_public_key)
         
@@ -403,6 +426,10 @@ class WalletTypeScreen(Screen):
         app = App.get_running_app()
         sm = app.sm
         sm.current = app.caller
+        
+    def on_leave(self):
+        app = App.get_running_app()
+        app.last_wallet = app.current_wallet
         
 class StoreListScreen(Screen):
     font_size = "20sp"
@@ -414,7 +441,6 @@ class StoreListScreen(Screen):
         store_list = app.store_list
         print(f"store_list {store_list}")
         data = [x[0] for x in store_list if x[10]=="None" and x[11] == -1]
-        #data = ["test1","test2"]
         print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
         if len(data)>0:
@@ -443,24 +469,23 @@ class StoreSafesScreen(Screen):
             
     def on_pre_enter(self):
         self.total = "A lot"
-        app = App.get_running_app()
-        print(f"app.current_wallet: {app.current_wallet}")
-        daily_safes = app.db.get_daily_safe_wallets(app.current_wallet)  
-        print(f"daily_safes: {daily_safes}")
-        weekly_safes = app.db.get_weekly_safe_wallets(app.current_wallet)  
+        self.app = App.get_running_app()
+        print(f"app.current_wallet: {self.app.current_wallet}")
+        daily_safes = self.app.db.get_daily_safe_wallets(self.app.current_wallet)  
+        weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)  
         print(f"weekly_safes: {weekly_safes}")
         no_wallet_msg ="You don't have any stores added yet." 
         
-        if len(daily_safes)>0: self.ids.weeksafe_list.data = [{'text': x} for x in daily_safes]
+        if len(daily_safes)>0: self.ids.daysafe_list.data = [{'text': x[0]} for x in daily_safes]
         else:  self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
             
-        if len(weekly_safes)>0: self.ids.daysafe_list.data = [{'text': x[0]} for x in weekly_safes]   
+        if len(weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x[0]} for x in weekly_safes]   
         else: self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        #app = App.get_running_app()
+        sm = self.app.sm
+        sm.current = self.app.caller
         
     def new_weekly_safe(self):
         self.show = NewSafePopup("weekly")
@@ -469,9 +494,9 @@ class StoreSafesScreen(Screen):
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
-        self.show.current.bind(on_release=self.new_safe,when="this_week")
-        self.show.past.bind(on_press=partial(self.new_safe,when="last_week"))
-        self.show.other.bind(on_press=partial(self.select_week,index="1111"))
+        self.show.current.bind(on_release=partial(self.new_safe,when="this_week"))
+        self.show.past.bind(on_release=partial(self.new_safe,when="last_week"))
+        self.show.other.bind(on_release=partial(self.custom_safe,when="1111"))
         
         
     def new_daily_safe(self):
@@ -481,19 +506,46 @@ class StoreSafesScreen(Screen):
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
-        self.show.current.bind(on_release=self.new_safe,when="today")
-        self.show.past.bind(on_press=partial(self.new_safe,when="yesterday"))
-        self.show.other.bind(on_press=partial(self.select_day,index="1111"))
+        self.show.current.bind(on_release=partial(self.new_safe,when="today"))
+        self.show.past.bind(on_release=partial(self.new_safe,when="yesterday"))
+        self.show.other.bind(on_release=partial(self.custom_safe,when="1111"))
         
     def new_safe(self,*args, **kargs):
         print(f"args: {args}, kargs {kargs}")
         
-        if kargs["when"] == "yesterday"
+        j=None
+        for i,w in enumerate(self.app.wallets):
+            if list(w.keys())[0] == self.app.current_wallet: 
+                j=i
+                break
+        master_safe = self.app.wallets[j][self.app.current_wallet]
+        master_safe.start_conn()
+        
+        if kargs["when"] == "today" or kargs["when"] == "this_week": index = None
+        
+        elif kargs["when"] == "yesterday":
             yesterday = date.today() - timedelta(days=1)
             index_string = str(yesterday.year)[2:]+'{:02d}'.format(yesterday.month)+'{:02d}'.format(yesterday.day)
             index = int(index_string)
             
-        elif kargs["when"] == "last_week"
+        elif kargs["when"] == "last_week":
+            this_week = datetime.datetime.now().isocalendar()
+            index_string = str(this_week[0])[2:]+str(this_week[1])
+            index = int(index_string)
+            
+        else: raise Exception(f"new_safe takes only one argument 'when' and it can only be 1 out of 4 options\
+        : 'today', 'yesterday', 'this_week', or 'last_week'. Not {kargs['when']}")
+        
+        print(f"master_safe: {master_safe}\nindex: {index}")
+        if kargs["when"] == "today" or kargs["when"] == "yesterday": master_safe.get_daily_safe_wallet(index)
+        else: master_safe.get_weekly_safe_wallet(index)
+        
+        self.app.sm.current = "DaySafeScreen"
+        
+        
+    def custom_safe(self,*args, **kargs):
+        print("custom_safe")
+            
         
         
 class YearListScreen(Screen):
@@ -502,7 +554,6 @@ class YearListScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         app = App.get_running_app()
-        #year_list = app.store_list
         year_list = [2020,2019]
         no_data_msg ="You don't have any year accounts yet." 
         if len(year_list)>0:
@@ -656,6 +707,7 @@ class NewStoreSafeScreen(Screen):
                 index=i
                 break
         wallet = app.wallets[index][app.current_wallet]
+        
         #wallet.start_conn()
         app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
                                                               passphrase=wallet.passphrase,
@@ -1301,6 +1353,7 @@ class walletguiApp(App):
     my_wallet_names = ListProperty()
     wallets = ListProperty()
     current_wallet = StringProperty()
+    last_wallet = StringProperty()
     store_list=ListProperty()
     corporate_wallet = ObjectProperty()
     db = ObjectProperty()
