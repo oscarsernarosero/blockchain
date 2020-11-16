@@ -428,6 +428,22 @@ class Sqlite3Wallet:
         query = f"SELECT * FROM Wallets;"
         return self.execute_w_res(query)
     
+    def get_all_store_wallets(self):
+        query = f"SELECT * FROM SHDSafeWallet;"
+        return self.execute_w_res(query)
+    
+    def get_daily_safe_wallets(self,parent_wallet):
+        query = f"SELECT * FROM SHDSafeWallet WHERE parent_name = '{parent_wallet}' and safe_index > 201001;"
+        return self.execute_w_res(query)
+    
+    def get_weekly_safe_wallets(self,parent_wallet):
+        query = f"SELECT * FROM SHDSafeWallet WHERE parent_name = '{parent_wallet}' and safe_index < 9999;"
+        return self.execute_w_res(query)
+    
+    def get_all_m_s_corporate_wallets(self):
+        query = f"SELECT * FROM HDMWallet;"
+        return self.execute_w_res(query)
+    
     def recover_SHDSafeWallet(self,name):
         query = f"SELECT * FROM SHDSafeWallet WHERE name='{name}'"
         return self.execute_w_res(query)

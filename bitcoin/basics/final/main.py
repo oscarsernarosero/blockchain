@@ -34,6 +34,7 @@ from kivy.uix.image import AsyncImage
 from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty, ListProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 import kivy.input.motionevent 
+from functools import partial
 Config.set('graphics','width',300)
 Config.set('graphics','height',600)
 
@@ -140,8 +141,23 @@ class SelectStore(SelectWallet, Label):
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected: Clock.schedule_once(self.go_to_year, 0.7)                         
-        else: print("selection removed for {0}".format(rv.data[index]))
+        if is_selected: 
+            print("selection changed to {0}".format(rv.data[index]))
+            app = App.get_running_app()
+            
+            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+            
+            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
+            if rv.data[index]['text'] not in list_of_wallet_names: app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            else: print("wallet already in memory")
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
+            
+            Clock.schedule_once(self.go_to_year, 0.7)  
+                                
+        else:
+            print("selection removed for {0}".format(rv.data[index]))
+        
             
     def go_to_year(self,obj):
         app = App.get_running_app()
@@ -195,8 +211,7 @@ class SelectPayment(SelectWallet, Label):
             
     def go_to_store(self,obj):
         app = App.get_running_app()
-        sm = app.sm
-        #sm.current = "StoreSafesScreen"    
+        sm = app.sm    
         
 class SelectContact(SelectWallet, Label):
 
@@ -396,9 +411,13 @@ class StoreListScreen(Screen):
         super().__init__()
         app = App.get_running_app()
         store_list = app.store_list
+        print(f"store_list {store_list}")
+        data = [x[0] for x in store_list if x[10]=="None" and x[11] == -1]
+        #data = ["test1","test2"]
+        print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
-        if len(store_list)>0:
-            self.ids.store_list.data = [{'text': x} for x in store_list]
+        if len(data)>0:
+            self.ids.store_list.data = [{'text': x} for x in data]
         else:
             self.ids.rv.data = [{'text': no_wallet_msg}]
             
@@ -419,27 +438,58 @@ class StoreSafesScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
-        app = App.get_running_app()
-        store_list = app.store_list
-        no_wallet_msg ="You don't have any stores added yet." 
-        if len(store_list)>0:
-            self.ids.weeksafe_list.data = [{'text': x} for x in store_list]
-            self.ids.daysafe_list.data = [{'text': x} for x in store_list]
-        else:
-            self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
-            self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
+        
             
     def on_pre_enter(self):
         self.total = "A lot"
+        app = App.get_running_app()
+        print(f"app.current_wallet: {app.current_wallet}")
+        daily_safes = app.db.get_daily_safe_wallets(app.current_wallet)  
+        print(f"daily_safes: {daily_safes}")
+        weekly_safes = app.db.get_weekly_safe_wallets(app.current_wallet)  
+        print(f"weekly_safes: {weekly_safes}")
+        no_wallet_msg ="You don't have any stores added yet." 
+        
+        if len(daily_safes)>0: self.ids.weeksafe_list.data = [{'text': x} for x in daily_safes]
+        else:  self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
+            
+        if len(weekly_safes)>0: self.ids.daysafe_list.data = [{'text': x[0]} for x in weekly_safes]   
+        else: self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
         app = App.get_running_app()
         sm = app.sm
         sm.current = app.caller
         
+    def new_weekly_safe(self):
+        self.show = NewSafePopup("weekly")
+        self.popupWindow = Popup(title="Create New Week Safe", content=self.show, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.5}
+                            #auto_dismiss=False
+                           )
+        self.popupWindow.open()
+        self.show.current.bind(on_release=self.new_safe)
+        self.show.past.bind(on_press=partial(self.new_safe,index="1111"))
+        self.show.other.bind(on_press=partial(self.new_safe,index="1111"))
+        
+        
+    def new_daily_safe(self):
+        self.show = NewSafePopup("daily")
+        self.popupWindow = Popup(title="Create New Week Safe", content=self.show, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.5}
+                            #auto_dismiss=False
+                           )
+        self.popupWindow.open()
+        self.show.current.bind(on_release=self.new_safe)
+        self.show.past.bind(on_press=partial(self.new_safe,index="1111"))
+        self.show.other.bind(on_press=partial(self.new_safe,index="1111"))
+        
+    def new_safe(self,*args, **kargs):
+        print(f"args: {args}, kargs {kargs}")
+        
+        
 class YearListScreen(Screen):
     font_size = "15sp"
-    
     
     def __init__(self, **kwargs):
         super().__init__()
@@ -572,7 +622,7 @@ class NewStoreSafeScreen(Screen):
         app = App.get_running_app()
         current_args = app.arguments[0]
         cosigners = current_args["new_wallet_consigners"]
-        print(cosigners)
+        print(f"cosigners: {cosigners}")
         for key in cosigners:
             if key == "current": continue
             try: 
@@ -583,7 +633,7 @@ class NewStoreSafeScreen(Screen):
                 #the buttons this way. Since this way is slower, it is ok to leave the
                 #option for the faster method as the default.
                 cosigner_box = self.ids.cosigner_box
-                print(cosigner_box)
+                print(f"cosigner_box: {cosigner_box}")
                 i = len(cosigner_box.children) - int(key[-1])
                 cosigner_box.children[i].children[0].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
                 cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
@@ -672,7 +722,6 @@ class LookUpContactScreen(Screen):
     def populate_contact_list(self,search_for=""):
         app = App.get_running_app()
         contact_list_raw = app.db.get_all_contacts()
-        print(f"all contacts:\n{contact_list_raw}")
         contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
                         if x[1].startswith(search_for) or x[0].startswith(search_for)]
         no_data_msg ="No results found." 
@@ -989,7 +1038,40 @@ class GenericOkPopup(FloatLayout):
                           background_color=[0.5,1,0.75,1]
                       )
         self.add_widget(message)
-        self.add_widget(self.OK)                                
+        self.add_widget(self.OK) 
+        
+class NewSafePopup(FloatLayout):
+    def __init__(self,kind):
+        super().__init__()
+        
+        if kind == "daily": message = ["Today's","Yesterday's", "day's"]
+        elif kind == "weekly": message = ["This week's","Last week's", "week's"]
+        else: raise Exception(f"argument kind only accepts String 'daily' or 'weekly'. Not {kind}")
+                                
+        label = Label(text= "Create new safe wallet.\nChoose one option:",
+                       halign="center",size_hint= (0.6,0.3), 
+                        pos_hint={"center_x":0.5, "center_y":0.85}, font_size="14sp"
+                       )
+
+        self.current = Button(text=f"{message[0]} Safe",
+                     pos_hint= {"center_x":0.5, "center_y":0.60}, 
+                     size_hint= (1,0.17),
+                          background_color=[0.5,1,0.75,1]
+                      )
+        self.past = Button(text=f"{message[1]} Safe",
+                     pos_hint= {"center_x":0.5, "center_y":0.35}, 
+                     size_hint= (1,0.17),
+                          background_color=[0.5,1,0.75,1]
+                      )
+        self.other = Button(text=f"Other {message[2]} Safe",
+                     pos_hint= {"center_x":0.5, "center_y":0.10}, 
+                     size_hint= (1,0.17),
+                          background_color=[0.5,1,0.75,1]
+                      )
+        self.add_widget(label)
+        self.add_widget(self.current) 
+        self.add_widget(self.past) 
+        self.add_widget(self.other) 
                                 
 class WrongInputPopup(FloatLayout):
     def __init__(self):
@@ -1219,27 +1301,21 @@ class walletguiApp(App):
     arguments=ListProperty()
     arguments=[{"new_wallet_consigners":{"current":""}}]
     
-    ###### test data #####
-    store_list = ["test_Store1","test_Store2","test_Store3","test_Store4","test_Store5"]
-    #####################
-    
-    
     current_wallet = None
     db = Sqlite3Wallet()
     res =  db.does_table_exist("Wallets")
-    print(res)
-    
     if len(res)>0:
-        
-        #res = db.conn.cursor().execute("SELECT * FROM Wallets")
-        #wallets = res.fetchall()
         res = db.get_all_wallets()
-        print(f"the table exists, {res}")
         my_wallet_names = res
         
     else:
         my_wallet_names = []
         
+    
+    store_list = db.get_all_store_wallets()
+    print(f"store_list[-1][0]: {store_list[-1][0]}")
+    data = [x[0] for x in store_list if x[0]!=""]
+    print(f"data: {data}")
     def build(self):
         #return Builder.load_file("walletgui.kv")
         #return WalletScreen()
