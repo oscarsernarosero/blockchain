@@ -9,6 +9,7 @@ import json
 import os
 import pyperclip
 import time, threading
+from datetime import date, timedelta
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -468,9 +469,9 @@ class StoreSafesScreen(Screen):
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
-        self.show.current.bind(on_release=self.new_safe)
-        self.show.past.bind(on_press=partial(self.new_safe,index="1111"))
-        self.show.other.bind(on_press=partial(self.new_safe,index="1111"))
+        self.show.current.bind(on_release=self.new_safe,when="this_week")
+        self.show.past.bind(on_press=partial(self.new_safe,when="last_week"))
+        self.show.other.bind(on_press=partial(self.select_week,index="1111"))
         
         
     def new_daily_safe(self):
@@ -480,12 +481,19 @@ class StoreSafesScreen(Screen):
                             #auto_dismiss=False
                            )
         self.popupWindow.open()
-        self.show.current.bind(on_release=self.new_safe)
-        self.show.past.bind(on_press=partial(self.new_safe,index="1111"))
-        self.show.other.bind(on_press=partial(self.new_safe,index="1111"))
+        self.show.current.bind(on_release=self.new_safe,when="today")
+        self.show.past.bind(on_press=partial(self.new_safe,when="yesterday"))
+        self.show.other.bind(on_press=partial(self.select_day,index="1111"))
         
     def new_safe(self,*args, **kargs):
         print(f"args: {args}, kargs {kargs}")
+        
+        if kargs["when"] == "yesterday"
+            yesterday = date.today() - timedelta(days=1)
+            index_string = str(yesterday.year)[2:]+'{:02d}'.format(yesterday.month)+'{:02d}'.format(yesterday.day)
+            index = int(index_string)
+            
+        elif kargs["when"] == "last_week"
         
         
 class YearListScreen(Screen):

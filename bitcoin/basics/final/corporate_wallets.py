@@ -397,6 +397,23 @@ class SHDSafeWallet(Wallet):
         return safe_wallet
     
     
+    def get_weekly_safe_wallet(self, index=None):
+        """
+        Returns a daily_safe wallet based on the index.
+        If today's wallet is desired, don't pass any argument or set index to None.
+        """
+        if self.safe_index >= 0: raise Exception ("Only master wallets can create safe wallets.")
+        path = "m/"
+        if index is None:
+            this_week = datetime.datetime.now().isocalendar()
+            index_string = str(this_week[0])[2:]+str(this_week[1])
+            index = int(index_string)
+            
+        safe_wallet = self.get_child_wallet(index, path)
+        
+        return safe_wallet
+    
+    
     def get_unused_addresses_list(self, change_addresses=False):
         
         self.start_conn()
