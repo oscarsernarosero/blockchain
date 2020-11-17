@@ -64,7 +64,7 @@ class CorporateSuperWallet(Wallet):
         
         path = "m/44H/0H/1H"
         daily_safes_acc = self.get_child_from_path(path)
-        print(daily_safes_acc)
+        #print(daily_safes_acc)
         shm_account = SHMAccount(m,n, str(daily_safes_acc.xtended_public_key), public_key_list, _privkey=None,
                                  addr_type=addr_type,testnet=testnet, segwit=segwit)
         return shm_account
@@ -170,7 +170,7 @@ class ManagerWallet(Wallet):
         """
         path = "m/44H/0H/1H"
         daily_safes_acc = self.get_child_from_path(path)
-        print(daily_safes_acc.private_key)
+        #print(daily_safes_acc.private_key)
         
         public_key_list = invite["public_key_list"]
         master_pubkey = invite["master_pubkey"]
@@ -541,6 +541,7 @@ class SHDSafeWallet(Wallet):
         """
         self.start_conn()
         addresses = self.db.get_all_addresses(self.name)
+        print(f"\n\nupdate balance.\naddresses: {addresses}")
         self.close_conn()
         
         if self.testnet: coin_symbol = "btc-testnet"

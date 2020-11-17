@@ -44,6 +44,8 @@ Config.set('graphics','height',600)
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
                                  RecycleBoxLayout):
     ''' Adds selection and focus behaviour to the view. '''
+    def on_leave(self):
+        self.selected = False
 
 
 class SelectWallet(RecycleDataViewBehavior, Label):
@@ -71,6 +73,7 @@ class SelectWallet(RecycleDataViewBehavior, Label):
         if is_selected:
             
             print("selection changed to {0}".format(rv.data[index]))
+            if "You don't have" in rv.data[index]["text"]: return
             app = App.get_running_app()
             
             
@@ -97,13 +100,13 @@ class SelectWallet(RecycleDataViewBehavior, Label):
     def go_to_main(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        #sm.switch_to(Screen(name="Main"), direction='right')
+        self.selected = False
         sm.current = "Main"
         
     def go_to_wallet_type(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        #sm.switch_to(Screen(name="Main"), direction='right')
+        self.selected = False
         sm.current = "WalletType"
         
 
@@ -113,7 +116,20 @@ class SelectDay(SelectWallet, Label):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
+            app = App.get_running_app()
             print("selection changed to {0}".format(rv.data[index]))
+            if "You don't have" in rv.data[index]["text"]: return
+            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
+            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
+            if rv.data[index]['text'] not in list_of_wallet_names: 
+                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            else: print("wallet already in memory")
+                
+            #We update the name of the current wallet.
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
+            
             Clock.schedule_once(self.go_to_day, 0.7)  
                                 
         else:
@@ -122,7 +138,8 @@ class SelectDay(SelectWallet, Label):
     def go_to_day(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        sm.current = "DaySafeScreen"
+        self.selected = False
+        sm.current = "DayScreen"
         
             
 class SelectWeek(SelectWallet, Label):
@@ -131,13 +148,30 @@ class SelectWeek(SelectWallet, Label):
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected: Clock.schedule_once(self.go_to_week_safe, 0.7)  
+        if is_selected: 
+            app = App.get_running_app()
+            print("selection changed to {0}".format(rv.data[index]))
+            if "You don't have" in rv.data[index]["text"]: return
+            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
+            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
+            if rv.data[index]['text'] not in list_of_wallet_names: 
+                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+            else: print("wallet already in memory")
+                
+            #We update the name of the current wallet.
+            app.current_wallet = rv.data[index]['text']
+            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
+            Clock.schedule_once(self.go_to_week_safe, 0.7)  
         else: print("selection removed for {0}".format(rv.data[index]))
             
     def go_to_week_safe(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        sm.current = "WeekSafeTransferScreen"   
+        self.selected = False
+        sm.current = "WeekSafeScreen"  
+        
+    
                             
 class SelectStore(SelectWallet, Label):
 
@@ -146,6 +180,9 @@ class SelectStore(SelectWallet, Label):
         self.selected = is_selected
         if is_selected: 
             print("selection changed to {0}".format(rv.data[index]))
+            if "You don't have" in rv.data[index]["text"]: 
+                self.selected = False
+                return
             app = App.get_running_app()
             
             #We recreate the wallet with the info stored in the database and save it in the variable _wallet.
@@ -170,7 +207,9 @@ class SelectStore(SelectWallet, Label):
     def go_to_year(self,obj):
         app = App.get_running_app()
         sm = app.sm
-        sm.current = "StoreSafesScreen"   
+        self.selected = False
+        sm.current = "StoreSafesScreen" 
+        
         
 class SelectYear(SelectWallet, Label):
 
@@ -178,12 +217,15 @@ class SelectYear(SelectWallet, Label):
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected: Clock.schedule_once(self.go_to_year, 0.7)  
+        if is_selected: 
+            if "You don't have" in rv.data[index]["text"]: return
+            Clock.schedule_once(self.go_to_year, 0.7)  
         else: print("selection removed for {0}".format(rv.data[index]))
             
     def go_to_year(self,obj):
         app = App.get_running_app()
         sm = app.sm
+        self.selected = False
         sm.current = "CorporateScreen"   
         
         
@@ -194,7 +236,7 @@ class SelectAccount(SelectWallet, Label):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
-            
+            if "You don't have" in rv.data[index]["text"]: return
             Clock.schedule_once(self.go_to_store, 0.7)  
                                 
         else:
@@ -203,6 +245,7 @@ class SelectAccount(SelectWallet, Label):
     def go_to_store(self,obj):
         app = App.get_running_app()
         sm = app.sm
+        self.selected = False
         sm.current = "StoreSafesScreen"   
 
 class SelectPayment(SelectWallet, Label):
@@ -211,7 +254,7 @@ class SelectPayment(SelectWallet, Label):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
-            
+            if "You don't have" in rv.data[index]["text"]: return
             Clock.schedule_once(self.go_to_store, 0.7)  
                                 
         else:
@@ -220,6 +263,7 @@ class SelectPayment(SelectWallet, Label):
     def go_to_store(self,obj):
         app = App.get_running_app()
         sm = app.sm    
+        self.selected = False
         
 class SelectContact(SelectWallet, Label):
 
@@ -227,6 +271,7 @@ class SelectContact(SelectWallet, Label):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
         if is_selected:
+            if "You don't have" in rv.data[index]["text"]: return
             app = App.get_running_app()
             contact_xpub = rv.data[index]["xpub"]
             
@@ -247,11 +292,13 @@ class SelectContact(SelectWallet, Label):
     def go_back(self,obj):
         app = App.get_running_app()
         sm = app.sm
+        self.selected = False
         sm.current = app.caller 
         
     def see_contact(self,obj):
         app = App.get_running_app()
         sm = app.sm
+        self.selected = False
         sm.current = "ContactInfoScreen"
         
         
@@ -293,6 +340,7 @@ class MainScreen(Screen):
     def on_pre_enter(self):
         app = App.get_running_app()
         if app.current_wallet is not None:
+            
             self.update_balance()
         
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
@@ -301,7 +349,8 @@ class MainScreen(Screen):
     font_size = "20sp"
    
     def update_real_balance(self):
-        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\nThis might take a few\nmore seconds...\nPlease wait.")
+        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\
+        \nThis might take a few\nmore seconds...\nPlease wait.")
         self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
                                    auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
         self.loadingDB.open()
@@ -437,19 +486,20 @@ class StoreListScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
+        
+            
+    def on_pre_enter(self):
+        self.total = "A lot"
         app = App.get_running_app()
+        print(f"StoreListScreen app.current_wallet: {app.current_wallet}")
         store_list = app.store_list
-        print(f"store_list {store_list}")
-        data = [x[0] for x in store_list if x[10]=="None" and x[11] == -1]
+        data = [x[0] for x in store_list if x[10]==app.current_wallet and x[11] == -1]
         print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
         if len(data)>0:
             self.ids.store_list.data = [{'text': x} for x in data]
         else:
-            self.ids.rv.data = [{'text': no_wallet_msg}]
-            
-    def on_pre_enter(self):
-        self.total = "A lot"
+            self.ids.store_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
         app = App.get_running_app()
@@ -470,7 +520,7 @@ class StoreSafesScreen(Screen):
     def on_pre_enter(self):
         self.total = "A lot"
         self.app = App.get_running_app()
-        print(f"app.current_wallet: {self.app.current_wallet}")
+        print(f"StoreSafes app.current_wallet: {self.app.current_wallet}")
         daily_safes = self.app.db.get_daily_safe_wallets(self.app.current_wallet)  
         weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)  
         print(f"weekly_safes: {weekly_safes}")
@@ -545,7 +595,33 @@ class StoreSafesScreen(Screen):
         
     def custom_safe(self,*args, **kargs):
         print("custom_safe")
+    
+    def on_leave(self):
+        self.app.last_wallet = self.app.current_wallet
+        
+    def go_back(self):
+        app = App.get_running_app()
+        
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        
+        
+        if isinstance( my_wallet, SHDSafeWallet) or isinstance( my_wallet, HDMWallet):
+            app.current_wallet = my_wallet.parent_name
+            index=None
+            for i,w in enumerate(app.wallets):
+                if list(w.keys())[0] == app.current_wallet: 
+                    index=i
+                    break
+            my_wallet = app.wallets[index][app.current_wallet]
             
+        #app.current_wallet = app.last_wallet
+        sm = app.sm
+        sm.current = "StoreList"
         
         
 class YearListScreen(Screen):
@@ -574,7 +650,6 @@ class CorporateScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         app = App.get_running_app()
-        #year_list = app.store_list
         account_list = ["Account 1","Account 2","Account 3","Account 5"]
         no_data_msg ="You don't have any accounts yet." 
         if len(account_list)>0:
@@ -614,6 +689,125 @@ class CorporateTransferAllScreen(Screen):
         app = App.get_running_app()
         sm = app.sm
         sm.current = app.caller
+        
+class DayScreen(Screen):
+    font_size = "15sp"
+    _address = "Your address here"
+    
+    btc_balance = NumericProperty(0)
+    address = StringProperty(_address)
+    usd_balance = 0.0
+    
+    btc_balance_text = StringProperty(str(btc_balance) + " BTC")
+    usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
+    
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        index=None
+        for i,w in enumerate(self.app.wallets):
+            print(f"w.keys(): {w.keys()}")
+            if list(w.keys())[0] == self.app.current_wallet: 
+                index=i
+                break
+        self.my_wallet = self.app.wallets[index][self.app.current_wallet]
+        #if self.app.current_wallet is not None:
+        raw_address = self.app.db.get_day_deposit_addresses(self.app.current_wallet)
+        print(raw_address)
+        if len(raw_address) == 0: self.address = self.my_wallet.create_receiving_address()
+        else: self.address = raw_address[0][0]
+        print(self.address)
+        qrcode.make(self.address).save("images/QRdaily.png")
+        self.update_balance()
+        self.update_real_balance()
+        self.ids.qr.reload()
+        self.ids.title.text = self.app.current_wallet
+   
+    def update_real_balance(self):
+        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\
+        \nThis might take a few\nmore seconds...\nPlease wait.")
+        self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
+        self.loadingDB.open()
+        mythread = threading.Thread(target=self.update_real_balance_process)
+        mythread.start()
+    
+    
+    def update_real_balance_process(self):
+        
+        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
+        
+        #self.my_wallet.start_conn()
+                                
+        try:                        
+            self.my_wallet.update_balance()  
+            print("Database up to date. Updating information on display...")
+            self.loadingDB.dismiss()
+
+            self.update_balance()
+        except Exception as e:
+            print("update balance exception")
+            if str(e).startswith("('Status Code 429'"):
+                #TRIGGER THE "WRONG INPUT POPUP"
+                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
+                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingDB.dismiss()
+
+                self.update_balance()                  
+        
+        
+    
+    def update_balance(self):
+        #Creating the loading screen
+        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
+        self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
+        self.loadingBalance.open()
+        mythread = threading.Thread(target=self.update_balance_process)
+        mythread.start()
+        
+    def update_balance_process(self):
+        env = Sqlite3Environment()
+        api_key = env.get_key("CC_API")[0][0]
+        env.close_database()
+        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
+        raw_data = self.read_json(url)
+        btc_price = raw_data["USD"]
+         
+        #my_wallet = app.my_wallet
+        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
+        
+        self.my_wallet.start_conn()
+        self.btc_balance = self.my_wallet.get_balance()/100000000
+        print(f"balance: {self.btc_balance}")
+        #self.btc_balance = app.btc_balance/100000000
+        self.usd_balance = self.btc_balance * btc_price
+        self.btc_balance_text =  str(self.btc_balance) + " BTC"
+        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
+        
+        print("closing loading window")
+        self.loadingBalance.dismiss()
+        self.my_wallet.close_conn()
+        
+    def read_json(self,url):
+        request = Request(url)
+        response = urlopen(request)
+        data = response.read()
+        url2 = json.loads(data)
+        return url2
+        
+    
+    def go_back(self):
+        self.app.current_wallet = self.my_wallet.parent_name
+        print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {self.app.current_wallet} ")
+        sm = self.app.sm
+        sm.current = "StoreSafesScreen"
 
 class NewContactScreen(Screen):
     font_size = "15sp"
@@ -730,7 +924,7 @@ class NewStoreSafeScreen(Screen):
         try:
             safe = SHDSafeWallet.from_master_privkey(alias,pubkey_list,
                                                 master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
-                                               n=n,testnet=wallet.testnet)
+                                               n=n,testnet=wallet.testnet, parent_name=app.current_wallet)
         except: print("Could not create SHDSafeWallet.")
             
                                                
@@ -882,14 +1076,36 @@ class ReceiveAccountScreen(Screen):
 class DaySafeScreen(Screen):
     font_size = "20sp"
     
+    def go_back(self):
+        app = App.get_running_app()
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        app.current_wallet = my_wallet.parent_name
+        print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {app.current_wallet} ")
+        sm = app.sm
+        sm.current = app.caller
+    
+    
     
 class WeekSafeScreen(Screen):
     font_size = "20sp"
     
     def go_back(self):
         app = App.get_running_app()
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        app.current_wallet = my_wallet.parent_name
+        print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {app.current_wallet} ")
         sm = app.sm
-        sm.current = app.caller
+        sm.current = "StoreSafesScreen"
     
     
 class DaySafeTransferScreen(Screen):
@@ -1404,6 +1620,7 @@ class walletguiApp(App):
         self.sm.add_widget(LookUpContactScreen())
         self.sm.add_widget(MyContactsScreen())
         self.sm.add_widget(ContactInfoScreen())
+        self.sm.add_widget(DayScreen())
         return self.sm
 
     def on_stop(self):

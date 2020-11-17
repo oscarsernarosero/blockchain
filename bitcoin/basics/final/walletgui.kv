@@ -869,7 +869,7 @@
             size: 5,5
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: 
-                #app.root.current = "Wallets"
+                app.root.current = "NewStoreSafeScreen"
                 root.manager.transition.direction = "right"
 
 
@@ -882,9 +882,7 @@
         size_hint: 1, 0.05
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "StoreList"
-            root.manager.transition.direction = "left"
+        on_press: store_safes_screen.go_back()
     
     
     BoxLayout:
@@ -1689,9 +1687,7 @@
         size_hint: 1, 0.05
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "StoreSafesScreen"
-            root.manager.transition.direction = "left"
+        on_press: day_safe_screen.go_back()
     
     BoxLayout:
         orientation: "vertical"
@@ -2955,7 +2951,74 @@
                 font_name: "Arial Black"
                 font_size: "20sp"
 
-
+<DayScreen>:
+    id: day_screen
+    name: "DayScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press: day_screen.go_back()
+    
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        padding: 20
+        
+        Label:
+            id: title
+            size_hint: 1, 0.5
+            halign: "left"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  day_screen.font_size
+            color: 0,1,0,1
+            text: "-- Date --"
+            
+        Image:
+        #Button:
+            id: qr
+            source: 'images/QRdaily.png'
+            #background_normal: 'images/QRdaily.png'
+            size_hint: None, None
+            size: 300,300
+            pos_hint: {'center_x':.5, 'center_y': .5} 
+            #on_press: send.scan_qr()
+            
+        Label:
+            text: day_screen.address
+            font_size: "9sp"
+            
+        Button:
+            text: "copy address"
+            size: 300,80
+            size_hint: None, None
+            pos_hint: {"center_x":0.5}
+            
+        BoxLayout:
+            orientation: "horizontal"
+        
+            Label:
+                text: "Balance: "
+                
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text: day_screen.btc_balance_text
+                    
+                Label:
+                    text: day_screen.usd_balance_text
+                
+        Button:
+            text: "Transfer"
+            
+        Button:
+            text: "Transfer All to Week Safe"
+            
+        
         
         
                 

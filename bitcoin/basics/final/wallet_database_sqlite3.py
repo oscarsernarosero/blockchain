@@ -380,6 +380,11 @@ class Sqlite3Wallet:
         return self.execute_w_res(query)
 
     
+    def get_day_deposit_addresses(self, name):
+        query = f"SELECT address FROM Addresses \nWHERE wallet = '{name}' AND change_addr = 0 AND acc_index = 0"
+        print(query)
+        return self.execute_w_res(query)
+    
     def get_all_addresses(self,wallet):
         """
         Returns all the addresses in the database for the specific wallet.
