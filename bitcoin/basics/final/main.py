@@ -122,16 +122,13 @@ class Balance():
         return url2
         
         
-
-        
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
                                  RecycleBoxLayout):
     ''' Adds selection and focus behaviour to the view. '''
     def on_leave(self):
         self.selected = False
 
-
-class SelectWallet(RecycleDataViewBehavior, Label):
+class SelectRV(RecycleDataViewBehavior, Label):
     ''' Add selection support to the Label '''
     index = None
     selected = BooleanProperty(False)
@@ -140,12 +137,12 @@ class SelectWallet(RecycleDataViewBehavior, Label):
     def refresh_view_attrs(self, rv, index, data):
         ''' Catch and handle the view changes '''
         self.index = index
-        return super(SelectWallet, self).refresh_view_attrs(
+        return super(SelectRV, self).refresh_view_attrs(
             rv, index, data)
 
     def on_touch_down(self, touch):
         ''' Add selection on touch down '''
-        if super(SelectWallet, self).on_touch_down(touch):
+        if super(SelectRV, self).on_touch_down(touch):
             return True
         if self.collide_point(*touch.pos) and self.selectable:
             return self.parent.select_with_touch(self.index, touch)
@@ -153,236 +150,180 @@ class SelectWallet(RecycleDataViewBehavior, Label):
     def apply_selection(self, rv, index, is_selected):
         ''' Respond to the selection of items in the view. '''
         self.selected = is_selected
-        if is_selected:
-            
-            print("selection changed to {0}".format(rv.data[index]))
-            if "You don't have" in rv.data[index]["text"]: return
-            app = App.get_running_app()
-            
-            
-            words = app.db.get_words_from_wallet(rv.data[index]["text"])
-            #the result of the query will come in the form [(result,)]. Therefore, we  
-            #will select the datum in result[0][0].
-            print(f"words from db: {words[0][0]}")
-            _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
-            
-            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: 
-                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            else: print("wallet already in memory")
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            
-            Clock.schedule_once(self.go_to_wallet_type, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
-            
-        
-                                
-    def go_to_main(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
-        self.selected = False
-        sm.current = "Main"
-        
-    def go_to_wallet_type(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
-        self.selected = False
-        sm.current = "WalletType"
-        
-
-class SelectDay(SelectWallet, Label):
-
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            app = App.get_running_app()
-            print("selection changed to {0}".format(rv.data[index]))
-            if "You don't have" in rv.data[index]["text"]: return
-            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
-            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: 
-                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            else: print("wallet already in memory")
-                
-            #We update the name of the current wallet.
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            
-            Clock.schedule_once(self.go_to_day, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
-            
-    def go_to_day(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
-        self.selected = False
-        sm.current = "DayScreen"
-        
-            
-class SelectWeek(SelectWallet, Label):
-
-
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected: 
-            app = App.get_running_app()
-            print("selection changed to {0}".format(rv.data[index]))
-            if "You don't have" in rv.data[index]["text"]: return
-            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
-            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: 
-                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            else: print("wallet already in memory")
-                
-            #We update the name of the current wallet.
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            Clock.schedule_once(self.go_to_week_safe, 0.7)  
+        self.app = App.get_running_app()
+        if is_selected: self.if_selected( rv, index)
         else: print("selection removed for {0}".format(rv.data[index]))
             
-    def go_to_week_safe(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
+    def if_selected(self,rv, index):
+        pass
+            
+class SelectWallet(SelectRV):
+    
+    def if_selected(self,rv, index):
+        """
+        This method is the one that implements the behaviour of a recycleview item when selected.
+        """
+        print("selection changed to {0}".format(rv.data[index]))
+        if "You don't have" in rv.data[index]["text"]: return
+        
+
+        words = self.app.db.get_words_from_wallet(rv.data[index]["text"])
+        #the result of the query will come in the form [(result,)]. Therefore, we  
+        #will select the datum in result[0][0].
+        print(f"words from db: {words[0][0]}")
+        _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
+
+        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
+        if rv.data[index]['text'] not in list_of_wallet_names: 
+            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+        else: print("wallet already in memory")
+        self.app.current_wallet = rv.data[index]['text']
+        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+
+        Clock.schedule_once(self.go_to_wallet_type, 0.7)  
+
+                                
+    def go_to_main(self,obj):
         self.selected = False
-        sm.current = "WeekSafeScreen"  
+        self.app.sm.current = "Main"
+        
+    def go_to_wallet_type(self,obj):
+        self.selected = False
+        self.app.sm.current = "WalletType"
+        
+
+class SelectDay(SelectRV):
+
+    def if_selected(self, rv, index):
+        print("selection changed to {0}".format(rv.data[index]))
+        if "You don't have" in rv.data[index]["text"]: return
+        _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
+        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
+        if rv.data[index]['text'] not in list_of_wallet_names: 
+            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+        else: print("wallet already in memory")
+
+        #We update the name of the current wallet.
+        self.app.current_wallet = rv.data[index]['text']
+        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+
+        Clock.schedule_once(self.go_to_day, 0.7)  
+
+            
+    def go_to_day(self,obj):
+        self.selected = False
+        self.app.sm.current = "DayScreen"
+        
+            
+class SelectWeek(SelectRV):
+    
+    def if_selected(self, rv, index):
+        print("selection changed to {0}".format(rv.data[index]))
+        if "You don't have" in rv.data[index]["text"]: return
+        _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
+        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
+        if rv.data[index]['text'] not in list_of_wallet_names: 
+            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+        else: print("wallet already in memory")
+
+        #We update the name of the current wallet.
+        self.app.current_wallet = rv.data[index]['text']
+        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+        Clock.schedule_once(self.go_to_week_safe, 0.7)  
+            
+    def go_to_week_safe(self,obj):
+        self.selected = False
+        self.app.sm.current = "WeekSafeScreen"  
         
     
                             
-class SelectStore(SelectWallet, Label):
+class SelectStore(SelectRV):
 
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected: 
-            print("selection changed to {0}".format(rv.data[index]))
-            if "You don't have" in rv.data[index]["text"]: 
-                self.selected = False
-                return
-            app = App.get_running_app()
-            
-            #We recreate the wallet with the info stored in the database and save it in the variable _wallet.
-            _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
-            
-            #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-            list_of_wallet_names = [list(x.keys())[0] for x in app.wallets]
-            if rv.data[index]['text'] not in list_of_wallet_names: 
-                app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-            else: print("wallet already in memory")
-                
-            #We update the name of the current wallet.
-            app.current_wallet = rv.data[index]['text']
-            print(f"app.wallets: {app.wallets}, current: {app.current_wallet}")
-            
-            Clock.schedule_once(self.go_to_year, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
+    def if_selected(self, rv, index):
+        print("selection changed to {0}".format(rv.data[index]))
+        if "You don't have" in rv.data[index]["text"]: 
+            self.selected = False
+            return
+        #We recreate the wallet with the info stored in the database and save it in the variable _wallet.
+        _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
+
+        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
+        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
+        if rv.data[index]['text'] not in list_of_wallet_names: 
+            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
+        else: print("wallet already in memory")
+
+        #We update the name of the current wallet.
+        self.app.current_wallet = rv.data[index]['text']
+        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+
+        Clock.schedule_once(self.go_to_year, 0.7)  
         
             
     def go_to_year(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
         self.selected = False
-        sm.current = "StoreSafesScreen" 
+        self.app.sm.current = "StoreSafesScreen" 
         
         
-class SelectYear(SelectWallet, Label):
+class SelectYear(SelectRV):
 
+    def if_selected(self, rv, index):
+        if "You don't have" in rv.data[index]["text"]: return
+        Clock.schedule_once(self.go_to_year, 0.7)  
 
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected: 
-            if "You don't have" in rv.data[index]["text"]: return
-            Clock.schedule_once(self.go_to_year, 0.7)  
-        else: print("selection removed for {0}".format(rv.data[index]))
             
     def go_to_year(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
         self.selected = False
-        sm.current = "CorporateScreen"   
+        self.app.sm.current = "CorporateScreen"   
         
         
-class SelectAccount(SelectWallet, Label):
+class SelectAccount(SelectRV):
 
+    def if_selected(self, rv, index):
+        if "You don't have" in rv.data[index]["text"]: return
+        Clock.schedule_once(self.go_to_store, 0.7)  
 
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            if "You don't have" in rv.data[index]["text"]: return
-            Clock.schedule_once(self.go_to_store, 0.7)  
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
             
     def go_to_store(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
         self.selected = False
-        sm.current = "StoreSafesScreen"   
+        self.app.sm.current = "StoreSafesScreen"   
 
-class SelectPayment(SelectWallet, Label):
+class SelectPayment(SelectRV):
 
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            if "You don't have" in rv.data[index]["text"]: return
-            Clock.schedule_once(self.go_to_store, 0.7)  
+    def if_selected(self, rv, index):
+        if "You don't have" in rv.data[index]["text"]: return
+        Clock.schedule_once(self.go_to_store, 0.7)  
                                 
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
             
-    def go_to_store(self,obj):
-        app = App.get_running_app()
-        sm = app.sm    
+    def go_to_store(self,obj): 
         self.selected = False
         
-class SelectContact(SelectWallet, Label):
+class SelectContact(SelectRV):
 
-    def apply_selection(self, rv, index, is_selected):
-        ''' Respond to the selection of items in the view. '''
-        self.selected = is_selected
-        if is_selected:
-            if "You don't have" in rv.data[index]["text"]: return
-            app = App.get_running_app()
-            contact_xpub = rv.data[index]["xpub"]
-            
-            if app.caller == "NewStoreSafeScreen":
-                contact = app.db.get_contact(contact_xpub)
-                current_contact = app.arguments[0]["new_wallet_consigners"]["current"]
-                app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
-                Clock.schedule_once(self.go_back, 0.7) 
+    def if_selected(self, rv, index):
+        if "You don't have" in rv.data[index]["text"]: return
+        contact_xpub = rv.data[index]["xpub"]
+
+        if self.app.caller == "NewStoreSafeScreen":
+            contact = self.app.db.get_contact(contact_xpub)
+            current_contact = self.app.arguments[0]["new_wallet_consigners"]["current"]
+            self.app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
+            Clock.schedule_once(self.go_back, 0.7) 
+
+        elif self.app.caller == "MyContactsScreen":
+            self.app.arguments[0].update({"current_contact":contact_xpub})
+            Clock.schedule_once(self.see_contact, 0.7) 
                 
-            elif app.caller == "MyContactsScreen":
-                app.arguments[0].update({"current_contact":contact_xpub})
-                Clock.schedule_once(self.see_contact, 0.7) 
-                
-                                
-        else:
-            print("selection removed for {0}".format(rv.data[index]))
             
     def go_back(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
         self.selected = False
-        sm.current = app.caller 
+        self.app.sm.current = app.caller 
         
     def see_contact(self,obj):
-        app = App.get_running_app()
-        sm = app.sm
         self.selected = False
-        sm.current = "ContactInfoScreen"
+        self.app.sm.current = "ContactInfoScreen"
         
         
 class WalletScreen(Screen):
