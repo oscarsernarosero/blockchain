@@ -10,7 +10,7 @@ import os
 import pyperclip
 import time, threading
 from datetime import date, timedelta
-
+from abc import ABCMeta, abstractmethod
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -51,7 +51,6 @@ class Balance():
         mythread = threading.Thread(target=self.update_real_balance_process)
         mythread.start()
     
-    
     def update_real_balance_process(self):
         
         print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
@@ -81,8 +80,6 @@ class Balance():
 
                 self.update_balance()                  
         
-        
-    
     def update_balance(self):
         #Creating the loading screen
         self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
@@ -153,7 +150,8 @@ class SelectRV(RecycleDataViewBehavior, Label):
         self.app = App.get_running_app()
         if is_selected: self.if_selected( rv, index)
         else: print("selection removed for {0}".format(rv.data[index]))
-            
+    
+    @abstractmethod
     def if_selected(self,rv, index):
         pass
             
@@ -1175,6 +1173,7 @@ class GenericOkPopup(FloatLayout):
                       )
         self.add_widget(message)
         self.add_widget(self.OK) 
+        
         
 class NewSafePopup(FloatLayout):
     def __init__(self,kind):
