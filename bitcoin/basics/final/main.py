@@ -40,6 +40,89 @@ from functools import partial
 Config.set('graphics','width',300)
 Config.set('graphics','height',600)
 
+class Balance():
+    
+    def update_real_balance(self):
+        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\
+        \nThis might take a few\nmore seconds...\nPlease wait.")
+        self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
+        self.loadingDB.open()
+        mythread = threading.Thread(target=self.update_real_balance_process)
+        mythread.start()
+    
+    
+    def update_real_balance_process(self):
+        
+        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
+        
+        #self.my_wallet.start_conn()
+                                
+        try:                        
+            self.my_wallet.update_balance()  
+            print("Database up to date. Updating information on display...")
+            self.loadingDB.dismiss()
+
+            self.update_balance()
+        except Exception as e:
+            print("update balance exception")
+            if str(e).startswith("('Status Code 429'"):
+                #TRIGGER THE "WRONG INPUT POPUP"
+                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
+                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
+                                                  size_hint=(None,None),size=(500,500), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+                self.notEnoughFundsWindow.open()
+                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
+                                
+                #closing popups
+                self.loadingDB.dismiss()
+
+                self.update_balance()                  
+        
+        
+    
+    def update_balance(self):
+        #Creating the loading screen
+        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
+        self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
+                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
+        self.loadingBalance.open()
+        mythread = threading.Thread(target=self.update_balance_process)
+        mythread.start()
+        
+    def update_balance_process(self):
+        env = Sqlite3Environment()
+        api_key = env.get_key("CC_API")[0][0]
+        env.close_database()
+        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
+        raw_data = self.read_json(url)
+        btc_price = raw_data["USD"]
+        
+        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
+        
+        self.my_wallet.start_conn()
+        self.btc_balance = self.my_wallet.get_balance()/100000000
+        print(f"balance: {self.btc_balance}")
+        #self.btc_balance = app.btc_balance/100000000
+        self.usd_balance = self.btc_balance * btc_price
+        self.btc_balance_text =  str(self.btc_balance) + " BTC"
+        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
+        
+        print("closing loading window")
+        self.loadingBalance.dismiss()
+        self.my_wallet.close_conn()
+        
+    def read_json(self,url):
+        request = Request(url)
+        response = urlopen(request)
+        data = response.read()
+        url2 = json.loads(data)
+        return url2
+        
+        
+
         
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
                                  RecycleBoxLayout):
@@ -333,112 +416,27 @@ class WalletScreen(Screen):
         
     
         
-class MainScreen(Screen):
+class MainScreen(Screen,Balance):
     btc_balance = NumericProperty()
     usd_balance = 0.0
     
     def on_pre_enter(self):
-        app = App.get_running_app()
-        if app.current_wallet is not None:
-            
+        self.app = App.get_running_app()
+        
+        if self.app.current_wallet is not None:
+            for i,w in enumerate(self.app.wallets):
+                print(f"w.keys(): {w.keys()}")
+                if list(w.keys())[0] == self.app.current_wallet: 
+                    index=i
+                    break
+            self.my_wallet = self.app.wallets[index][self.app.current_wallet]
             self.update_balance()
         
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
     usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
     
     font_size = "20sp"
-   
-    def update_real_balance(self):
-        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\
-        \nThis might take a few\nmore seconds...\nPlease wait.")
-        self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
-        self.loadingDB.open()
-        mythread = threading.Thread(target=self.update_real_balance_process)
-        mythread.start()
     
-    
-    def update_real_balance_process(self):
-        app = App.get_running_app() 
-        #my_wallet = app.my_wallet
-        print(f"update_balance_process:\napp.wallets {app.wallets}, current wallet: {app.current_wallet}")
-        index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
-        my_wallet.start_conn()
-                                
-        try:                        
-            my_wallet.update_balance()  
-            print("Database up to date. Updating information on display...")
-            self.loadingDB.dismiss()
-
-            self.update_balance()
-        except Exception as e:
-            if str(e).startswith("('Status Code 429'"):
-                #TRIGGER THE "WRONG INPUT POPUP"
-                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
-                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
-                                                  size_hint=(None,None),size=(500,500), 
-                                                  pos_hint={"center_x":0.5, "center_y":0.5}
-                                   )
-                self.notEnoughFundsWindow.open()
-                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
-                                
-                #closing popups
-                self.loadingDB.dismiss()
-
-                self.update_balance()                  
-        
-        
-    
-    def update_balance(self):
-        #Creating the loading screen
-        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
-        self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
-        self.loadingBalance.open()
-        mythread = threading.Thread(target=self.update_balance_process)
-        mythread.start()
-        
-    def update_balance_process(self):
-        env = Sqlite3Environment()
-        api_key = env.get_key("CC_API")[0][0]
-        env.close_database()
-        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
-        raw_data = self.read_json(url)
-        btc_price = raw_data["USD"]
-        app = App.get_running_app() 
-        #my_wallet = app.my_wallet
-        print(f"update_balance_process:\napp.wallets {app.wallets}, current wallet: {app.current_wallet}")
-        index=None
-        for i,w in enumerate(app.wallets):
-            print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
-        my_wallet.start_conn()
-        self.btc_balance = my_wallet.get_balance()/100000000
-        print(f"balance: {self.btc_balance}")
-        #self.btc_balance = app.btc_balance/100000000
-        self.usd_balance = self.btc_balance * btc_price
-        self.btc_balance_text =  str(self.btc_balance) + " BTC"
-        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
-        
-        print("closing loading window")
-        self.loadingBalance.dismiss()
-        my_wallet.close_conn()
-        
-    def read_json(self,url):
-        request = Request(url)
-        response = urlopen(request)
-        data = response.read()
-        url2 = json.loads(data)
-        return url2
-        
 
 class WalletTypeScreen(Screen):
     
@@ -624,6 +622,26 @@ class StoreSafesScreen(Screen):
         sm.current = "StoreList"
         
         
+    def share(self):
+        app = App.get_running_app()
+        index=None
+        for i,w in enumerate(app.wallets):
+            if list(w.keys())[0] == app.current_wallet: 
+                index=i
+                break
+        my_wallet = app.wallets[index][app.current_wallet]
+        msg = str(my_wallet.share())
+        print(msg)
+        self.share_ = GenericOkPopup(msg)
+        self.share_window = Popup(title="Server Error", content=self.share_, 
+                                                  size_hint=(None,None),size=(500,800), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+        self.share_window.open()
+        self.share_.OK.bind(on_release=self.share_window.dismiss) 
+
+        
+        
 class YearListScreen(Screen):
     font_size = "15sp"
     
@@ -690,7 +708,9 @@ class CorporateTransferAllScreen(Screen):
         sm = app.sm
         sm.current = app.caller
         
-class DayScreen(Screen):
+        
+
+class DayScreen(Screen, Balance):
     font_size = "15sp"
     _address = "Your address here"
     
@@ -718,90 +738,11 @@ class DayScreen(Screen):
         print(self.address)
         qrcode.make(self.address).save("images/QRdaily.png")
         self.update_balance()
-        self.update_real_balance()
+        #self.update_real_balance()
         self.ids.qr.reload()
         self.ids.title.text = self.app.current_wallet
    
-    def update_real_balance(self):
-        self.loading = LoadingPopup("Now consulting the blockchain..\n\nUpdating the database...\n\
-        \nThis might take a few\nmore seconds...\nPlease wait.")
-        self.loadingDB = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
-        self.loadingDB.open()
-        mythread = threading.Thread(target=self.update_real_balance_process)
-        mythread.start()
     
-    
-    def update_real_balance_process(self):
-        
-        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
-        
-        #self.my_wallet.start_conn()
-                                
-        try:                        
-            self.my_wallet.update_balance()  
-            print("Database up to date. Updating information on display...")
-            self.loadingDB.dismiss()
-
-            self.update_balance()
-        except Exception as e:
-            print("update balance exception")
-            if str(e).startswith("('Status Code 429'"):
-                #TRIGGER THE "WRONG INPUT POPUP"
-                self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
-                self.notEnoughFundsWindow = Popup(title="Server Error", content=self.exception_popup, 
-                                                  size_hint=(None,None),size=(500,500), 
-                                                  pos_hint={"center_x":0.5, "center_y":0.5}
-                                   )
-                self.notEnoughFundsWindow.open()
-                self.exception_popup.OK.bind(on_release=self.notEnoughFundsWindow.dismiss)                
-                                
-                #closing popups
-                self.loadingDB.dismiss()
-
-                self.update_balance()                  
-        
-        
-    
-    def update_balance(self):
-        #Creating the loading screen
-        self.loading = LoadingPopup("Consulting the\ndatabase\nand Bitcoin's price...\n\nAlmost done.\nPlease wait.")
-        self.loadingBalance = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
-                                   auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
-        self.loadingBalance.open()
-        mythread = threading.Thread(target=self.update_balance_process)
-        mythread.start()
-        
-    def update_balance_process(self):
-        env = Sqlite3Environment()
-        api_key = env.get_key("CC_API")[0][0]
-        env.close_database()
-        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
-        raw_data = self.read_json(url)
-        btc_price = raw_data["USD"]
-         
-        #my_wallet = app.my_wallet
-        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
-        
-        self.my_wallet.start_conn()
-        self.btc_balance = self.my_wallet.get_balance()/100000000
-        print(f"balance: {self.btc_balance}")
-        #self.btc_balance = app.btc_balance/100000000
-        self.usd_balance = self.btc_balance * btc_price
-        self.btc_balance_text =  str(self.btc_balance) + " BTC"
-        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
-        
-        print("closing loading window")
-        self.loadingBalance.dismiss()
-        self.my_wallet.close_conn()
-        
-    def read_json(self,url):
-        request = Request(url)
-        response = urlopen(request)
-        data = response.read()
-        url2 = json.loads(data)
-        return url2
-        
     
     def go_back(self):
         self.app.current_wallet = self.my_wallet.parent_name
@@ -1106,19 +1047,12 @@ class WeekSafeScreen(Screen):
         print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {app.current_wallet} ")
         sm = app.sm
         sm.current = "StoreSafesScreen"
-    
-    
-class DaySafeTransferScreen(Screen):
-    font_size = "15sp"
-    
 
     
 class WeekSafeTransferScreen(Screen):
     font_size = "15sp"    
     
-            
-class SendScreen(Screen):
- 
+class Send():
     def paste(self):
         text_to_paste = pyperclip.paste()
         self.ids.address.text = text_to_paste
@@ -1139,7 +1073,7 @@ class SendScreen(Screen):
                                 #auto_dismiss=False
                                )
             self.popupWindow.open()
-            self.show.YES.bind(on_release=self.go_back)
+            self.show.YES.bind(on_release=self.start_sending)
             self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
         except: 
             #TRIGGER THE "WRONG INPUT POPUP"
@@ -1170,20 +1104,22 @@ class SendScreen(Screen):
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
         
         
-    def go_back(self,button):
+    def start_sending(self,button):
         """
         Sends transaction, pops up a loading scree, cleans the inputs, and updates balances.
         """
         #disabling the button to avoid unintentional double action.
-        self.show.YES.disabled = True
+        self.prepare_to_send()
+        mythread = threading.Thread(target=self.send_tx_process)
+        mythread.start()
         
+    def prepare_to_send(self):
+        self.show.YES.disabled = True
         #Creating the loading screen
         self.loading = LoadingPopup("Broadcasting your\ntransaction...")
         self.loadingWindow = Popup(title="Loading... ", content=self.loading,size_hint=(None,None),
                                    auto_dismiss=False, size=(500, 500), pos_hint={"center_x":0.5, "center_y":0.5})
         self.loadingWindow.open()
-        mythread = threading.Thread(target=self.send_tx_process)
-        mythread.start()
         
     def send_tx_process(self):
         #reading the inputs and 
@@ -1275,10 +1211,6 @@ class SendScreen(Screen):
                 self.popupWindow.dismiss()
                 
         
-        
-        
-        
-        
     def scan_qr(self):
         self.qrscanner = CameraPopup()
         self.QRScannerWindow = Popup(title="Scan Qr Code", content=self.qrscanner, size_hint=(None,None), size=(500,700), 
@@ -1293,8 +1225,19 @@ class SendScreen(Screen):
         self.ids.address.text = self.qrscanner.ids.address.text
         self.QRScannerWindow.dismiss()
         
+class SendScreen(Screen,Send):
+    pass
+    
+        
 class CameraPopup(FloatLayout):
     pass
+
+class DaySafeTransferScreen(Screen, Send):
+    font_size = "15sp"
+    
+    def send_from_this_day(self):
+        pass
+    
 
 class NewWalletPopup(FloatLayout):
     pass
@@ -1303,7 +1246,7 @@ class GenericOkPopup(FloatLayout):
     def __init__(self,msg_txt):
         super().__init__()
                                 
-        message = Label(text= msg_txt,
+        message = TouchLabel(text= msg_txt,
                        halign="center",size_hint= (0.6,0.3), 
                         pos_hint={"center_x":0.5, "center_y":0.65}, font_size="14sp"
                        )
@@ -1556,16 +1499,7 @@ class ReceiveScreen(Screen):
 class walletguiApp(App):
     
     title = "Wallet"
-    #self.my_variable = StringProperty("THIS IS MY FLAG")
-    """
-    words = "engine over neglect science fatigue dawn axis parent mind man escape era goose border invest slab relax bind desert hurry useless lonely frozen morning"
     
-    my_wallet = ObjectProperty()
-    btc_balance = NumericProperty()
-    
-    my_wallet = Wallet.recover_from_words(words, 256, "RobertPauslon",True)
-    btc_balance = my_wallet.get_balance()
-    """
     my_wallet_names = ListProperty()
     wallets = ListProperty()
     current_wallet = StringProperty()

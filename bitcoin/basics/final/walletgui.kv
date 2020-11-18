@@ -224,7 +224,7 @@
 
 <MainScreen>:  
     id: main
-    #name: "Main"
+    name: "Main"
     
     PageLayout:
         BoxLayout:
@@ -998,26 +998,40 @@
         Label:
             size_hint: 1, 0.3
         
+        
         Button: 
-            id: transfer
-            text: "Tranfer"
-            size_hint: 1, 0.3
+            id: share
+            text: "Share This Wallet"
+            size_hint: 1, 0.5
             size: 5,5
+            background_color: 0.3,0.6,1,1
             #pos_hint: {'center_x':1, 'center_y': 0.25}
-            on_press: 
-                #app.root.current = "Wallets"
-                root.manager.transition.direction = "right"
-                
-        Button: 
-            id: receive
-            text: "Receive"
-            size_hint: 1, 0.3
-            size: 5,5
-            #pos_hint: {'center_x':1, 'center_y': 0.25}
-            on_press: 
-                #app.root.current = "Wallets"
-                root.manager.transition.direction = "right"
-                
+            on_press: store_safes_screen.share()
+        
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 30
+            
+            Button: 
+                id: transfer
+                text: "Tranfer"
+                size_hint: 1, 0.3
+                size: 5,5
+                #pos_hint: {'center_x':1, 'center_y': 0.25}
+                on_press: 
+                    #app.root.current = "Wallets"
+                    root.manager.transition.direction = "right"
+
+            Button: 
+                id: receive
+                text: "Receive"
+                size_hint: 1, 0.3
+                size: 5,5
+                #pos_hint: {'center_x':1, 'center_y': 0.25}
+                on_press: 
+                    #app.root.current = "Wallets"
+                    root.manager.transition.direction = "right"
+
                                            
 <YearListScreen>:
     id: year_list_screen
@@ -1881,8 +1895,6 @@
             color: 0,1,0,1
             text: "-- TRANSFER FROM DAY SAFE --"
 
-        
-        
         BoxLayout:
             orientation: "horizontal"
             spacing: 5
@@ -1967,22 +1979,7 @@
              
         Button: 
             text:"Send From\nThis Day"
-            #on_press: send.confirm_popup()
-            font_name: "Arial Black"
-            font_size: "20sp"
-            
-        Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size: 20
-            color: 0,1,0,1
-            text: "-- Or --"
-
-        Button: 
-            text:"Send From\nAnywhere"
-            #on_press: send.confirm_popup()
+            on_press: day_safe_transfer_screen.confirm_popup()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -2402,25 +2399,57 @@
             color: 0,1,0,1
             text: "-- New Store Safe --"
 
-        Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  new_store_safe_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: "Store Name/Alias:"
-            
-        TextInput:
-            id: store_name
-            size_hint:1,0.5
-            multiline: True
-            #on_double_tap: send.paste()
-            #on_focus:
-                #send.paste()
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 20
         
+            BoxLayout:
+                orientation: "vertical"
+                spacing: 10
+                
+
+                Label:
+                    size_hint: 1, 0.1
+                    halign: "center"
+                    valign: "middle"
+                    font_name: "Arial Black"
+                    font_size:  "12sp"
+                    color: 0,1,0,1
+                    text_size: root.width*0.7, None
+                    size: self.texture_size
+                    text: "Store Name/Alias:"
+
+                TextInput:
+                    id: store_name
+                    size_hint:1,0.5
+                    multiline: True
+                    #on_double_tap: send.paste()
+                    #on_focus:
+                        #send.paste()
+                        
+                        
+            BoxLayout:
+                orientation: "vertical"
+                spacing: 10
+                size_hint: 0.5,1
+
+                Label:
+                    size_hint: 1, 0.1
+                    halign: "center"
+                    valign: "middle"
+                    font_name: "Arial Black"
+                    font_size:  "12sp"
+                    color: 0,1,0,1
+                    text_size: root.width*0.7, None
+                    size: self.texture_size
+                    text: "Code (Number):"
+
+                TextInput:
+                    id: store_code
+                    size_hint:1,0.5
+                    multiline: True
+
+
         
         BoxLayout:
             orientation: "horizontal"
@@ -3014,6 +3043,9 @@
                 
         Button:
             text: "Transfer"
+            on_press: 
+                app.root.current = "DaySafeTransferScreen"
+                root.manager.transition.direction = "right"
             
         Button:
             text: "Transfer All to Week Safe"

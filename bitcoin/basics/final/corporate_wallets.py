@@ -208,7 +208,8 @@ class SHDSafeWallet(Wallet):
         segwit: Boolean.
         child_wallet: Boolean.
         """
-        
+        if isinstance(master_pubkey, str): master_pubkey = Xtended_pubkey.parse(master_pubkey)
+            
         if m < 1 or m > 16 or n < 1 or n > 16: raise Exception("m and n must be between 1 and 16")
         if m > n: raise Exception("m must be always less or equal than n")   
         if len(public_key_list) != (n-1):
@@ -527,11 +528,7 @@ class SHDSafeWallet(Wallet):
         This method is an overwritten version of the original Wallet-class version.
         """
         self.start_conn()
-        ################################ FOR DEVOLPMENT PORPUSES ONLY ###############################
-        ############### CHANGE BACK TO ORIGINAL STATE ONCE DONE WITH TESTS ##########################
-        #coins = self.db.look_for_coins(self.name) #ORIGINAL LINE!
-        coins = self.db.look_for_coins("200827_test1_master_wallet") #TEST LINE
-        ############################################################################################
+        coins = self.db.look_for_coins(self.name) 
         self.close_conn()
         return coins
     
