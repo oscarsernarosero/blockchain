@@ -329,8 +329,8 @@ class SelectContact(SelectRV):
 class WalletScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
-        app = App.get_running_app()
-        my_wallet_names = app.my_wallet_names
+        self.app = App.get_running_app()
+        my_wallet_names = self.app.my_wallet_names
         no_wallet_msg ="You don't have any wallet yet.\nLet's start by creating one.\n\nPress the '+' button." 
         if len(my_wallet_names)>0:
             self.ids.rv.data = [{'text': str(x[1])} for x in my_wallet_names]
@@ -346,11 +346,10 @@ class WalletScreen(Screen):
         self.new_wallet_popup.ids.button.bind(on_release=self.create_wallet)
         
     def create_wallet(self,button):
-        app = App.get_running_app()
-        my_wallet_names = app.my_wallet_names
+        my_wallet_names = self.app.my_wallet_names
         name = self.new_wallet_popup.ids.wallet_name.text
         my_wallet = Wallet.generate_random(testnet=True)
-        app.db.new_wallet(my_wallet.xtended_key, str(my_wallet.words)[1:], name)
+        self.app.db.new_wallet(my_wallet.xtended_key, str(my_wallet.words)[1:], name)
         my_wallet_names.append((my_wallet.xtended_key, name, str(my_wallet.words)[1:]))
         self.ids.rv.data = [{'text': x[1]} for x in my_wallet_names]
         self.newWalletWindow.dismiss()
@@ -384,40 +383,37 @@ class WalletTypeScreen(Screen):
     public_key = StringProperty()
     
     def on_pre_enter(self):
-        app = App.get_running_app() 
+        self.app = App.get_running_app() 
         index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
+        for i,w in enumerate(self.app.wallets):
+            if list(w.keys())[0] == self.app.current_wallet: 
                 index=i
                 break
-        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet = self.app.wallets[index][self.app.current_wallet]
         
         if isinstance( my_wallet, SHDSafeWallet) or isinstance( my_wallet, HDMWallet):
             print("wallet is not a Wallet")
             
-            app.current_wallet = my_wallet.parent_name
-            if app.current_wallet is None: app.current_wallet = app.last_wallet
-            print(f"app.current_wallet {app.current_wallet}")
+            self.app.current_wallet = my_wallet.parent_name
+            if self.app.current_wallet is None: self.app.current_wallet = self.app.last_wallet
+            print(f"app.current_wallet {self.app.current_wallet}")
             index=None
-            for i,w in enumerate(app.wallets):
-                if list(w.keys())[0] == app.current_wallet: 
+            for i,w in enumerate(self.app.wallets):
+                if list(w.keys())[0] == self.app.current_wallet: 
                     index=i
                     break
             print(f"index {index}")
-            my_wallet = app.wallets[index][app.current_wallet]
+            my_wallet = self.app.wallets[index][self.app.current_wallet]
             
         print(f"my_wallet class: {type(my_wallet)}")   
         my_wallet.start_conn()
         self.public_key = str(my_wallet.xtended_public_key)
         
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = self.app.caller
         
     def on_leave(self):
-        app = App.get_running_app()
-        app.last_wallet = app.current_wallet
+        self.app.last_wallet = self.app.current_wallet
         
 class StoreListScreen(Screen):
     font_size = "20sp"
@@ -429,10 +425,10 @@ class StoreListScreen(Screen):
             
     def on_pre_enter(self):
         self.total = "A lot"
-        app = App.get_running_app()
-        print(f"StoreListScreen app.current_wallet: {app.current_wallet}")
-        store_list = app.store_list
-        data = [x[0] for x in store_list if x[10]==app.current_wallet and x[11] == -1]
+        self.app = App.get_running_app()
+        print(f"StoreListScreen app.current_wallet: {self.app.current_wallet}")
+        store_list = self.app.store_list
+        data = [x[0] for x in store_list if x[10]==self.app.current_wallet and x[11] == -1]
         print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
         if len(data)>0:
@@ -441,9 +437,7 @@ class StoreListScreen(Screen):
             self.ids.store_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = self.app.caller
         
         
 class StoreSafesScreen(Screen):
@@ -472,9 +466,7 @@ class StoreSafesScreen(Screen):
         else: self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
-        #app = App.get_running_app()
-        sm = self.app.sm
-        sm.current = self.app.caller
+        self.app.sm.current = self.app.caller
         
     def new_weekly_safe(self):
         self.show = NewSafePopup("weekly")
@@ -588,7 +580,7 @@ class YearListScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         year_list = [2020,2019]
         no_data_msg ="You don't have any year accounts yet." 
         if len(year_list)>0:
@@ -597,9 +589,7 @@ class YearListScreen(Screen):
             self.ids.year_list.data = [{'text': no_data_msg}]
             
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = self.app.caller
         
             
 class CorporateScreen(Screen):
@@ -608,7 +598,7 @@ class CorporateScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         account_list = ["Account 1","Account 2","Account 3","Account 5"]
         no_data_msg ="You don't have any accounts yet." 
         if len(account_list)>0:
@@ -620,9 +610,7 @@ class CorporateScreen(Screen):
         self.total = "A lot"
         
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = self.app.caller
         
 class CorporateTransferScreen(Screen):
     font_size = "20sp"
@@ -696,10 +684,13 @@ class NewContactScreen(Screen):
     original_xpub = ""
     
     def on_pre_enter(self):    
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         
-        if app.caller == "ContactInfoScreen":
-            first_name,last_name,phone_number,position,xpub,safe_pubkey=app.db.get_contact(app.arguments[0]["current_contact"])[0]
+        if self.app.caller == "ContactInfoScreen":
+            
+            first_name,last_name,phone_number,position,xpub,safe_pubkey=\
+            self.app.db.get_contact(self.app.arguments[0]["current_contact"])[0]
+            
             self.original_xpub = xpub
             self.ids.first_name.text = first_name
             self.ids.last_name.text = last_name 
@@ -713,28 +704,24 @@ class NewContactScreen(Screen):
             self.ids.go.text = "Save Changes"
     
     def add_contact(self):
-        app = App.get_running_app()
         first_name = self.ids.first_name.text
         last_name = self.ids.last_name.text
         phone_number = self.ids.phone_number.text
         position = self.ids.position.text
         xpub = self.ids.xpub.text
         safe_pubkey = self.ids.safe_pubkey.text
-        if app.caller != "ContactInfoScreen":
-            app.db.new_contact(first_name, last_name, phone_number, position, xpub,safe_pubkey)
-            app.sm.current = "YearList"
+        if self.app.caller != "ContactInfoScreen":
+            self.app.db.new_contact(first_name, last_name, phone_number, position, xpub,safe_pubkey)
+            self.app.sm.current = "YearList"
             
         else:
-            app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub,safe_pubkey)
-            app.arguments[0].update({"current_contact":xpub})
-            sm = app.sm
-            sm.current = app.caller
+            self.app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub,safe_pubkey)
+            self.app.arguments[0].update({"current_contact":xpub})
+            self.app.sm.current = app.caller
             
     
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = app.caller
         
 class NewStoreSafeScreen(Screen):
     font_size = "15sp"
@@ -742,20 +729,19 @@ class NewStoreSafeScreen(Screen):
     
     def __init__(self,**kwargs):
         super().__init__()
+        self.app = App.get_running_app()
     
     def add_cosigner(self,cosigner_n):
         if isinstance(cosigner_n, Button):
             cosigner_n = cosigner_n.id
         print(f"cosigner_n: {cosigner_n}")
-        app = App.get_running_app()
-        app.arguments[0]["new_wallet_consigners"].update({"current":cosigner_n})
-        app.caller = "NewStoreSafeScreen"
-        sm = app.sm
-        sm.current = "LookUpContactScreen"  
+        
+        self.app.arguments[0]["new_wallet_consigners"].update({"current":cosigner_n})
+        self.app.caller = "NewStoreSafeScreen"
+        self.app.sm.current = "LookUpContactScreen"  
         
     def on_pre_enter(self):
-        app = App.get_running_app()
-        current_args = app.arguments[0]
+        current_args = self.app.arguments[0]
         cosigners = current_args["new_wallet_consigners"]
         print(f"cosigners: {cosigners}")
         for key in cosigners:
@@ -774,21 +760,20 @@ class NewStoreSafeScreen(Screen):
                 cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
             
     def create_store_safe(self):
-        app = App.get_running_app()
-        current_args = app.arguments[0]
+        current_args = self.app.arguments[0]
         index=None
-        for i,w in enumerate(app.wallets):
+        for i,w in enumerate(self.app.wallets):
             print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == app.current_wallet: 
+            if list(w.keys())[0] == self.app.current_wallet: 
                 index=i
                 break
-        wallet = app.wallets[index][app.current_wallet]
+        wallet = self.app.wallets[index][self.app.current_wallet]
         
         #wallet.start_conn()
-        app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
+        self.app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
                                                               passphrase=wallet.passphrase,
                                                               testnet = wallet.testnet)
-        print(f"app.corporate_wallet: {app.corporate_wallet}")
+        print(f"self.app.corporate_wallet: {self.app.corporate_wallet}")
         
         alias = self.ids.store_name.text
         if alias is None: raise Exception("Must provide a name/alias for the store")
@@ -806,13 +791,12 @@ class NewStoreSafeScreen(Screen):
         try:
             safe = SHDSafeWallet.from_master_privkey(alias,pubkey_list,
                                                 master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
-                                               n=n,testnet=wallet.testnet, parent_name=app.current_wallet)
+                                               n=n,testnet=wallet.testnet, parent_name=self.app.current_wallet)
         except: print("Could not create SHDSafeWallet.")
             
                                                
     
     def update_n(self,string_n):
-        app = App.get_running_app()
         cosigner_box = self.ids.cosigner_box
         n = int(string_n)
         children = [child for child in cosigner_box.children]
@@ -839,15 +823,14 @@ class NewStoreSafeScreen(Screen):
                 
     
     def go_back(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = "YearList"
+        self.app.sm.current = "YearList"
     
 class LookUpContactScreen(Screen):
     font_size = "15sp"
     
     def __init__(self, **kwargs):
         super().__init__()
+        self.app = App.get_running_app()
         self.populate_contact_list()
             
     def update_result(self):
@@ -856,8 +839,8 @@ class LookUpContactScreen(Screen):
         
         
     def populate_contact_list(self,search_for=""):
-        app = App.get_running_app()
-        contact_list_raw = app.db.get_all_contacts()
+        
+        contact_list_raw = self.app.db.get_all_contacts()
         contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
                         if x[1].startswith(search_for) or x[0].startswith(search_for)]
         no_data_msg ="No results found." 
@@ -867,17 +850,15 @@ class LookUpContactScreen(Screen):
             self.ids.contact_list.data = [{'text': no_data_msg}]
             
     def select_contact(self):
-        app = App.get_running_app()
         contact = self.ids.contact_list.data
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = app.caller
             
     
 class MultiplePaymentScreen(Screen):
     font_size = "12sp"
     def __init__(self, **kwargs):
         super().__init__()
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         #year_list = app.store_list
         payment_list = ["Payment 1","Payment 2","Payment 3","Payment 5"]
         no_data_msg ="You don't have an payments yet." 
@@ -892,11 +873,12 @@ class MyContactsScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
+        self.app = App.get_running_app()
         
         
     def on_pre_enter(self):   
-        app = App.get_running_app()
-        app.caller = "MyContactsScreen"
+        
+        self.app.caller = "MyContactsScreen"
         self.populate_contact_list()
             
     def update_result(self):
@@ -904,8 +886,7 @@ class MyContactsScreen(Screen):
         self.populate_contact_list(search_for)
         
     def populate_contact_list(self,search_for=""):
-        app = App.get_running_app()
-        contact_list_raw = app.db.get_all_contacts()
+        contact_list_raw = self.app.db.get_all_contacts()
         print(f"all contacts:\n{contact_list_raw}")
         contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
                         if x[1].startswith(search_for) or x[0].startswith(search_for)]
@@ -917,17 +898,18 @@ class MyContactsScreen(Screen):
        
     
     def select_contact(self):
-        app = App.get_running_app()
         contact = self.ids.contact_list.data
-        sm = app.sm
-        sm.current = app.caller
+        self.app.sm.current = app.caller
         
 class ContactInfoScreen(Screen):
     font_size = "15sp"
     
     def on_pre_enter(self):    
-        app = App.get_running_app()
-        first_name,last_name,phone_number,position,xpub,safe_pubkey = app.db.get_contact(app.arguments[0]["current_contact"])[0]
+        self.app = App.get_running_app()
+        
+        first_name,last_name,phone_number,position,xpub,safe_pubkey = \
+        self.app.db.get_contact(self.app.arguments[0]["current_contact"])[0]
+        
         self.ids.first_name.text = first_name
         self.ids.last_name.text = last_name 
         if phone_number is not None: self.ids.phone_number.text = phone_number
@@ -936,18 +918,14 @@ class ContactInfoScreen(Screen):
         self.ids.xpub.text = xpub 
         if safe_pubkey is not None: self.ids.safe_pubkey.text = safe_pubkey
         else: self.ids.safe_pubkey.text = ""
-        app.caller = "ContactInfoScreen"
+        self.app.caller = "ContactInfoScreen"
         
     def edit(self):
-        app = App.get_running_app()
-        sm = app.sm
-        sm.current = "NewContactScreen"
+        self.app.sm.current = "NewContactScreen"
     
     def delete(self):
-        app = App.get_running_app()
-        sm = app.sm
-        app.db.delete_contact(app.arguments[0]["current_contact"])
-        sm.current = "MyContactsScreen"
+        self.app.db.delete_contact(self.app.arguments[0]["current_contact"])
+        self.app.sm.current = "MyContactsScreen"
         
         
     
@@ -959,17 +937,16 @@ class DaySafeScreen(Screen):
     font_size = "20sp"
     
     def go_back(self):
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
+        for i,w in enumerate(self.app.wallets):
+            if list(w.keys())[0] == self.app.current_wallet: 
                 index=i
                 break
-        my_wallet = app.wallets[index][app.current_wallet]
-        app.current_wallet = my_wallet.parent_name
-        print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {app.current_wallet} ")
-        sm = app.sm
-        sm.current = app.caller
+        my_wallet = self.app.wallets[index][self.app.current_wallet]
+        self.app.current_wallet = my_wallet.parent_name
+        print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
+        self.app.sm.current = self.app.caller
     
     
     
@@ -977,17 +954,16 @@ class WeekSafeScreen(Screen):
     font_size = "20sp"
     
     def go_back(self):
-        app = App.get_running_app()
+        self.app = App.get_running_app()
         index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
+        for i,w in enumerate(self.app.wallets):
+            if list(w.keys())[0] == self.app.current_wallet: 
                 index=i
                 break
-        my_wallet = app.wallets[index][app.current_wallet]
-        app.current_wallet = my_wallet.parent_name
-        print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {app.current_wallet} ")
-        sm = app.sm
-        sm.current = "StoreSafesScreen"
+        my_wallet = self.app.wallets[index][self.app.current_wallet]
+        self.app.current_wallet = my_wallet.parent_name
+        print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
+        self.app.sm.current = "StoreSafesScreen"
 
     
 class WeekSafeTransferScreen(Screen):
@@ -1407,8 +1383,6 @@ class ReceiveScreen(Screen):
                 self.show = QRcodePopup(addresses_filtered[0][0])
                 
         elif self.ids.new_addr.state == "down":
-            #app = App.get_running_app() 
-            #my_wallet = app.my_wallet
             addr_type = self.ids.new_addr.text
             
             if addr_type == "P2PKH (default)": 
