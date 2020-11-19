@@ -317,7 +317,7 @@ class SelectContact(SelectRV):
             
     def go_back(self,obj):
         self.selected = False
-        self.app.sm.current = app.caller 
+        self.app.sm.current = self.app.caller 
         
     def see_contact(self,obj):
         self.selected = False
@@ -425,7 +425,7 @@ class StoreListScreen(Screen):
         self.total = "A lot"
         self.app = App.get_running_app()
         print(f"StoreListScreen app.current_wallet: {self.app.current_wallet}")
-        store_list = self.app.store_list
+        store_list = self.app.db.get_all_store_wallets()
         data = [x[0] for x in store_list if x[10]==self.app.current_wallet and x[11] == -1]
         print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
@@ -433,9 +433,13 @@ class StoreListScreen(Screen):
             self.ids.store_list.data = [{'text': x} for x in data]
         else:
             self.ids.store_list.data = [{'text': no_wallet_msg}]
+        self.app.caller = "StoreList"
         
     def go_back(self):
         self.app.sm.current = self.app.caller
+        
+    def on_leave(self):
+        self.app.caller = "StoreList"
         
         
 class StoreSafesScreen(Screen):
@@ -589,6 +593,9 @@ class YearListScreen(Screen):
     def go_back(self):
         self.app.sm.current = self.app.caller
         
+    def on_leave(self):
+        self.app.caller = "YearList"
+        
             
 class CorporateScreen(Screen):
     font_size = "20sp"
@@ -721,41 +728,66 @@ class NewContactScreen(Screen):
     def go_back(self):
         self.app.sm.current = app.caller
         
+class AddCosignerRow(BoxLayout):
+    
+    def __init__(self,cosigner_n, parent):
+        super().__init__()
+        self.name = self.ids.button.cosigner = self.ids.label.text = f"Cosigner {cosigner_n}"
+        self.ids.button.bind(on_release=parent.add_cosigner)
+        
+
+class MyChekBox():
+    pass
+        
 class NewStoreSafeScreen(Screen):
     font_size = "15sp"
+    font_size_cosigners = "11sp"
     consigners = {}
     
     def __init__(self,**kwargs):
         super().__init__()
         self.app = App.get_running_app()
-    
-    def add_cosigner(self,cosigner_n):
-        if isinstance(cosigner_n, Button):
-            cosigner_n = cosigner_n.id
-        print(f"cosigner_n: {cosigner_n}")
+        self.last_caller = "init"
         
-        self.app.arguments[0]["new_wallet_consigners"].update({"current":cosigner_n})
+    
+    def add_cosigner(self,obj):
+        print(f"obj.cosigner: {obj.cosigner}")
+        current_cosg = obj.cosigner.split()
+        current_cosg = "_".join(current_cosg)
+        
+        self.app.arguments[0]["new_wallet_consigners"].update({"current":obj.cosigner})
+        
         self.app.caller = "NewStoreSafeScreen"
         self.app.sm.current = "LookUpContactScreen"  
         
+        
     def on_pre_enter(self):
+        print(f"self.last_caller: {self.last_caller}")
+        print(f"self.app.caller: {self.app.caller}")
+        if self.last_caller == "init":  self.last_caller = self.app.caller
+        print(f"self.last_caller: {self.last_caller}")
         current_args = self.app.arguments[0]
         cosigners = current_args["new_wallet_consigners"]
         print(f"cosigners: {cosigners}")
+        #we iterate the 'cosigners' selected
         for key in cosigners:
+            print(f"key: {key}")
+            #we skip if cosigner is "current" because this is just a helper
             if key == "current": continue
-            try: 
-                self.ids[key].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
-                self.ids[key].background_color = (0.3,0.6,1,1)
-            except: 
-                #Since the ids can't be added from python, it is necessary to look for
-                #the buttons this way. Since this way is slower, it is ok to leave the
-                #option for the faster method as the default.
-                cosigner_box = self.ids.cosigner_box
-                print(f"cosigner_box: {cosigner_box}")
-                i = len(cosigner_box.children) - int(key[-1])
-                cosigner_box.children[i].children[0].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
-                cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
+            cosigner_box = self.ids.cosigner_box
+            #now we iterate through the boxes in the Layout
+            for i,child in enumerate(cosigner_box.children):
+                #We try to store the name of the box. If it hasn't been selected it would have no name. That's 
+                #the reason for the try-except clause.
+                try: name = child.name
+                except:  continue
+                
+                #if we find the box that belongs to the cosigner, we proceed to change the text and color of the 
+                #button by looking for the second ([1]) child of the box (the button) and setting the properties.
+                if name == key:
+                    cosigner_box.children[i].children[1].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+                    cosigner_box.children[i].children[1].background_color = (0.3,0.6,1,1) 
+            
             
     def create_store_safe(self):
         current_args = self.app.arguments[0]
@@ -791,6 +823,7 @@ class NewStoreSafeScreen(Screen):
                                                 master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
                                                n=n,testnet=wallet.testnet, parent_name=self.app.current_wallet)
         except: print("Could not create SHDSafeWallet.")
+        self.go_back()
             
                                                
     
@@ -805,7 +838,9 @@ class NewStoreSafeScreen(Screen):
                 
         elif n > kids:
             for kid in range( n - kids):
-                i = kids + kid + 1
+                i = kids + kid 
+                """
+                
                 box = BoxLayout(orientation='horizontal', spacing = 20)
                 label = Label(size_hint= (0.7, 0.1), halign= "auto", valign= "top", font_name= "Arial Black",
                     font_size=  self.font_size, color= (0,1,0,1), multiline= True,
@@ -813,15 +848,21 @@ class NewStoreSafeScreen(Screen):
                 button = Button(id=f"cosigner_{i}", text="Add Cosigner", 
                                 font_name= "Arial Black", 
                                 font_size= "12sp", size_hint= (1.2, 0.5))
+                mycheckbox = MyChekBox()
                 
                 button.bind(on_press= self.add_cosigner)
                 box.add_widget(label)
                 box.add_widget(button)
+                box.add_widget(mycheckbox)
+                cosigner_box.add_widget(box)
+                """
+                box = AddCosignerRow(i,self)
                 cosigner_box.add_widget(box)
                 
     
     def go_back(self):
-        self.app.sm.current = "YearList"
+        print(self.last_caller)
+        self.app.sm.current = self.last_caller
     
 class LookUpContactScreen(Screen):
     font_size = "15sp"
@@ -857,7 +898,6 @@ class MultiplePaymentScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         self.app = App.get_running_app()
-        #year_list = app.store_list
         payment_list = ["Payment 1","Payment 2","Payment 3","Payment 5"]
         no_data_msg ="You don't have an payments yet." 
         if len(payment_list)>0:
@@ -1425,6 +1465,7 @@ class walletguiApp(App):
     caller = StringProperty()
     arguments=ListProperty()
     arguments=[{"new_wallet_consigners":{"current":""}}]
+    cosigner_button = ObjectProperty()
     
     current_wallet = None
     db = Sqlite3Wallet()
