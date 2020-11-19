@@ -751,24 +751,21 @@ class NewStoreSafeScreen(Screen):
         
     
     def add_cosigner(self,obj):
-        print(f"obj.cosigner: {obj.cosigner}")
-        current_cosg = obj.cosigner.split()
-        current_cosg = "_".join(current_cosg)
-        
         self.app.arguments[0]["new_wallet_consigners"].update({"current":obj.cosigner})
-        
         self.app.caller = "NewStoreSafeScreen"
         self.app.sm.current = "LookUpContactScreen"  
         
         
     def on_pre_enter(self):
-        print(f"self.last_caller: {self.last_caller}")
-        print(f"self.app.caller: {self.app.caller}")
-        if self.last_caller == "init":  self.last_caller = self.app.caller
-        print(f"self.last_caller: {self.last_caller}")
+        
+        if self.last_caller == "init": 
+            self.last_caller = self.app.caller
+            self.update_n("6")
+            
         current_args = self.app.arguments[0]
         cosigners = current_args["new_wallet_consigners"]
         print(f"cosigners: {cosigners}")
+        
         #we iterate the 'cosigners' selected
         for key in cosigners:
             print(f"key: {key}")
@@ -809,7 +806,9 @@ class NewStoreSafeScreen(Screen):
         if alias is None: raise Exception("Must provide a name/alias for the store")
         n = int(self.ids.n.text)
         cosigners = current_args["new_wallet_consigners"]
-        if len(cosigners) < (n-1): raise Exception("Not enough cosigners selected")
+        #we substract 1 from n since we are 1 of the cosigners, and we substract the "current" from the "cosigners"
+        #variable. Since we have -1 on both sides of the "<", then they cancel each other.
+        if len(cosigners)  < n: raise Exception("Not enough cosigners selected")
         pubkey_list = []
         for key in cosigners:
             if key == "current": continue
