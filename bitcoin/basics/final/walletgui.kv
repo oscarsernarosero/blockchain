@@ -7,6 +7,11 @@
 <ToggleSpinner@Spinner+ToggleButton>:
     #size_hint: 1, 1
     
+<TopGoBackButton@Button>:
+    size:60,10
+    size_hint: 1, 0.05
+    text: "Back"
+    pos_hint: {"center_x":0.5,"center_y":0.98}
 
 <Selectable>:
     # Draw a background to indicate selection
@@ -898,11 +903,7 @@
     id: store_safes_screen
     name: "StoreSafesScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press: store_safes_screen.go_back()
     
     
@@ -1717,11 +1718,7 @@
     id: day_safe_screen
     name: "DaySafeScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press: day_safe_screen.go_back()
     
     BoxLayout:
@@ -2024,11 +2021,7 @@
     id: week_safe_screen
     name: "WeekSafeScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press:week_safe_screen.go_back()
     
     
@@ -2102,11 +2095,7 @@
     id: week_safe_transfer_screen
     name: "WeekSafeTransferScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press:week_safe_transfer_screen.go_back()
     
     
@@ -2252,11 +2241,7 @@
     id: new_contact_screen
     name: "NewContactScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press:new_contact_screen.go_back()
     
     
@@ -2398,11 +2383,7 @@
     id: new_store_safe_screen
     name: "NewStoreSafeScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press:new_store_safe_screen.go_back()
     
     
@@ -2929,11 +2910,7 @@
     id: day_screen
     name: "DayScreen"
     
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
+    TopGoBackButton:
         on_press: day_screen.go_back()
     
     

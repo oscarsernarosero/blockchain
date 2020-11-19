@@ -735,9 +735,6 @@ class AddCosignerRow(BoxLayout):
         self.name = self.ids.button.cosigner = self.ids.label.text = f"Cosigner {cosigner_n}"
         self.ids.button.bind(on_release=parent.add_cosigner)
         
-
-class MyChekBox():
-    pass
         
 class NewStoreSafeScreen(Screen):
     font_size = "15sp"
