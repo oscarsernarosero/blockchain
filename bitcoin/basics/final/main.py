@@ -40,6 +40,15 @@ from functools import partial
 Config.set('graphics','width',300)
 Config.set('graphics','height',600)
 
+def store_wallet(app, rv, index, _wallet):
+    app.wallets[0].update({f"{rv.data[index]['text']}": _wallet})
+    app.current_wallet = rv.data[index]['text']
+    print(f"self.app.wallets[0]: {app.wallets[0]}, current: {app.current_wallet}")
+    
+
+
+
+
 class Balance():
     
     def update_real_balance(self):
@@ -170,14 +179,9 @@ class SelectWallet(SelectRV):
         #will select the datum in result[0][0].
         print(f"words from db: {words[0][0]}")
         _wallet = Wallet.recover_from_words(mnemonic_list=words[0][0],testnet = True)
-
-        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
-        if rv.data[index]['text'] not in list_of_wallet_names: 
-            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-        else: print("wallet already in memory")
-        self.app.current_wallet = rv.data[index]['text']
-        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
-
+        
+        store_wallet(self.app, rv, index, _wallet)
+        
         Clock.schedule_once(self.go_to_wallet_type, 0.7)  
 
                                 
@@ -196,16 +200,9 @@ class SelectDay(SelectRV):
         print("selection changed to {0}".format(rv.data[index]))
         if "You don't have" in rv.data[index]["text"]: return
         _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
-        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
-        if rv.data[index]['text'] not in list_of_wallet_names: 
-            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-        else: print("wallet already in memory")
-
-        #We update the name of the current wallet.
-        self.app.current_wallet = rv.data[index]['text']
-        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
-
+        
+        store_wallet(self.app, rv, index, _wallet)
+        
         Clock.schedule_once(self.go_to_day, 0.7)  
 
             
@@ -220,15 +217,9 @@ class SelectWeek(SelectRV):
         print("selection changed to {0}".format(rv.data[index]))
         if "You don't have" in rv.data[index]["text"]: return
         _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
-        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
-        if rv.data[index]['text'] not in list_of_wallet_names: 
-            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-        else: print("wallet already in memory")
-
-        #We update the name of the current wallet.
-        self.app.current_wallet = rv.data[index]['text']
-        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+        
+        store_wallet(self.app, rv, index, _wallet)
+        
         Clock.schedule_once(self.go_to_week_safe, 0.7)  
             
     def go_to_week_safe(self,obj):
@@ -247,15 +238,7 @@ class SelectStore(SelectRV):
         #We recreate the wallet with the info stored in the database and save it in the variable _wallet.
         _wallet = SHDSafeWallet.from_database(rv.data[index]["text"])
 
-        #We add the SHDSafeWallet object stored in _wallet in the gobal list of wallets app.wallets if it is not there yet.
-        list_of_wallet_names = [list(x.keys())[0] for x in self.app.wallets]
-        if rv.data[index]['text'] not in list_of_wallet_names: 
-            self.app.wallets.append({f"{rv.data[index]['text']}": _wallet})
-        else: print("wallet already in memory")
-
-        #We update the name of the current wallet.
-        self.app.current_wallet = rv.data[index]['text']
-        print(f"self.app.wallets: {self.app.wallets}, current: {self.app.current_wallet}")
+        store_wallet(self.app, rv, index, _wallet)
 
         Clock.schedule_once(self.go_to_year, 0.7)  
         
@@ -362,12 +345,7 @@ class MainScreen(Screen,Balance):
         self.app = App.get_running_app()
         
         if self.app.current_wallet is not None:
-            for i,w in enumerate(self.app.wallets):
-                print(f"w.keys(): {w.keys()}")
-                if list(w.keys())[0] == self.app.current_wallet: 
-                    index=i
-                    break
-            self.my_wallet = self.app.wallets[index][self.app.current_wallet]
+            self.my_wallet = self.app.wallets[0][self.app.current_wallet]
             self.update_balance()
         
     btc_balance_text = StringProperty(str(btc_balance) + " BTC")
@@ -382,26 +360,14 @@ class WalletTypeScreen(Screen):
     
     def on_pre_enter(self):
         self.app = App.get_running_app() 
-        index=None
-        for i,w in enumerate(self.app.wallets):
-            if list(w.keys())[0] == self.app.current_wallet: 
-                index=i
-                break
-        my_wallet = self.app.wallets[index][self.app.current_wallet]
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
         
         if isinstance( my_wallet, SHDSafeWallet) or isinstance( my_wallet, HDMWallet):
             print("wallet is not a Wallet")
-            
             self.app.current_wallet = my_wallet.parent_name
             if self.app.current_wallet is None: self.app.current_wallet = self.app.last_wallet
             print(f"app.current_wallet {self.app.current_wallet}")
-            index=None
-            for i,w in enumerate(self.app.wallets):
-                if list(w.keys())[0] == self.app.current_wallet: 
-                    index=i
-                    break
-            print(f"index {index}")
-            my_wallet = self.app.wallets[index][self.app.current_wallet]
+            my_wallet = self.app.wallets[0][self.app.current_wallet]
             
         print(f"my_wallet class: {type(my_wallet)}")   
         my_wallet.start_conn()
@@ -495,14 +461,8 @@ class StoreSafesScreen(Screen):
         
     def new_safe(self,*args, **kargs):
         print(f"args: {args}, kargs {kargs}")
-        
-        j=None
-        for i,w in enumerate(self.app.wallets):
-            if list(w.keys())[0] == self.app.current_wallet: 
-                j=i
-                break
-        master_safe = self.app.wallets[j][self.app.current_wallet]
-        master_safe.start_conn()
+        master_safe = self.app.wallets[0][self.app.current_wallet]
+        #master_safe.start_conn() #maybe uncomment this
         
         if kargs["when"] == "today" or kargs["when"] == "this_week": index = None
         
@@ -533,38 +493,19 @@ class StoreSafesScreen(Screen):
         self.app.last_wallet = self.app.current_wallet
         
     def go_back(self):
-        app = App.get_running_app()
-        
-        index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
         
         
         if isinstance( my_wallet, SHDSafeWallet) or isinstance( my_wallet, HDMWallet):
-            app.current_wallet = my_wallet.parent_name
-            index=None
-            for i,w in enumerate(app.wallets):
-                if list(w.keys())[0] == app.current_wallet: 
-                    index=i
-                    break
-            my_wallet = app.wallets[index][app.current_wallet]
+            self.app.current_wallet = my_wallet.parent_name
+            my_wallet = self.app.wallets[0][self.app.current_wallet]
             
         #app.current_wallet = app.last_wallet
-        sm = app.sm
-        sm.current = "StoreList"
+        self.app.sm.current = "StoreList"
         
         
     def share(self):
-        app = App.get_running_app()
-        index=None
-        for i,w in enumerate(app.wallets):
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
         msg = str(my_wallet.share())
         print(msg)
         self.share_ = GenericOkPopup(msg)
@@ -657,13 +598,8 @@ class DayScreen(Screen, Balance):
     
     def on_pre_enter(self):
         self.app = App.get_running_app()
-        index=None
-        for i,w in enumerate(self.app.wallets):
-            print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == self.app.current_wallet: 
-                index=i
-                break
-        self.my_wallet = self.app.wallets[index][self.app.current_wallet]
+        self.my_wallet = self.app.wallets[0][self.app.current_wallet]
+        
         #if self.app.current_wallet is not None:
         raw_address = self.app.db.get_day_deposit_addresses(self.app.current_wallet)
         print(raw_address)
@@ -785,13 +721,7 @@ class NewStoreSafeScreen(Screen):
             
     def create_store_safe(self):
         current_args = self.app.arguments[0]
-        index=None
-        for i,w in enumerate(self.app.wallets):
-            print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == self.app.current_wallet: 
-                index=i
-                break
-        wallet = self.app.wallets[index][self.app.current_wallet]
+        wallet = self.app.wallets[0][self.app.current_wallet]
         
         #wallet.start_conn()
         self.app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
@@ -972,12 +902,8 @@ class DaySafeScreen(Screen):
     
     def go_back(self):
         self.app = App.get_running_app()
-        index=None
-        for i,w in enumerate(self.app.wallets):
-            if list(w.keys())[0] == self.app.current_wallet: 
-                index=i
-                break
-        my_wallet = self.app.wallets[index][self.app.current_wallet]
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
+        
         self.app.current_wallet = my_wallet.parent_name
         print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
         self.app.sm.current = self.app.caller
@@ -989,12 +915,8 @@ class WeekSafeScreen(Screen):
     
     def go_back(self):
         self.app = App.get_running_app()
-        index=None
-        for i,w in enumerate(self.app.wallets):
-            if list(w.keys())[0] == self.app.current_wallet: 
-                index=i
-                break
-        my_wallet = self.app.wallets[index][self.app.current_wallet]
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
+        
         self.app.current_wallet = my_wallet.parent_name
         print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
         self.app.sm.current = "StoreSafesScreen"
@@ -1043,13 +965,7 @@ class Send():
         print("SENDING TX")
         app = App.get_running_app() 
         #my_wallet = app.my_wallet
-        index=None
-        for i,w in enumerate(app.wallets):
-            print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet = app.wallets[0][self.app.current_wallet]
         my_wallet.start_conn()
         transaction = my_wallet.send([(address,amount)])
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
@@ -1387,13 +1303,7 @@ class ReceiveScreen(Screen):
 
     def qr_popup(self):
         app = App.get_running_app() 
-        index=None
-        for i,w in enumerate(app.wallets):
-            print(f"w.keys(): {w.keys()}")
-            if list(w.keys())[0] == app.current_wallet: 
-                index=i
-                break
-        my_wallet = app.wallets[index][app.current_wallet]
+        my_wallet = app.wallets[0][self.app.current_wallet]
         my_wallet.start_conn()
         
         if self.ids.existing_addr.state == "down":
@@ -1451,7 +1361,7 @@ class walletguiApp(App):
     title = "Wallet"
     
     my_wallet_names = ListProperty()
-    wallets = ListProperty()
+    wallets = ListProperty([{}])
     current_wallet = StringProperty()
     last_wallet = StringProperty()
     store_list=ListProperty()
