@@ -44,9 +44,6 @@ def store_wallet(app, rv, index, _wallet):
     app.wallets[0].update({f"{rv.data[index]['text']}": _wallet})
     app.current_wallet = rv.data[index]['text']
     print(f"self.app.wallets[0]: {app.wallets[0]}, current: {app.current_wallet}")
-    
-
-
 
 
 class Balance():
@@ -225,9 +222,7 @@ class SelectWeek(SelectRV):
     def go_to_week_safe(self,obj):
         self.selected = False
         self.app.sm.current = "WeekSafeScreen"  
-        
-    
-                            
+                          
 class SelectStore(SelectRV):
 
     def if_selected(self, rv, index):
@@ -750,8 +745,7 @@ class NewStoreSafeScreen(Screen):
                                                n=n,testnet=wallet.testnet, parent_name=self.app.current_wallet)
         except: print("Could not create SHDSafeWallet.")
         self.go_back()
-            
-                                               
+                                              
     
     def update_n(self,string_n):
         cosigner_box = self.ids.cosigner_box
@@ -1215,8 +1209,7 @@ class ConfirmSendPopup(FloatLayout):
         self.add_widget(message)
         self.add_widget(self.YES)
         self.add_widget(self.CANCEL)
-              
-            
+         
             
 class TouchLabel(Label):       
     def on_touch_down(self, touch):
@@ -1224,9 +1217,6 @@ class TouchLabel(Label):
         Label.on_touch_down(self, touch)
         
 
-
-#class LabelButton
-    
 class QRcodePopup(FloatLayout):
     def __init__(self, address):
         super().__init__()
@@ -1268,10 +1258,6 @@ class QRcodePopup(FloatLayout):
         
         self.add_widget(self.OK)
         
-            
-        
-        
-
         
 class SelectOnePopup(FloatLayout):
     def __init__(self):

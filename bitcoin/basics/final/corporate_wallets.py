@@ -195,7 +195,7 @@ class SHDSafeWallet(Wallet):
     SHDM Single Herarchical Deterministic Multi-Signature Wallet
     """
     def __init__(self, name, public_key_list, m=2, n=6,addr_type="p2wsh",_privkey=None, master_pubkey=None, 
-                 master_privkey=None, testnet=False, segwit=True, parent_name=None, safe_index=-1):
+                 master_privkey=None, testnet=False, segwit=True, parent_name=None, safe_index=-1, level1pubkeys=None):
         """
         public_key_list: List of public keys. Must be in bytes.
         m: integer
@@ -207,6 +207,8 @@ class SHDSafeWallet(Wallet):
         testnet: Boolean.
         segwit: Boolean.
         child_wallet: Boolean.
+        level1pubkeys: List. List of the public keys that are going to be part of the daily safes but NOT part\
+        of the weekly safes. Therefor, these public keys must be among the public_key_list as well.
         """
         if isinstance(master_pubkey, str): master_pubkey = Xtended_pubkey.parse(master_pubkey)
             
@@ -259,6 +261,15 @@ class SHDSafeWallet(Wallet):
         self.name = name
         self.parent_name = parent_name
         self.safe_index = safe_index
+        
+        #we check that all the level1pubkeys exist in the public_key_list
+        if level1pubkeys is not None:
+            all_level1_exist = True
+            for level1 in level1pubkeys: 
+                all_level1_exist = all_level1_exist & (level1 in public_key_list)
+                if not all_level1_exist: raise Exception("level1pubkeys must be part of the public_key_list.")
+            
+        self.level1pubkeys = level1pubkeys
         
         #save the new wallet in the database
         #but first, lets convert the public keys to int to avoid problems in the database
@@ -359,9 +370,15 @@ class SHDSafeWallet(Wallet):
         if index < 2000 or index > 999999 or (index > 9999 and index < 200101):
             raise Exception ("Bad index for daily or weekly safe. Follow YYMMDD for daily or YYWW for weekly.")
         
-        #let's build a human-redable prefix for the name of the child wallet 
-        if index < 9999:prefix = "week-"+str(index)[2:]+"-of-"+str(index)[:2]
-        else:           prefix = calendar.month_abbr[int(str(index)[2:4])]+str(index)[4:]+"-of-"+str(index)[:2]
+        #let's build a human-redable prefix for the name of the child wallet, and modify the public key list 
+        #in the case of the week-safe wallets
+        public_key_list=[]
+        if index < 9999:
+            prefix = "week-"+str(index)[2:]+"-of-"+str(index)[:2]
+            public_key_list = list( set(self.public_key_list) - set(self.level1pubkeys) )
+        else:           
+            prefix = calendar.month_abbr[int(str(index)[2:4])]+str(index)[4:]+"-of-"+str(index)[:2]
+            public_key_list = self.public_key_list
         print(f"prefix {prefix}")
         
         full_path = path + str(index)
@@ -369,21 +386,21 @@ class SHDSafeWallet(Wallet):
         if self.wallet_type == "main":
             child_xtended_privkey = self.master_privkey.get_child_from_path(full_path)
             
-            child_wallet = SHDSafeWallet.from_master_privkey( prefix+"_"+self.name,self.public_key_list, 
+            child_wallet = SHDSafeWallet.from_master_privkey( prefix+"_"+self.name, public_key_list, 
                                                              child_xtended_privkey, 
                                                              self.m,self.n,self.addr_type,self.testnet, self.segwit,
                                                             self.name, index)
         elif self.wallet_type == "simple":
             child_xtended_pubkey = self.master_pubkey.get_child_from_path(full_path)
             
-            child_wallet = SHDSafeWallet.from_privkey_masterpubkey(prefix+"_"+self.name,self.public_key_list, 
+            child_wallet = SHDSafeWallet.from_privkey_masterpubkey(prefix+"_"+self.name,public_key_list, 
                                                                    child_xtended_pubkey,
                                                                    self.privkey, self.m, self.n,self.addr_type, 
                                                                    self.testnet, self.segwit,self.name, index)
         elif self.wallet_type == "watch-only":
             child_xtended_pubkey = self.master_pubkey.get_child_from_path(full_path)
             
-            child_wallet = SHDSafeWallet.watch_only(prefix+"_"+self.name,self.public_key_list,child_xtended_pubkey,
+            child_wallet = SHDSafeWallet.watch_only(prefix+"_"+self.name,public_key_list,child_xtended_pubkey,
                                                     self.m,self.n,
                                                     self.addr_type,self.testnet, self.segwit,self.name, index)
         

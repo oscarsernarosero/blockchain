@@ -55,7 +55,7 @@ class Sqlite3Wallet:
         query1 = "CREATE TABLE IF NOT EXISTS SHDSafeWallet (name text NOT NULL PRIMARY KEY,\n "
         query2 = " public_key_list text NOT NULL, m INT NOT NULL, n INT NOT NULL, privkey text, xpriv text, \n "
         query3 = " xpub text NOT NULL, addr_type text NOT NULL, testnet INT NOT NULL, segwit INT NOT NULL,\n "
-        query4 = " parent_name text, safe_index INT\n) WITHOUT ROWID;"
+        query4 = " parent_name text, safe_index INT, level1pubkeys text\n) WITHOUT ROWID;"
         query = query1+query2+query3+query4
         #print(query)
         return self.execute(query)
