@@ -344,10 +344,11 @@ class SHDSafeWallet(Wallet):
         else: master_privkey = Xtended_privkey.parse(w[5])
         if w[10] == "None": parent_name = None
         else: parent_name = w[10]
-        if w[12] is not None:
+        if w[12] == "None": level1pubkeys = None
+        else: 
             pubkeys = w[12][1:-1].split(", ")
             level1pubkeys = [int(x).to_bytes(33,"big") for x in pubkeys]
-        else: level1pubkeys = None
+        
         
         print(f"from SHDSafeWallet: parent_name = {parent_name}")
         return self(name=name, public_key_list=public_key_list, m=w[2], n=w[3], addr_type=w[7], _privkey=privkey,
@@ -383,9 +384,11 @@ class SHDSafeWallet(Wallet):
         if index < 9999:
             prefix = "week-"+str(index)[2:]+"-of-"+str(index)[:2]
             public_key_list = list( set(self.public_key_list) - set(self.level1pubkeys) )
+            n = self.n - len(self.level1pubkeys)
         else:           
             prefix = calendar.month_abbr[int(str(index)[2:4])]+str(index)[4:]+"-of-"+str(index)[:2]
             public_key_list = self.public_key_list
+            n = self.n
         print(f"prefix {prefix}")
         
         full_path = path + str(index)
@@ -395,20 +398,20 @@ class SHDSafeWallet(Wallet):
             
             child_wallet = SHDSafeWallet.from_master_privkey( prefix+"_"+self.name, public_key_list, 
                                                              child_xtended_privkey, 
-                                                             self.m,self.n,self.addr_type,self.testnet, self.segwit,
+                                                             self.m,n,self.addr_type,self.testnet, self.segwit,
                                                             self.name, index)
         elif self.wallet_type == "simple":
             child_xtended_pubkey = self.master_pubkey.get_child_from_path(full_path)
             
             child_wallet = SHDSafeWallet.from_privkey_masterpubkey(prefix+"_"+self.name,public_key_list, 
                                                                    child_xtended_pubkey,
-                                                                   self.privkey, self.m, self.n,self.addr_type, 
+                                                                   self.privkey, self.m, n,self.addr_type, 
                                                                    self.testnet, self.segwit,self.name, index)
         elif self.wallet_type == "watch-only":
             child_xtended_pubkey = self.master_pubkey.get_child_from_path(full_path)
             
             child_wallet = SHDSafeWallet.watch_only(prefix+"_"+self.name,public_key_list,child_xtended_pubkey,
-                                                    self.m,self.n,
+                                                    self.m,n,
                                                     self.addr_type,self.testnet, self.segwit,self.name, index)
         
         return child_wallet

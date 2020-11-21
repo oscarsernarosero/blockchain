@@ -727,6 +727,7 @@ class NewStoreSafeScreen(Screen):
         alias = self.ids.store_name.text
         if alias is None: raise Exception("Must provide a name/alias for the store")
         n = int(self.ids.n.text)
+        m = int(self.ids.m.text)
         cosigners = current_args["new_wallet_consigners"]
         #we substract 1 from n since we are 1 of the cosigners, and we substract the "current" from the "cosigners"
         #variable. Since we have -1 on both sides of the "<", then they cancel each other.
@@ -736,14 +737,29 @@ class NewStoreSafeScreen(Screen):
             if key == "current": continue
             pubkey_list.append(int(cosigners[key][0][5]).to_bytes(33,"big"))
         
+        level1 = []
+        for cosigner in self.ids.cosigner_box.children:
+            print(cosigner.children)
+            try: 
+                checked = cosigner.children[0].active
+                print(f"cosigner {cosigner.children[1].text} is active?: {checked}")
+                if not checked: level1.append(int(cosigners[cosigner.name][0][5]).to_bytes(33,"big"))
+            except: continue
+        
+        if len(level1) < 1 or len(level1) > len(pubkey_list)//2:
+            raise Exception("Select at least 1 level1 manager, but not more than half of the total cosigners.")
         
         print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
             
         try:
             safe = SHDSafeWallet.from_master_privkey(alias,pubkey_list,
                                                 master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
-                                               n=n,testnet=wallet.testnet, parent_name=self.app.current_wallet)
+                                               n=n,m=m,testnet=wallet.testnet, parent_name=self.app.current_wallet,
+                                                    level1pubkeys=level1)
         except: print("Could not create SHDSafeWallet.")
+        
+        #We clean the current arguments
+        self.app.arguments[0]["new_wallet_consigners"] = {"current":""}
         self.go_back()
                                               
     
@@ -759,23 +775,6 @@ class NewStoreSafeScreen(Screen):
         elif n > kids:
             for kid in range( n - kids):
                 i = kids + kid 
-                """
-                
-                box = BoxLayout(orientation='horizontal', spacing = 20)
-                label = Label(size_hint= (0.7, 0.1), halign= "auto", valign= "top", font_name= "Arial Black",
-                    font_size=  self.font_size, color= (0,1,0,1), multiline= True,
-                    text= f"Cosigner {i}:")
-                button = Button(id=f"cosigner_{i}", text="Add Cosigner", 
-                                font_name= "Arial Black", 
-                                font_size= "12sp", size_hint= (1.2, 0.5))
-                mycheckbox = MyChekBox()
-                
-                button.bind(on_press= self.add_cosigner)
-                box.add_widget(label)
-                box.add_widget(button)
-                box.add_widget(mycheckbox)
-                cosigner_box.add_widget(box)
-                """
                 box = AddCosignerRow(i,self)
                 cosigner_box.add_widget(box)
                 

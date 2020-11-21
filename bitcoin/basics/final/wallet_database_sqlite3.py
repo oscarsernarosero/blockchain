@@ -151,16 +151,11 @@ class Sqlite3Wallet:
         """
         query1 = "INSERT OR IGNORE INTO SHDSafeWallet \
         (name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name "
-        query2 = f',safe_index, level1) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}",'
-        query3 = f"'{addr_type}',{testnet},{segwit},'{parent_name}',{safe_index},'{level1}' ) ;"
+        query2 = f',safe_index, level1pubkeys) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}",'
+        query3 = f"'{addr_type}',{testnet},{segwit},'{parent_name}',{safe_index}, '{level1}' ) ;"
         query = query1 + query2 + query3
         print(query)
         return self.execute(query)
-    
-        query1 = "CREATE TABLE IF NOT EXISTS SHDSafeWallet (name text NOT NULL PRIMARY KEY,\n "
-        query2 = " master_pubkey_list text NOT NULL, m INT NOT NULL, n INT NOT NULL, xpriv text NOT NULL, \n "
-        query3 = " addr_type text NOT NULL, testnet INT NOT NULL, segwit INT NOT NULL,\n "
-        query4 = " parent_name text, safe_index INT\n) WITHOUT ROWID;"
     
     def new_HDMWallet(self,name,master_pubkey_list,m,n,xpriv,addr_type,testnet,segwit,parent_name,safe_index):
         """
