@@ -278,12 +278,15 @@ class SHDSafeWallet(Wallet):
         else: int_privkey = None
         if self.master_privkey is None: xpriv = None
         else: xpriv = str(self.master_privkey.xtended_key)
+        if self.level1pubkeys is not None: int_level1 = [int.from_bytes(x,"big") for x in self.level1pubkeys]
+        else: int_level1 = None
+            
         
         self.start_conn()
         self.db.new_SHDSafeWallet(self.name, str(int_pubkeys), self.m, self.n, str(int_privkey),
                                   xpriv, str(self.master_pubkey.get_xtended_key()),
                                   self.addr_type, int(self.testnet), int(self.segwit), self.parent_name, 
-                                  self.safe_index)
+                                  self.safe_index, str(int_level1))
         print(f"self: {self}")
         self.close_conn()
         
@@ -292,31 +295,31 @@ class SHDSafeWallet(Wallet):
         
     @classmethod    
     def from_privkey_masterpubkey(cls, name, public_key_list, master_pubkey, _privkey, m=2, n=6,addr_type="p2wsh", 
-                                   testnet=False, segwit=True,parent_name=None,index=-1):
+                                   testnet=False, segwit=True,parent_name=None,index=-1,level1pubkeys=None):
         """
         simple
         """
         return cls(name,public_key_list=public_key_list, m=m, n=n,addr_type=addr_type,_privkey=_privkey, 
                    master_pubkey=master_pubkey,testnet=testnet, segwit=segwit,parent_name=parent_name, 
-                   safe_index=index)
+                   safe_index=index,level1pubkeys=level1pubkeys)
     
     @classmethod    
     def from_master_privkey(cls, name, public_key_list, master_privkey, m=2, n=6,addr_type="p2wsh",
-                            testnet=False, segwit=True,  parent_name=None,index=-1):
+                            testnet=False, segwit=True,  parent_name=None,index=-1, level1pubkeys=None):
         """
         main
         """
         return cls(name,public_key_list=public_key_list, m=m, n=n, addr_type=addr_type, master_privkey=master_privkey, 
-                   testnet=testnet, segwit=segwit,parent_name=parent_name, safe_index=index)
+                   testnet=testnet, segwit=segwit,parent_name=parent_name, safe_index=index, level1pubkeys=level1pubkeys)
     
     @classmethod    
     def watch_only(cls, name, public_key_list,master_pubkey,m=2,n=6,addr_type="p2wsh",testnet=False, segwit=True, 
-                    parent_name=None, index=-1):
+                    parent_name=None, index=-1, level1pubkeys=None):
         """
         watch-only
         """
         return cls(name,public_key_list=public_key_list, m=m, n=n, addr_type=addr_type, master_pubkey=master_pubkey,
-                   testnet=testnet, segwit=segwit, parent_name=parent_name, safe_index=index)
+                   testnet=testnet, segwit=segwit, parent_name=parent_name, safe_index=index, level1pubkeys=level1pubkeys)
     
     @classmethod   
     def from_database(self, name):
@@ -341,11 +344,15 @@ class SHDSafeWallet(Wallet):
         else: master_privkey = Xtended_privkey.parse(w[5])
         if w[10] == "None": parent_name = None
         else: parent_name = w[10]
+        if w[12] is not None:
+            pubkeys = w[12][1:-1].split(", ")
+            level1pubkeys = [int(x).to_bytes(33,"big") for x in pubkeys]
+        else: level1pubkeys = None
         
         print(f"from SHDSafeWallet: parent_name = {parent_name}")
         return self(name=name, public_key_list=public_key_list, m=w[2], n=w[3], addr_type=w[7], _privkey=privkey,
                     master_pubkey=master_pubkey, master_privkey=master_privkey,
-                    testnet=w[8], segwit=w[9], parent_name=parent_name, safe_index=w[11])
+                    testnet=w[8], segwit=w[9], parent_name=parent_name, safe_index=w[11], level1pubkeys = level1pubkeys)
     
     def get_i(self,wallet_name, account_path, index):
         

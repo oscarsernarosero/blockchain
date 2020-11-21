@@ -144,14 +144,15 @@ class Sqlite3Wallet:
         #print(query)
         return self.execute(query)
     
-    def new_SHDSafeWallet(self,name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name,safe_index):
+    def new_SHDSafeWallet(self,name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name,safe_index,level1):
         """
         Creates a new SHD multi signature Wallet in the database.
         to do...
         """
-        query1 = "INSERT OR IGNORE INTO SHDSafeWallet (name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name "
-        query2 = f',safe_index) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}","{addr_type}",'
-        query3 = f"{testnet},{segwit},'{parent_name}',{safe_index}) ;"
+        query1 = "INSERT OR IGNORE INTO SHDSafeWallet \
+        (name,public_key_list,m,n,privkey,xpriv,xpub,addr_type,testnet,segwit,parent_name "
+        query2 = f',safe_index, level1) \nVALUES("{name}","{public_key_list}",{m},{n},"{privkey}","{xpriv}","{xpub}",'
+        query3 = f"'{addr_type}',{testnet},{segwit},'{parent_name}',{safe_index},'{level1}' ) ;"
         query = query1 + query2 + query3
         print(query)
         return self.execute(query)
