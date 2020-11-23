@@ -281,6 +281,7 @@ class SelectContact(SelectRV):
     def if_selected(self, rv, index):
         if "You don't have" in rv.data[index]["text"]: return
         contact_xpub = rv.data[index]["xpub"]
+        print(f"self.app.caller: {self.app.caller}")
 
         if self.app.caller == "NewStoreSafeScreen":
             contact = self.app.db.get_contact(contact_xpub)
@@ -288,7 +289,7 @@ class SelectContact(SelectRV):
             self.app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
             Clock.schedule_once(self.go_back, 0.7) 
 
-        elif self.app.caller == "MyContactsScreen":
+        elif self.app.caller == "MyContactsScreen" or self.app.caller == "YearList":
             self.app.arguments[0].update({"current_contact":contact_xpub})
             Clock.schedule_once(self.see_contact, 0.7) 
                 
@@ -336,8 +337,13 @@ class MainScreen(Screen,Balance):
     btc_balance = NumericProperty()
     usd_balance = 0.0
     
-    def on_pre_enter(self):
+    
+    def __int__(self, **kwargs):
+        super().__init__()
         self.app = App.get_running_app()
+    
+    def on_pre_enter(self):
+        
         
         if self.app.current_wallet is not None:
             self.my_wallet = self.app.wallets[0][self.app.current_wallet]
@@ -387,7 +393,7 @@ class StoreListScreen(Screen):
         self.app = App.get_running_app()
         print(f"StoreListScreen app.current_wallet: {self.app.current_wallet}")
         store_list = self.app.db.get_all_store_wallets()
-        data = [x[0] for x in store_list if x[10]==self.app.current_wallet and x[11] == -1]
+        data = [x[0] for x in store_list if x[10]==self.app.current_wallet and x[11] == -1 and x[12] != "None"]
         print(f"data {data}")
         no_wallet_msg ="You don't have any stores added yet." 
         if len(data)>0:
@@ -600,15 +606,17 @@ class DayScreen(Screen, Balance):
         print(raw_address)
         if len(raw_address) == 0: self.address = self.my_wallet.create_receiving_address()
         else: self.address = raw_address[0][0]
+        self.update_real_balance()
         print(self.address)
         qrcode.make(self.address).save("images/QRdaily.png")
-        self.update_balance()
-        #self.update_real_balance()
+        
         self.ids.qr.reload()
         self.ids.title.text = self.app.current_wallet
+        
+        
+    def copy(self):
+        pyperclip.copy(self.ids.address_text.text)
    
-    
-    
     def go_back(self):
         self.app.current_wallet = self.my_wallet.parent_name
         print(f"\n\nfrom DaySafeScreen.go_back() app.current_wallet: {self.app.current_wallet} ")
@@ -657,7 +665,7 @@ class NewContactScreen(Screen):
             
     
     def go_back(self):
-        self.app.sm.current = app.caller
+        self.app.sm.current = self.app.caller
         
 class AddCosignerRow(BoxLayout):
     
@@ -789,17 +797,21 @@ class LookUpContactScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         self.app = App.get_running_app()
+        
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
         self.populate_contact_list()
             
-    def update_result(self):
+    def update_result_(self):
         search_for = self.ids.search.text
+        print(f"############   update_result search_for: {search_for}")
         self.populate_contact_list(search_for)
         
         
     def populate_contact_list(self,search_for=""):
-        
-        contact_list_raw = self.app.db.get_all_contacts()
-        contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
+        print(f"############   search_for: {search_for}")
+        self.contact_list_raw = self.app.db.get_all_contacts()
+        contact_list = [(x[1]+" "+x[0], x[4]) for x in self.contact_list_raw \
                         if x[1].startswith(search_for) or x[0].startswith(search_for)]
         no_data_msg ="No results found." 
         if len(contact_list)>0:
@@ -843,13 +855,16 @@ class MyContactsScreen(Screen):
         self.populate_contact_list(search_for)
         
     def populate_contact_list(self,search_for=""):
+        print(f"############   search_for: {search_for}")
         contact_list_raw = self.app.db.get_all_contacts()
         print(f"all contacts:\n{contact_list_raw}")
-        contact_list = [(x[1]+" "+x[0], x[4]) for x in contact_list_raw \
-                        if x[1].startswith(search_for) or x[0].startswith(search_for)]
+        contact_list = [("[b]"+x[1]+" "+x[0]+"       [color=2266cc]"+x[4][:6]+\
+                              "...."+x[4][-5:]+"[/color][/b]", x[4]) for x in contact_list_raw \
+                        if x[1].lower().startswith(search_for.lower()) or \
+                        x[0].lower().startswith(search_for.lower())]
         no_data_msg ="No results found." 
         if len(contact_list)>0:
-            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1]} for x in contact_list]
+            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1], "markup":True} for x in contact_list]
         else:
             self.ids.contact_list.data = [{'text': no_data_msg}]
        
@@ -861,9 +876,9 @@ class MyContactsScreen(Screen):
 class ContactInfoScreen(Screen):
     font_size = "15sp"
     
-    def on_pre_enter(self):    
+    
+    def on_pre_enter(self):   
         self.app = App.get_running_app()
-        
         first_name,last_name,phone_number,position,xpub,safe_pubkey = \
         self.app.db.get_contact(self.app.arguments[0]["current_contact"])[0]
         
@@ -893,8 +908,14 @@ class ReceiveAccountScreen(Screen):
 class DaySafeScreen(Screen):
     font_size = "20sp"
     
-    def go_back(self):
+    def __int__(self, **kwargs):
+        super().__init__()
         self.app = App.get_running_app()
+    
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+    
+    def go_back(self):
         my_wallet = self.app.wallets[0][self.app.current_wallet]
         
         self.app.current_wallet = my_wallet.parent_name
@@ -906,8 +927,16 @@ class DaySafeScreen(Screen):
 class WeekSafeScreen(Screen):
     font_size = "20sp"
     
-    def go_back(self):
+    def __int__(self, **kwargs):
+        super().__init__()
         self.app = App.get_running_app()
+        print(f"\n\nfrom Week Safe Init {self.app}\n\n")
+        
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        
+    
+    def go_back(self):
         my_wallet = self.app.wallets[0][self.app.current_wallet]
         
         self.app.current_wallet = my_wallet.parent_name
@@ -958,7 +987,7 @@ class Send():
         print("SENDING TX")
         app = App.get_running_app() 
         #my_wallet = app.my_wallet
-        my_wallet = app.wallets[0][self.app.current_wallet]
+        my_wallet = app.wallets[0][app.current_wallet]
         my_wallet.start_conn()
         transaction = my_wallet.send([(address,amount)])
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
@@ -1005,11 +1034,7 @@ class Send():
                                 
             #closing popups
             self.loadingWindow.dismiss()
-                                
-            #updating balance
-            main = MainScreen()
-            main.update_real_balance()
-
+                     
             self.popupWindow.dismiss()
                                 
         except Exception as e:
@@ -1287,8 +1312,8 @@ class ReceiveScreen(Screen):
         
 
     def qr_popup(self):
-        app = App.get_running_app() 
-        my_wallet = app.wallets[0][self.app.current_wallet]
+        self.app = App.get_running_app() 
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
         my_wallet.start_conn()
         
         if self.ids.existing_addr.state == "down":
