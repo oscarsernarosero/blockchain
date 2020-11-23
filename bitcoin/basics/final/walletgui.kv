@@ -13,11 +13,11 @@
     text: "Back"
     pos_hint: {"center_x":0.5,"center_y":0.98}
 
-<Selectable>:
+<Selectable@Label>:
     # Draw a background to indicate selection
-    size_hint: 1,0.2
-    size : self.texture*0.5
-    halign: "left"
+    size_hint_y: None
+    height: self.texture_size[1]
+    halign: "justify"
     pos_hint: {"center_x":0}
     
 <MyCheckBox@CheckBox>:
@@ -209,7 +209,7 @@
             id: rv
             viewclass: 'SelectWallet'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -875,7 +875,7 @@
             id: store_list
             viewclass: 'SelectStore'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -958,7 +958,7 @@
             id: daysafe_list
             viewclass: 'SelectDay'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -996,7 +996,7 @@
             viewclass: 'SelectWeek'
             
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -1142,7 +1142,7 @@
             id: year_list
             viewclass: 'SelectYear'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -1224,7 +1224,7 @@
             id: account_list
             viewclass: 'SelectAccount'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -1601,7 +1601,7 @@
                 id: payment_list
                 viewclass: 'SelectPayment'
                 SelectableRecycleBoxLayout:
-                    default_size: 1, dp(80)
+                    default_size: 1, dp(60)
                     default_size_hint: 1, None
                     size_hint: 1,None
                     height: self.minimum_height
@@ -2068,7 +2068,7 @@
             viewclass: 'SelectWeek'
             
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height
@@ -2557,78 +2557,6 @@
             font_name: "Arial Black"
             font_size: "20sp"
 
-<LookUpContactScreen>:
-    id: look_up_contact_screen
-    name: "LookUpContactScreen"
-    
-    Button:
-        size:60,10
-        size_hint: 1, 0.05
-        text: "Back"
-        pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "WeekSafeScreen"
-            root.manager.transition.direction = "left"
-    
-    
-    BoxLayout:
-        orientation: "vertical"
-        spacing: 20
-        padding: 40
-        
-        Label:
-            size_hint: 1, 0.5
-            halign: "left"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  look_up_contact_screen.font_size
-            color: 0,1,0,1
-            text: "-- Look Up Contact --"
-
-        Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  look_up_contact_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: "Search:"
-            
-        TextInput:
-            id: search
-            size_hint:1,0.6
-            multiline: False
-            on_double_tap: look_up_contact_screen.paste()
-            on_text:
-                look_up_contact_screen.update_result_()
-        
-        
-        RecycleView:
-            id: contact_list
-            viewclass: 'SelectContact'
-            SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
-                default_size_hint: 1, None
-                size_hint: 1,None
-                height: self.minimum_height
-                orientation: 'vertical'
-                multiselect: False
-                touch_multiselect: False
-                canvas.before:
-                    Color:
-                        rgba: (0.9, 0.9, 0.9, 1)
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
-                
-
-        Button: 
-            text:"Select"
-            on_press: look_up_contact_screen.select_contact()
-            font_name: "Arial Black"
-            font_size: "20sp"
 
 
 <MyContactsScreen>:
@@ -2647,8 +2575,8 @@
     
     BoxLayout:
         orientation: "vertical"
-        spacing: 5
-        padding: 20
+        spacing: 15
+        padding: [20,50,20,20]
         
         Label:
             size_hint: 1, 0.3
@@ -2672,7 +2600,7 @@
             
         TextInput:
             id: search
-            size_hint:1,0.2
+            size_hint:1,0.6
             multiline: False
             on_double_tap: my_contacts_screen.paste()
             on_text:
@@ -2684,7 +2612,7 @@
             id: contact_list
             viewclass: 'SelectContact'
             SelectableRecycleBoxLayout:
-                default_size: 1, dp(80)
+                default_size: 1, dp(60)
                 default_size_hint: 1, None
                 size_hint: 1,None
                 height: self.minimum_height

@@ -282,8 +282,10 @@ class SelectContact(SelectRV):
         if "You don't have" in rv.data[index]["text"]: return
         contact_xpub = rv.data[index]["xpub"]
         print(f"self.app.caller: {self.app.caller}")
+        print(f"self.app.last_caller: {self.app.last_caller}")
 
-        if self.app.caller == "NewStoreSafeScreen":
+        if self.app.caller == "MyContactsScreen" and self.app.last_caller == "NewStoreSafeScreen":
+            print("in first if")
             contact = self.app.db.get_contact(contact_xpub)
             current_contact = self.app.arguments[0]["new_wallet_consigners"]["current"]
             self.app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
@@ -296,7 +298,7 @@ class SelectContact(SelectRV):
             
     def go_back(self,obj):
         self.selected = False
-        self.app.sm.current = self.app.caller 
+        self.app.sm.current = self.app.last_caller 
         
     def see_contact(self,obj):
         self.selected = False
@@ -689,7 +691,8 @@ class NewStoreSafeScreen(Screen):
     def add_cosigner(self,obj):
         self.app.arguments[0]["new_wallet_consigners"].update({"current":obj.cosigner})
         self.app.caller = "NewStoreSafeScreen"
-        self.app.sm.current = "LookUpContactScreen"  
+        self.app.sm.current = "MyContactsScreen" 
+        #self.app.sm.current = "LookUpContactScreen"  
         
         
     def on_pre_enter(self):
@@ -789,39 +792,9 @@ class NewStoreSafeScreen(Screen):
     
     def go_back(self):
         print(self.last_caller)
-        self.app.sm.current = self.last_caller
+        self.app.sm.current = "StoreList"
     
-class LookUpContactScreen(Screen):
-    font_size = "15sp"
-    
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.app = App.get_running_app()
-        
-    def on_pre_enter(self):
-        self.app = App.get_running_app()
-        self.populate_contact_list()
-            
-    def update_result_(self):
-        search_for = self.ids.search.text
-        print(f"############   update_result search_for: {search_for}")
-        self.populate_contact_list(search_for)
-        
-        
-    def populate_contact_list(self,search_for=""):
-        print(f"############   search_for: {search_for}")
-        self.contact_list_raw = self.app.db.get_all_contacts()
-        contact_list = [(x[1]+" "+x[0], x[4]) for x in self.contact_list_raw \
-                        if x[1].startswith(search_for) or x[0].startswith(search_for)]
-        no_data_msg ="No results found." 
-        if len(contact_list)>0:
-            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1]} for x in contact_list]
-        else:
-            self.ids.contact_list.data = [{'text': no_data_msg}]
-            
-    def select_contact(self):
-        contact = self.ids.contact_list.data
-        self.app.sm.current = app.caller
+
             
     
 class MultiplePaymentScreen(Screen):
@@ -846,7 +819,7 @@ class MyContactsScreen(Screen):
         
         
     def on_pre_enter(self):   
-        
+        self.app.last_caller = self.app.caller
         self.app.caller = "MyContactsScreen"
         self.populate_contact_list()
             
@@ -858,10 +831,14 @@ class MyContactsScreen(Screen):
         print(f"############   search_for: {search_for}")
         contact_list_raw = self.app.db.get_all_contacts()
         print(f"all contacts:\n{contact_list_raw}")
-        contact_list = [("[b]"+x[1]+" "+x[0]+"       [color=2266cc]"+x[4][:6]+\
-                              "...."+x[4][-5:]+"[/color][/b]", x[4]) for x in contact_list_raw \
-                        if x[1].lower().startswith(search_for.lower()) or \
-                        x[0].lower().startswith(search_for.lower())]
+        contact_list=[]
+        for x in contact_list_raw:
+            if x[1].lower().startswith(search_for.lower()) or x[0].lower().startswith(search_for.lower()):
+                space = " "
+                for i in range(20 - len(x[1])-len(x[0])): space += " "
+                contact_list.append(("[b]"+x[1]+" "+x[0]+ space +  "[color=002266]"+x[4][:6]+\
+                              "...."+x[4][-5:]+"[/color][/b]", x[4]))
+             
         no_data_msg ="No results found." 
         if len(contact_list)>0:
             self.ids.contact_list.data = [{'text': x[0],"xpub":x[1], "markup":True} for x in contact_list]
@@ -1422,7 +1399,6 @@ class walletguiApp(App):
         self.sm.add_widget(WeekSafeTransferScreen())
         self.sm.add_widget(NewContactScreen())
         self.sm.add_widget(NewStoreSafeScreen())
-        self.sm.add_widget(LookUpContactScreen())
         self.sm.add_widget(MyContactsScreen())
         self.sm.add_widget(ContactInfoScreen())
         self.sm.add_widget(DayScreen())
