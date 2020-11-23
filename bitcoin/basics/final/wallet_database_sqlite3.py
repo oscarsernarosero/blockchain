@@ -94,6 +94,11 @@ class Sqlite3Wallet:
         query = query1 + query2
         #print(query)
         return self.execute( query)
+    
+    def create_partial_transaction_table(self):
+        query =f"CREATE TABLE IF NOT EXISTS PartialTransactions ( tx_id text NOT NULL PRIMARY KEY,\nlock_time INT,\nversion \
+        INT,\nn_confirmations INT NOT NULL,\ncreated INT NOT NULL,\ncosigners_reply text NOT NULL) WITHOUT ROWID;"
+        return self.execute(query)
 
     def create_tx_in_table(self):
         query1 =f"CREATE TABLE IF NOT EXISTS Tx_Ins ( tx_id text NOT NULL, out_index INT NOT NULL,\nspent_by text NOT NULL,\n"
@@ -103,6 +108,12 @@ class Sqlite3Wallet:
         query = query1 + query2 + query3 + query4
         #print(query)
         return self.execute(query)
+    
+    def create_partial_tx_in_table(self):
+        query = f"CREATE TABLE IF NOT EXISTS Partial_Tx_Ins ( tx_id text NOT NULL, out_index INT NOT NULL,\
+        \nspent_by text NOT NULL,\nPRIMARY KEY (tx_id,out_index,spent_by)\nFOREIGN KEY (tx_id,out_index)\nREFERENCES \
+        Utxo(tx_id,out_index) \nFOREIGN KEY (spent_by)\nREFERENCES PartialTransactions(tx_id) ) WITHOUT ROWID ;"
+        return self.execute(query)
 
     def create_tx_out_table(self):
         query1 = "CREATE TABLE IF NOT EXISTS Tx_Outs ( out_index INT NOT NULL,\n amount INT NOT NULL,\ncreated_by text NOT NULL,\n"
@@ -110,6 +121,12 @@ class Sqlite3Wallet:
         query3 = "FOREIGN KEY (created_by)\nREFERENCES Transactions(tx_id) )  WITHOUT ROWID ;"
         query = query1 + query2 + query3
         #print(query)
+        return self.execute(query)
+    
+    def create_partial_tx_out_table(self):
+        query = "CREATE TABLE IF NOT EXISTS Partial_Tx_Outs ( out_index INT NOT NULL,\n amount INT NOT NULL,\n\
+                created_by text NOT NULL,\nscript_pubkey text NOT NULL, \n PRIMARY KEY (created_by, out_index)\n\
+                FOREIGN KEY (created_by)\nREFERENCES PartialTransactions(tx_id) )  WITHOUT ROWID ;"
         return self.execute(query)
     
     def create_contact_table(self):
@@ -238,6 +255,74 @@ class Sqlite3Wallet:
             
         return True
     
+    def new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time=0, version=1 ):
+        """
+        tx_id: String. transaction id.
+        tx_ins: List of touples: [ (prev_tx_id, index), ... ]
+        tx_outs: List of touples: [ (amount, script_pubkey), ... ]
+        n_confirmations: int; number of confirmations in the blockchain.
+        lock_time: Int: transaction locktime.
+        version: Int: version.
+        """
+        created = int(time.time())
+        query1 = "INSERT INTO Transactions ( tx_id, created, n_confirmations, lock_time, version)\n "
+        query2 = f"VALUES('{tx_id}', {created}, {n_confirmations}, {lock_time}, {version});"
+        query = query1+query2
+        self.execute(query)
+
+        for tx_in in tx_ins:
+            query3 = "INSERT INTO Tx_Ins ( tx_id, out_index, spent_by)\n "
+            query4 = f"VALUES( '{tx_in[0]}', {tx_in[1]}, '{tx_id}');"
+            query = query3+query4
+            self.execute(query)
+            #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
+            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = '{tx_in[0]}' AND out_index = {tx_in[1]}"
+            self.execute(query)
+
+        for tx_out in tx_outs:
+            query5 = "INSERT INTO Tx_Outs ( amount, script_pubkey, out_index, created_by)\n "
+            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}',{tx_out[2]}, '{tx_id}');"
+            query = query5+query6
+            self.execute(query)
+            
+        return True
+    
+    def new_partial_tx(self, tx_id, tx_ins, tx_outs, consigners_reply, n_confirmations = 0, lock_time=0, version=1 ):
+        """
+        tx_id: String. transaction id.
+        tx_ins: List of touples: [ (prev_tx_id, index), ... ]
+        tx_outs: List of touples: [ (amount, script_pubkey), ... ]
+        consigners_reply: Dictionary. A dictionary with the reply from the cosigners with the structure:  
+        {"<cosigner1_pubkey>":reply(Boolean/None), {"<cosigner2_pubkey>":reply(Boolean/None), ... }
+        This dict will be parsed to text for storing convinience. To convert back to dict: import ast, and \
+        use: consigners_reply_dict = ast.literal_eval(consigners_reply_string) 
+        n_confirmations: int; number of confirmations in the blockchain.
+        lock_time: Int: transaction locktime.
+        version: Int: version.
+        """
+        created = int(time.time())
+        query1 = "INSERT INTO PartialTransactions ( tx_id, created, n_confirmations, lock_time, version, cosigners_reply)\n "
+        query2 = f"VALUES('{tx_id}', {created}, {n_confirmations}, {lock_time}, {version}, {str(consigners_reply)});"
+        query = query1+query2
+        self.execute(query)
+
+        for tx_in in tx_ins:
+            query3 = "INSERT INTO Partial_Tx_Ins ( tx_id, out_index, spent_by)\n "
+            query4 = f"VALUES( '{tx_in[0]}', {tx_in[1]}, '{tx_id}');"
+            query = query3+query4
+            self.execute(query)
+            #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
+            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = '{tx_in[0]}' AND out_index = {tx_in[1]}"
+            self.execute(query)
+
+        for tx_out in tx_outs:
+            query5 = "INSERT INTO Partial_Tx_Outs ( amount, script_pubkey, out_index, created_by)\n "
+            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}',{tx_out[2]}, '{tx_id}');"
+            query = query5+query6
+            self.execute(query)
+            
+        return True
+    
     def delete_tx(self, tx_id):
         """
         If for any reason a transaction didn't go through in the blockchain, this method
@@ -249,6 +334,7 @@ class Sqlite3Wallet:
         query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
         query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
         query = query1 + query2 + query3
+        self.execute(query)
         
         #delete the inputs
         query1 = f"DELETE FROM Tx_Ins\n"
@@ -269,6 +355,86 @@ class Sqlite3Wallet:
         self.execute(query)
         
         return True
+    
+    def delete_partial_tx(self, tx_id):
+        """
+        If for any reason a multi-signature transaction didn't go through in the blockchain, this method
+        will delete the transaction from the partial-transaction database as well as its inputs and outputs.
+        tx_id: String. transaction id.
+        """
+        #delete the inputs
+        query1 = f"DELETE FROM Partial_Tx_Ins\n"
+        query2 = f"WHERE spent_by ='{tx_id}' ;"
+        query = query1+query2
+        self.execute(query)
+        
+        #delete the outputs
+        query1 = f"DELETE FROM Partial_Tx_Outs\n"
+        query2 = f"WHERE created_by ='{tx_id}' ;"
+        query = query1+query2
+        self.execute(query)
+        
+        #delete the transaction
+        query1 = f"DELETE FROM PartialTransactions\n"
+        query2 = f"WHERE tx_id ='{tx_id}' ;"
+        query = query1+query2
+        self.execute(query)
+        
+        return True
+    
+    def delete_failed_partial_tx(self, tx_id):
+        #Set the utxos consumed by the transaction to NOT spent (spent=0)
+        query1 = f"UPDATE Utxos SET spent = 0 WHERE tx_id = ("
+        query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
+        query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
+        query = query1 + query2 + query3
+        self.execute(query)
+        
+        return self.delete_partial_tx(tx_id)
+        
+    
+    def new_broadcasted_partial_tx(self, tx_id):
+        """
+        This method will delete the multi-signature transaction from the partial-tx database, and write it \
+        into the actual transaction database. This will not modify the status of the UTXOs spent \
+        in the partial tx since it was successfully broadcasted.
+        tx_id: String. transaction id.
+        """
+        #get the inputs
+        query1 = f"SELECT * FROM Partial_Tx_Ins\n"
+        query2 = f"WHERE spent_by ='{tx_id}' ;"
+        query = query1+query2
+        raw_tx_ins = self.execute_w_res(query)
+        tx_ins = [(x[0],x[1]) for x in raw_tx_ins]
+        
+        #get the outputs
+        query1 = f"SELECT * FROM Partial_Tx_Outs\n"
+        query2 = f"WHERE created_by ='{tx_id}' ;"
+        query = query1+query2
+        raw_tx_outs = self.execute_w_res(query)
+        tx_outs = [(x[1],x[3]) for x in raw_tx_outs]
+        
+        #get the transaction
+        query1 = f"SELECT * FROM PartialTransactions\n"
+        query2 = f"WHERE tx_id ='{tx_id}' ;"
+        query = query1+query2
+        tx = self.execute_w_res(query)
+        
+        self.new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time= tx[0][1], version=tx[0][2] )
+        
+        
+        return self.delete_partial_tx(tx_id)
+        
+    def delete_broadcasted_partial_tx(self, tx_id):
+        """
+        """
+        #Set the utxos consumed by the transaction to NOT spent (spent=0)
+        query1 = f"UPDATE Utxos SET spent = 0 WHERE tx_id = ("
+        query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
+        query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
+        query = query1 + query2 + query3
+        self.execute(query)
+        
 
     def update_confirmations(self, tx_id, n_confirmations):
         """

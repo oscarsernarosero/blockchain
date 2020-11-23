@@ -1334,13 +1334,6 @@ class ReceiveScreen(Screen):
     
     def activate_spinner(self):
         new_addr = True
-    
-    
-        
-        
-#class WindowManager(ScreenManager):
-    #pass
-
 
 
 class walletguiApp(App):
