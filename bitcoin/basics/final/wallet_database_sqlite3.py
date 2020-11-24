@@ -276,6 +276,7 @@ class Sqlite3Wallet:
         query1 = "INSERT INTO PartialTransactions (tx_id,created,n_confirmations,lock_time,version,cosigners_reply,tx_hex)\n "
         query2 = f"VALUES('{tx_id}',{created},{n_confirmations},{lock_time},{version},{str(consigners_reply)},'{tx_hex}');"
         query = query1+query2
+        print(query)
         self.execute(query)
 
         for tx_in in tx_ins:
@@ -283,14 +284,17 @@ class Sqlite3Wallet:
             query4 = f"VALUES( '{tx_in[0]}', {tx_in[1]}, '{tx_id}');"
             query = query3+query4
             self.execute(query)
+            print(query)
             #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
             query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = '{tx_in[0]}' AND out_index = {tx_in[1]}"
+            print(query)
             self.execute(query)
 
         for tx_out in tx_outs:
             query5 = "INSERT INTO Partial_Tx_Outs ( amount, script_pubkey, out_index, created_by)\n "
             query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}',{tx_out[2]}, '{tx_id}');"
             query = query5+query6
+            print(query)
             self.execute(query)
             
         return True

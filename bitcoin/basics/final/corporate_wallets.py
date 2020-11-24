@@ -719,10 +719,10 @@ class SHDSafeWallet(Wallet):
         elif self.wallet_type=="simple": consigners_reply.update({f"{self.pubkey}":True})
         
         tx_id = tx_response[0].transaction.id()
-        tx_ins = tx_response[0].transaction.tx_ins
-        tx_outs = tx_response[0].transaction.tx_outs
         tx_hex = tx_response[0].transaction.serialize().hex()
-        self.db.new_partial_tx(tx_id, tx_ins, tx_outs, consigners_reply, tx_hex)
+        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in utxos], 
+                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
+                               consigners_reply, tx_hex)
         
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
