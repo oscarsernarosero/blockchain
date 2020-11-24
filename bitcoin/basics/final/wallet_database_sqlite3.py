@@ -1,6 +1,7 @@
 import sqlite3
 from sqlite3 import Error
 import time
+import ast
 
 class Sqlite3Wallet:
     
@@ -358,6 +359,7 @@ class Sqlite3Wallet:
     
     def delete_partial_tx(self, tx_id):
         """
+        This is an internal-use method only. To delete a partial transaction, see delete_failed_partial_tx.
         If for any reason a multi-signature transaction didn't go through in the blockchain, this method
         will delete the transaction from the partial-transaction database as well as its inputs and outputs.
         tx_id: String. transaction id.
@@ -422,20 +424,33 @@ class Sqlite3Wallet:
         
         self.new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time= tx[0][1], version=tx[0][2] )
         
-        
         return self.delete_partial_tx(tx_id)
         
-    def delete_broadcasted_partial_tx(self, tx_id):
-        """
-        """
-        #Set the utxos consumed by the transaction to NOT spent (spent=0)
-        query1 = f"UPDATE Utxos SET spent = 0 WHERE tx_id = ("
-        query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
-        query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
-        query = query1 + query2 + query3
-        self.execute(query)
-        
 
+    def update_cosigners_reply(self, tx_id, pubkey, reply):
+        """
+        updates the cosigners_reply dictionary with the reply of the participant.
+        tx_id: string. The tx id to update.
+        pubkey: the public key of the participant. Must be in the public_key_list or be the master_pubkey.
+        reply: Boolean. The reply will be True if the participant agreed to sign the tx, or False if \
+        the participant oppossed the transaction.
+        """
+        if not isinstance(reply,bool): raise Exception(f"reply must be of type bool, not {type(reply)}")
+            
+        #get the transaction
+        query1 = f"SELECT * FROM PartialTransactions\n"
+        query2 = f"WHERE tx_id ='{tx_id}' ;"
+        query = query1+query2
+        tx = self.execute_w_res(query)
+        
+        consigners_reply = ast.literal_eval(tx[3])
+        consigners_reply[f"{pubkey}"] = reply
+        print(f"consigners_reply updated: {consigners_reply}")
+        
+        query = f"UPDATE PartialTransactions \nSET consigners_reply = '{str(consigners_reply)}' WHERE tx_id = '{tx_id}'"
+        print(f"query from update_cosigners_reply\n{query}")
+        return self.execute(query)
+        
     def update_confirmations(self, tx_id, n_confirmations):
         """
         Updates the number of confirmations for a transaction to later confirm the transaction was broadcasted.

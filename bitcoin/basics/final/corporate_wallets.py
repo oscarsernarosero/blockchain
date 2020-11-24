@@ -645,12 +645,6 @@ class SHDSafeWallet(Wallet):
         #if we want to send all the funds we don't need a change address.
         if send_all: change_address = None    
         else:        change_address = self.get_a_change_address()
-        """    
-        privkey = PrivateKey(int.from_bytes(self.privkey,"big"))
-            
-        account = SHMAccount(self.m, self.n, str(self.master_pubkey), self.public_key_list, privkey,
-                             self.addr_type, self.testnet, self.segwit)
-        """
         #We create the Multi-Signature Transaction object
         tx_response = MultiSigTransaction.create_from_wallet(utxo_list=utxos,
                                                              receivingAddress_w_amount_list =to_address_amount_list,
@@ -678,14 +672,7 @@ class SHDSafeWallet(Wallet):
                                  addr_type=self.addr_type, testnet=self.testnet, segwit=self.segwit)
             
         else: privkey = None
-        #else: raise Exception("Multi signature Transaction with a master key is not developed yet.")
-        
-        #We create the multisignature account to sign the transaction. This only works for spending from deposit
-        #account. To spend from the change account, we need to do something else.
-        
-        
-        
-        #account = shm_account.get_deposit_account()
+            
         return account
         
         
@@ -716,23 +703,36 @@ class SHDSafeWallet(Wallet):
         
     def send(self, to_address_amount_list, segwit=True):
         """
-        to_address can be a single address or a list.
-        amount can be an integer or a list of integers.
-        If they are lists, they must be ordered in the same way. address 1 will e sent amount 1, 
-        adrress 2 will be sent amount2.. adress n will be sent amount n.
+        to_address_amount_list: List of tuples [(address1,amount1),...]
         """
         #First let's get ready the inputs for the transaction
         utxos, send_all = self.get_coins(to_address_amount_list, segwit)
         
         #Now, let's build the transaction
         tx_response = self.build_tx(utxos,to_address_amount_list, segwit, send_all)
+        self.start_conn()
+        consigners_reply = {}
+        [consigners_reply.update({f"{pubkey}":None}) for pubkey in self.public_key_list]
+        consigners_reply.update({f"{self.master_pubkey}":None})
+        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
+        elif self.wallet_type=="simple": consigners_reply.update({f"{self.pubkey}":True})
+        
+        tx_id = tx_response[0].transaction.id()
+        tx_ins = tx_response[0].transaction.tx_ins
+        tx_outs = tx_response[0].transaction.tx_outs
+        self.db.new_partial_tx(tx_id, tx_ins, tx_outs, consigners_reply)
+        
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
         #transaction is ready to be broadcasted or if it needs more signatures:
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
             self.broadcast_tx(tx_response[0],utxos)
+            self.db.new_broadcasted_partial_tx(tx_id)
             
+        self.close_conn()  
+        #share it with the other participants of the multi-signature wallet. For now:
+        print(f"##### This is the partially signed tx #####:\n{tx_response[0]}")
         return tx_response 
         
     def sign_received_tx(self, tx):
@@ -748,14 +748,27 @@ class SHDSafeWallet(Wallet):
             print(res)
             utxos.append(res[0])
             
-        self.close_conn()
         #We create the multisignature account to sign the transaction.
         account = self.get_signing_account()
         
         tx_response = MultiSigTransaction.sign_received_tx_with_wallet(utxos,tx,account)
         
-        if tx_response[1]: self.broadcast_tx(tx_response[0],utxos)
-            
+        tx_id = tx_response[0].transaction.id()
+        
+        if tx_response[1]: 
+            self.broadcast_tx(tx_response[0],utxos)
+            self.db.new_broadcasted_partial_tx(tx_id)
+        else:
+            #update the cosigners_reply
+            if   self.wallet_type=="main"  : pubkey = self.master_pubkey
+            elif self.wallet_type=="simple": pubkey = self.pubkey
+            self.db.update_cosigners_reply(tx_id, pubkey, reply=True)
+            #update the tx_ins in the partial-tx database
+            #share it with the other participants of the multi-signature wallet. For now:
+            print(f"##### This is the partially signed tx #####:\n{tx_response[0]}")
+        
+        #
+        self.close_conn()
         return tx_response
             
         
