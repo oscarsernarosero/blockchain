@@ -525,7 +525,7 @@ class MultiSigTransaction(Transaction):
         if send_all:  tx_outs = self.get_outputs(receivingAddress_w_amount_list, send_all = send_all)
         else:         tx_outs = self.get_outputs(receivingAddress_w_amount_list, account = change_address)
         #tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
-        tx_ins_utxo = self.get_inputs(utxo_list)#change name of variable from utxo_tx_id_list to utxo_list
+        tx_ins_utxo = self.get_inputs(utxo_list)
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
         

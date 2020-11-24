@@ -1,6 +1,7 @@
 from wallet import Wallet
 from accounts import SHMAccount, FHMAccount, Account, MultSigAccount
 from ecc import PrivateKey, S256Point
+from tx import Tx, TxIn, TxOut
 from transactions import MultiSigTransaction
 from bip32 import Xtended_pubkey, Xtended_privkey
 from constants import *
@@ -720,7 +721,8 @@ class SHDSafeWallet(Wallet):
         tx_id = tx_response[0].transaction.id()
         tx_ins = tx_response[0].transaction.tx_ins
         tx_outs = tx_response[0].transaction.tx_outs
-        self.db.new_partial_tx(tx_id, tx_ins, tx_outs, consigners_reply)
+        tx_hex = tx_response[0].transaction.serialize().hex()
+        self.db.new_partial_tx(tx_id, tx_ins, tx_outs, consigners_reply, tx_hex)
         
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
@@ -732,15 +734,13 @@ class SHDSafeWallet(Wallet):
             
         self.close_conn()  
         #share it with the other participants of the multi-signature wallet. For now:
-        print(f"##### This is the partially signed tx #####:\n{tx_response[0]}")
+        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
         return tx_response 
         
     def sign_received_tx(self, tx):
         """
-        tx: Tx object. The transaction object that needs to be signed.
+        tx: MultiSignatureTx object. The transaction object that needs to be signed.
         """
-        
-        #to do: we need to get the utxo list from the database using the transaction to be able to sign
         utxos = []
         self.start_conn()
         for _in in tx.tx_ins:
@@ -764,13 +764,29 @@ class SHDSafeWallet(Wallet):
             elif self.wallet_type=="simple": pubkey = self.pubkey
             self.db.update_cosigners_reply(tx_id, pubkey, reply=True)
             #update the tx_ins in the partial-tx database
+            new_tx_hex = tx_response[0].transaction.serialize().hex()
+            self.db.update_partial_tx(tx_id, new_tx_hex)
             #share it with the other participants of the multi-signature wallet. For now:
-            print(f"##### This is the partially signed tx #####:\n{tx_response[0]}")
+            print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}\ntx_in: \
+            {tx_response[0].tx_ins}")
         
-        #
         self.close_conn()
         return tx_response
-            
+    
+    def open_partial_tx(self, tx_id):
+        """
+        Opens the new partial transaction in the database, and reconstructs the MultiSigTransaction object \
+        to pass it to the sign_received_tx() method.
+        tx_id: str. The tx id of the new partial tx in the database.
+        """
+        
+        tx = Tx.parse(self.db.get_partial_tx_hex(tx_id), self.testnet)
+        print(f"tx {tx}")
+        tx_ins = tx.tx_ins
+        print(f"tx_ins {tx.tx_ins}")
+        ms_tx = MultiSigTransaction(tx,None,tx_ins,utxos,tx.tx_outs,None,None,self.testnet,None)
+        
+        return self.sign_received_tx(ms_tx)
         
         
 class HDMWallet(Wallet):

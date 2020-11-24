@@ -97,8 +97,9 @@ class Sqlite3Wallet:
         return self.execute( query)
     
     def create_partial_transaction_table(self):
-        query =f"CREATE TABLE IF NOT EXISTS PartialTransactions ( tx_id text NOT NULL PRIMARY KEY,\nlock_time INT,\nversion \
-        INT,\nn_confirmations INT NOT NULL,\ncreated INT NOT NULL,\ncosigners_reply text NOT NULL) WITHOUT ROWID;"
+        query =f"CREATE TABLE IF NOT EXISTS PartialTransactions ( tx_id text NOT NULL PRIMARY KEY, lock_time INT, version \
+        INT,\nn_confirmations INT NOT NULL, created INT NOT NULL, cosigners_reply text NOT NULL, tx_hex text NOT NULL) \
+        \nWITHOUT ROWID;"
         return self.execute(query)
 
     def create_tx_in_table(self):
@@ -256,39 +257,8 @@ class Sqlite3Wallet:
             
         return True
     
-    def new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time=0, version=1 ):
-        """
-        tx_id: String. transaction id.
-        tx_ins: List of touples: [ (prev_tx_id, index), ... ]
-        tx_outs: List of touples: [ (amount, script_pubkey), ... ]
-        n_confirmations: int; number of confirmations in the blockchain.
-        lock_time: Int: transaction locktime.
-        version: Int: version.
-        """
-        created = int(time.time())
-        query1 = "INSERT INTO Transactions ( tx_id, created, n_confirmations, lock_time, version)\n "
-        query2 = f"VALUES('{tx_id}', {created}, {n_confirmations}, {lock_time}, {version});"
-        query = query1+query2
-        self.execute(query)
-
-        for tx_in in tx_ins:
-            query3 = "INSERT INTO Tx_Ins ( tx_id, out_index, spent_by)\n "
-            query4 = f"VALUES( '{tx_in[0]}', {tx_in[1]}, '{tx_id}');"
-            query = query3+query4
-            self.execute(query)
-            #CHANGE THIS LATER FOR A CONFIRMATION IN THE BLOCKCHAIN UTXO
-            query = f"UPDATE Utxos SET spent = 1 WHERE tx_id = '{tx_in[0]}' AND out_index = {tx_in[1]}"
-            self.execute(query)
-
-        for tx_out in tx_outs:
-            query5 = "INSERT INTO Tx_Outs ( amount, script_pubkey, out_index, created_by)\n "
-            query6 = f"VALUES( {tx_out[0]}, '{tx_out[1]}',{tx_out[2]}, '{tx_id}');"
-            query = query5+query6
-            self.execute(query)
-            
-        return True
     
-    def new_partial_tx(self, tx_id, tx_ins, tx_outs, consigners_reply, n_confirmations = 0, lock_time=0, version=1 ):
+    def new_partial_tx(self, tx_id, tx_ins, tx_outs, consigners_reply, tx_hex, n_confirmations = 0, lock_time=0, version=1 ):
         """
         tx_id: String. transaction id.
         tx_ins: List of touples: [ (prev_tx_id, index), ... ]
@@ -297,13 +267,14 @@ class Sqlite3Wallet:
         {"<cosigner1_pubkey>":reply(Boolean/None), {"<cosigner2_pubkey>":reply(Boolean/None), ... }
         This dict will be parsed to text for storing convinience. To convert back to dict: import ast, and \
         use: consigners_reply_dict = ast.literal_eval(consigners_reply_string) 
+        tx_hex: str. The hexadecimal representation of the transaction.
         n_confirmations: int; number of confirmations in the blockchain.
         lock_time: Int: transaction locktime.
         version: Int: version.
         """
         created = int(time.time())
-        query1 = "INSERT INTO PartialTransactions ( tx_id, created, n_confirmations, lock_time, version, cosigners_reply)\n "
-        query2 = f"VALUES('{tx_id}', {created}, {n_confirmations}, {lock_time}, {version}, {str(consigners_reply)});"
+        query1 = "INSERT INTO PartialTransactions (tx_id,created,n_confirmations,lock_time,version,cosigners_reply,tx_hex)\n "
+        query2 = f"VALUES('{tx_id}',{created},{n_confirmations},{lock_time},{version},{str(consigners_reply)},'{tx_hex}');"
         query = query1+query2
         self.execute(query)
 
@@ -449,6 +420,16 @@ class Sqlite3Wallet:
         
         query = f"UPDATE PartialTransactions \nSET consigners_reply = '{str(consigners_reply)}' WHERE tx_id = '{tx_id}'"
         print(f"query from update_cosigners_reply\n{query}")
+        return self.execute(query)
+    
+    def update_partial_tx(self, tx_id, new_tx_hex):
+        """
+        Updates the version of the hexadecimal representation of the transaction stored in the database.
+        tx_id: string. The tx id to update.
+        new_tx_hex: str. the new hexadecimal of the transaction.
+        """
+        
+        query = f"UPDATE PartialTransactions \nSET tx_hex = '{new_tx_hex}' WHERE tx_id = '{tx_id}'"
         return self.execute(query)
         
     def update_confirmations(self, tx_id, n_confirmations):
@@ -632,6 +613,14 @@ class Sqlite3Wallet:
     
     def recover_HDMWallet(self,name):
         query = f"SELECT * FROM HDMWallet WHERE name='{name}'"
+        return self.execute_w_res(query)
+    
+    def get_partial_tx_hex(self, tx_id):
+        query = f"SELECT tx_hex FROM PartialTransactions WHERE tx_id='{tx_id}'"
+        return self.execute_w_res(query)
+        
+    def get_partial_tx_ins(self, tx_id):
+        query = f"SELECT * FROM Partial_Tx_Ins WHERE spent_by ='{tx_id}'"
         return self.execute_w_res(query)
     
     def get_max_index(self, account, wallet):
