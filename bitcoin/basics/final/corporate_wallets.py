@@ -357,7 +357,11 @@ class SHDSafeWallet(Wallet):
                     master_pubkey=master_pubkey, master_privkey=master_privkey,
                     testnet=w[8], segwit=w[9], parent_name=parent_name, safe_index=w[11], level1pubkeys = level1pubkeys)
     
-    def get_i(self,wallet_name, account_path, index):
+    def get_i(self,wallet_name, account_path, index=None):
+        
+        if index is not None:
+            if index>=0: 
+                return index
         
         self.start_conn()
 
@@ -543,7 +547,7 @@ class SHDSafeWallet(Wallet):
         unused_addresses = self.get_unused_addresses_list(change_addresses=True)
         self.close_conn()
         
-        if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[0][3])
+        if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[-1][-1])
         else: return self.create_change_address()
         
     def share(self):

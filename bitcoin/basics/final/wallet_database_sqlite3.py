@@ -274,7 +274,7 @@ class Sqlite3Wallet:
         """
         created = int(time.time())
         query1 = "INSERT INTO PartialTransactions (tx_id,created,n_confirmations,lock_time,version,cosigners_reply,tx_hex)\n "
-        query2 = f'VALUES("{tx_id}",{created},{n_confirmations},{lock_time},{version},"{str(consigners_reply)}","{tx_hex}");'
+        query2 = f'VALUES("{tx_id}",{created},{n_confirmations},{lock_time},{version},"{consigners_reply}","{tx_hex}");'
         query = query1+query2
         print(query)
         self.execute(query)

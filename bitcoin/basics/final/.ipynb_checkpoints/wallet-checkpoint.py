@@ -107,10 +107,12 @@ class Wallet(MasterAccount):
             if confirmations is None: 
                 
                 if   state == 0:
-                    if i == 0: print("Transaction didn't get broadcasted.")
-                    else: print("Transaction was refused by the miners.")
+                    if i == 0:  print("Transaction didn't get broadcasted.")
+                    else:print("Transaction was refused by the miners.")
                 elif state  > 0: print("Transaction was lost in a fork. Try broadcasting again.")#Not sure if this is possible.
-                
+                self.start_conn()
+                self.db.delete_tx(tx)
+                self.close_conn()  
                 return False
 
             if confirmations>0 and state==0:
