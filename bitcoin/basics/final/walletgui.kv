@@ -1977,26 +1977,35 @@
                 text: "Bitcoins"
                 values: "Bitcoins","Satoshis"
 
-        Label:
-            size_hint: 1, 0.5
-            halign: "auto"
-            valign: "bottom"
-            font_name: "Arial Black"
-            font_size:  safe_transfer_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: "From day:"
         
-        Spinner:
-            id: account_spinner
-            size_hint: 1, 0.5
-            size: 100, 44
-            pos_hint: {'center': (.5, .5)}
-            text: 'Select Day'
-            values: 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-            on_value:
-             
+        BoxLayout:
+            orientation:"horizontal"
+            spacing: 40
+            
+            Label:
+                size_hint: 1, 0.5
+                halign: "center"
+                valign: "bottom"
+                font_name: "Arial Black"
+                font_size:  safe_transfer_screen.font_size
+                color: 0,1,0,1
+                text_size: root.width*0.7, None
+                size: self.texture_size
+                text: "Balance:  "
+                
+            Label:
+                id:balance
+                size_hint: 1, 0.5
+                halign: "auto"
+                valign: "bottom"
+                font_name: "Arial Black"
+                font_size:  safe_transfer_screen.font_size
+                color: 0,1,0,1
+                text_size: root.width*0.7, None
+                size: self.texture_size
+                
+
+        
         Button: 
             id: transfer
             text:"Send From\nThis Day"

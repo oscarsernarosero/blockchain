@@ -299,16 +299,12 @@ class Sqlite3Wallet:
             
         return True
     
-    def delete_tx(self, tx_id):
-        """
-        If for any reason a transaction didn't go through in the blockchain, this method
-        will delete the transaction from the database as well as its inputs and outputs.
-        tx_id: String. transaction id.
-        """
+    def recover_utxo(self, tx_id):
         #Set the utxos consumed by the transaction to NOT spent (spent=0)
         #First, let's get all the tx_ins
         query = f"SELECT tx_id,out_index FROM Tx_Ins\nWHERE spent_by ='{tx_id}' ;"
         tx_ins = self.execute_w_res(query)
+        print(f"tx_ins: {tx_ins}")
         
         #Now let's set the Utxo to NOT spent.
         for tx_in in tx_ins:
@@ -327,7 +323,19 @@ class Sqlite3Wallet:
             if utxo != 0: 
                 print(f"WARINING: UTXO CONFLICT!\ntx_id: {tx_id}")
                 raise Exception("Utxos are still saved as spent even though they have attempted to be set as not spent.")
-        
+        return True
+    
+    def delete_tx(self, tx_id):
+        """
+        If for any reason a transaction didn't go through in the blockchain, this method
+        will delete the transaction from the database as well as its inputs and outputs.
+        tx_id: String. transaction id.
+        """
+        #Set the utxos consumed by the transaction to NOT spent (spent=0)
+        #First, let's get all the tx_ins
+        try: self.recover_utxo(tx_id)
+        except: print("following with the deleting process. Please fix manually the recovering of the utxos.")
+            
         #delete the inputs
         query1 = f"DELETE FROM Tx_Ins\n"
         query2 = f"WHERE spent_by ='{tx_id}' ;"
@@ -377,11 +385,8 @@ class Sqlite3Wallet:
     
     def delete_failed_partial_tx(self, tx_id):
         #Set the utxos consumed by the transaction to NOT spent (spent=0)
-        query1 = f"UPDATE Utxos SET spent = 0 WHERE tx_id = ("
-        query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
-        query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
-        query = query1 + query2 + query3
-        self.execute(query)
+        try: self.recover_utxo(tx_id)
+        except: print("following with the deleting process. Please fix manually the recovering of the utxos.")
         
         return self.delete_partial_tx(tx_id)
         

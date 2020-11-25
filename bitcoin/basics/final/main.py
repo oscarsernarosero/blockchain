@@ -615,6 +615,12 @@ class DayScreen(Screen, Balance):
         self.ids.qr.reload()
         self.ids.title.text = self.app.current_wallet
         
+    def transfer(self):
+        self.app.current_wallet_balance = self.btc_balance_text
+        print(f"self.btc_balance_text: {self.btc_balance_text}")
+        self.app.last_caller = self.app.caller
+        self.app.caller = "DayScreen"
+        self.app.sm.current = "SafeTransferScreen"
         
     def copy(self):
         pyperclip.copy(self.ids.address_text.text)
@@ -1136,14 +1142,18 @@ class CameraPopup(FloatLayout):
 class SafeTransferScreen(Screen, Send):
     font_size = "15sp"
     
+    
+    
     def on_pre_enter(self):
         self.app = App.get_running_app()
+        print(f"self.app.current_wallet_balance {self.app.current_wallet_balance}")
+        self.ids.balance.text = self.app.current_wallet_balance
         print(self.app.caller)
         if self.app.caller == "WeekSafeScreen":
             self.ids.title.text = "Transfer Week Safe"
             self.ids.transfer.text = "Transfer From This Week"
             self.ids.transfer_all.text = "Transfer All To\nCorporate's Safe"
-        elif self.app.caller == "DaySafeScreen":
+        elif self.app.caller == "DayScreen":
             self.ids.title.text = "Transfer Day Safe"
             self.ids.transfer.text = "Transfer From This Day"
             self.ids.transfer_all.text = "Transfer All To\Week's Safe"
@@ -1402,6 +1412,7 @@ class walletguiApp(App):
     arguments=ListProperty()
     arguments=[{"new_wallet_consigners":{"current":""}}]
     cosigner_button = ObjectProperty()
+    current_wallet_balance = StringProperty()
     
     current_wallet = None
     db = Sqlite3Wallet()
