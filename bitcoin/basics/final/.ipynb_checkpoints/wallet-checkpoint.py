@@ -156,7 +156,7 @@ class Wallet(MasterAccount):
             
         else: 
             print("transaction succesfull")
-            self.db.new_broadcasted_partial_tx(tx)
+            self.db.delete_partial_tx(tx)
             return True
     
     def get_i(self,account_path, index,random_index = False):

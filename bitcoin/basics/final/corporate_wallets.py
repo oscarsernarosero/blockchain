@@ -181,10 +181,11 @@ class ManagerWallet(Wallet):
         addr_type = invite["addr_type"]
         segwit = invite["segwit"]
         testnet = invite["testnet"]
+        level1 = invite["level1pubkeys"]
         
         safe_wallet = SHDSafeWallet.from_privkey_masterpubkey( name, public_key_list, master_pubkey, 
                                                               daily_safes_acc.private_key,m, n, addr_type, testnet,
-                                                              segwit)
+                                                              segwit,level1pubkeys = level1)
      
         return safe_wallet
         
@@ -553,7 +554,8 @@ class SHDSafeWallet(Wallet):
     def share(self):
         if self.safe_index >= 0: raise Exception ("Only master wallets can be shared.")
         return {"public_key_list":self.public_key_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
-                "master_pubkey":self.master_pubkey,"testnet":self.testnet, "segwit":self.segwit }
+                "master_pubkey":f"{self.master_pubkey}","testnet":self.testnet, "segwit":self.segwit,
+                "level1pubkeys":self.level1pubkeys }
     
 
     def get_utxos(self):
@@ -761,8 +763,8 @@ class SHDSafeWallet(Wallet):
         
         if tx_response[1]: 
             self.broadcast_tx(tx_response[0].transaction,utxos)
-            self.start_conn()
-            self.db.delete_partial_tx(tx_id)
+            #self.start_conn()
+            #self.db.delete_partial_tx(tx_id)
             
         else:
             #update the cosigners_reply

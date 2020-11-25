@@ -416,7 +416,7 @@ class Sqlite3Wallet:
         query = query1+query2
         tx = self.execute_w_res(query)
         
-        self.new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time= tx[0][1], version=tx[0][2] )
+        #self.new_tx(self, tx_id, tx_ins, tx_outs, n_confirmations = 0, lock_time= tx[0][1], version=tx[0][2] )
         
         return self.delete_partial_tx(tx_id)
         
