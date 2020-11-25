@@ -112,6 +112,7 @@ class Wallet(MasterAccount):
                 elif state  > 0: print("Transaction was lost in a fork. Try broadcasting again.")#Not sure if this is possible.
                 self.start_conn()
                 self.db.delete_tx(tx)
+                
                 self.close_conn()  
                 return False
 
@@ -155,6 +156,7 @@ class Wallet(MasterAccount):
             
         else: 
             print("transaction succesfull")
+            self.db.new_broadcasted_partial_tx(tx)
             return True
     
     def get_i(self,account_path, index,random_index = False):

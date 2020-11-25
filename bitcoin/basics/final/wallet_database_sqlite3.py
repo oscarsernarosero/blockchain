@@ -306,11 +306,27 @@ class Sqlite3Wallet:
         tx_id: String. transaction id.
         """
         #Set the utxos consumed by the transaction to NOT spent (spent=0)
-        query1 = f"UPDATE Utxos SET spent = 0 WHERE tx_id = ("
+        #First, let's get all the tx_ins
+        query = f"SELECT tx_id,out_index FROM Tx_Ins\nWHERE spent_by ='{tx_id}' ;"
+        tx_ins = self.execute_w_res(query)
+        
+        #Now let's set the Utxo to NOT spent.
+        for tx_in in tx_ins:
+            query1 = f"UPDATE Utxos SET spent = 0  WHERE tx_id ="
+            query2 = f" '{tx_in[0]}' AND out_index = '{tx_in[1]}' "
+            query = query1 + query2
+            self.execute(query)
+        
+        #Check Utxos
+        query1 = f"SELECT spent FROM Utxos WHERE tx_id = ("
         query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
         query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
         query = query1 + query2 + query3
-        self.execute(query)
+        res = self.execute_w_res(query)
+        for utxo in res:
+            if utxo != 0: 
+                print(f"WARINING: UTXO CONFLICT!\ntx_id: {tx_id}")
+                raise Exception("Utxos are still saved as spent even though they have attempted to be set as not spent.")
         
         #delete the inputs
         query1 = f"DELETE FROM Tx_Ins\n"

@@ -401,6 +401,8 @@ class Tx:
         #z = self.sig_hash(input_index, RedScript)
         # combine the current ScriptSig and the previous ScriptPubKey
         if p2sh_p2wpkh:
+            #WARNING! THIS METHOD WORKS ONLY PARTIALLY WELL. IT FAILS TO SPOT ERRORS IN A P2WSH WHEN THE SECOND
+            #SIGNATURE IS WRONG. MAYBE, THE FOLLOWING LINE IS THE PROBLEM. MAYBE.
             combined = Script([encode_varint(len(tx_in.script_sig.cmds[0])) ,tx_in.script_sig.cmds[0]]) + script_pubkey
             #combined = tx_in.script_sig + script_pubkey
         elif p2wpkh:

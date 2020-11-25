@@ -361,10 +361,10 @@ class SHDSafeWallet(Wallet):
         
         if index is not None:
             if index>=0: 
+                print(f"reusing address with index {index}")
                 return index
         
         self.start_conn()
-
         last_index = self.db.get_max_index( account_path, wallet_name)
 
         if last_index is None: i = 0
@@ -735,7 +735,6 @@ class SHDSafeWallet(Wallet):
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
             self.broadcast_tx(tx_response[0],utxos)
-            self.db.new_broadcasted_partial_tx(tx_id)
             
         self.close_conn()  
         #share it with the other participants of the multi-signature wallet. For now:

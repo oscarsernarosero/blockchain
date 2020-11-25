@@ -899,26 +899,57 @@ class DaySafeScreen(Screen):
         print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
         self.app.sm.current = self.app.caller
     
+    def transfer(self):
+        self.app.last_caller = self.app.caller
+        self.app.caller = "DaySafeScreen"
+        self.app.sm.current = "SafeTransferScreen"
     
-    
-class WeekSafeScreen(Screen):
+class WeekSafeScreen(Screen,Balance):
     font_size = "20sp"
+    _address = "Your address here"
+    
+    btc_balance = NumericProperty(0)
+    address = StringProperty(_address)
+    usd_balance = 0.0
+    
+    btc_balance_text = StringProperty(str(btc_balance) + " BTC")
+    usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
+    
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        self.my_wallet = self.app.wallets[0][self.app.current_wallet]
+        
+        #get_day_deposit_addresses still works for week safes, so...
+        raw_address = self.app.db.get_day_deposit_addresses(self.app.current_wallet)
+        print(raw_address)
+        if len(raw_address) == 0: self.address = self.my_wallet.create_receiving_address()
+        else: self.address = raw_address[0][0]
+        self.update_real_balance()
+        print(self.address)
+        qrcode.make(self.address).save("images/QRweekly.png")
+        
+        self.ids.qr.reload()
+        self.ids.title.text = self.app.current_wallet
+        
+        
+    def copy(self):
+        pyperclip.copy(self.ids.address_text.text)
+   
     
     def __int__(self, **kwargs):
         super().__init__()
         self.app = App.get_running_app()
-        print(f"\n\nfrom Week Safe Init {self.app}\n\n")
         
-    def on_pre_enter(self):
-        self.app = App.get_running_app()
-        
-    
     def go_back(self):
         my_wallet = self.app.wallets[0][self.app.current_wallet]
-        
         self.app.current_wallet = my_wallet.parent_name
-        print(f"\n\nfrom DaySafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
+        print(f"\n\nfrom WeekSafeScreen.go_back() self.app.current_wallet: {self.app.current_wallet} ")
         self.app.sm.current = "StoreSafesScreen"
+        
+    def transfer(self):
+        self.app.last_caller = self.app.caller
+        self.app.caller = "WeekSafeScreen"
+        self.app.sm.current = "SafeTransferScreen"
 
     
 class WeekSafeTransferScreen(Screen):
@@ -968,6 +999,10 @@ class Send():
         my_wallet.start_conn()
         transaction = my_wallet.send([(address,amount)])
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
+        #closing popups
+        self.loadingWindow.dismiss()
+        self.popupWindow.dismiss()
+        return transaction
         
         
     def start_sending(self,button):
@@ -1003,17 +1038,21 @@ class Send():
             
         #broadcasting transaction
         try: 
-            self.send_tx(self, amount, address)
+            tx, sent = self.send_tx(self, amount, address)
                                 
             #cleanning the inputs
             self.ids.amount.text = ""
             self.ids.address.text = ""
-                                
-            #closing popups
-            self.loadingWindow.dismiss()
-                     
-            self.popupWindow.dismiss()
-                                
+            
+            if isinstance(sent,bool):
+                if not sent:
+                    self.share = GenericOkPopup(tx.transaction.serialize().hex())
+                    self.shareWindow = Popup(title="Share with cosigners", content=self.share, 
+                                                      size_hint=(None,None),size=(500,500), 
+                                                      pos_hint={"center_x":0.5, "center_y":0.5})
+                    self.shareWindow.open()
+                    self.share.OK.bind(on_release=self.shareWindow.dismiss)  
+                        
         except Exception as e:
                                 
             if str(e).startswith("Not enough funds"):
@@ -1094,11 +1133,22 @@ class SendScreen(Screen,Send):
 class CameraPopup(FloatLayout):
     pass
 
-class DaySafeTransferScreen(Screen, Send):
+class SafeTransferScreen(Screen, Send):
     font_size = "15sp"
     
-    def send_from_this_day(self):
-        pass
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        print(self.app.caller)
+        if self.app.caller == "WeekSafeScreen":
+            self.ids.title.text = "Transfer Week Safe"
+            self.ids.transfer.text = "Transfer From This Week"
+            self.ids.transfer_all.text = "Transfer All To\nCorporate's Safe"
+        elif self.app.caller == "DaySafeScreen":
+            self.ids.title.text = "Transfer Day Safe"
+            self.ids.transfer.text = "Transfer From This Day"
+            self.ids.transfer_all.text = "Transfer All To\Week's Safe"
+        else: self.ids.title.text = self.ids.transfer.text = self.ids.transfer_all.text =  "Error"
+    
     
 
 class NewWalletPopup(FloatLayout):
@@ -1388,7 +1438,7 @@ class walletguiApp(App):
         self.sm.add_widget(ReceiveAccountScreen())
         self.sm.add_widget(DaySafeScreen())
         self.sm.add_widget(WeekSafeScreen())
-        self.sm.add_widget(DaySafeTransferScreen())
+        self.sm.add_widget(SafeTransferScreen())
         self.sm.add_widget(WeekSafeTransferScreen())
         self.sm.add_widget(NewContactScreen())
         self.sm.add_widget(NewStoreSafeScreen())

@@ -1874,7 +1874,7 @@
             font_size: "20sp"  
             size_hint: 1,0.1
             on_press:
-                app.root.current = "DaySafeTransferScreen"
+                app.root.current = "SafeTransferScreen"
                 root.manager.transition.direction = "right"
                 
 
@@ -1886,9 +1886,9 @@
             #on_press: send.scan_qr()
    
    
-<DaySafeTransferScreen>:
-    id: day_safe_transfer_screen
-    name: "DaySafeTransferScreen"
+<SafeTransferScreen>:
+    id: safe_transfer_screen
+    name: "SafeTransferScreen"
     
     Button:
         size:60,10
@@ -1906,13 +1906,14 @@
         padding: 40
         
         Label:
+            id: title
             size_hint: 1, 0.5
             halign: "auto"
             valign: "middle"
             font_name: "Arial Black"
-            font_size:  day_safe_transfer_screen.font_size
+            font_size:  safe_transfer_screen.font_size
             color: 0,1,0,1
-            text: "-- TRANSFER FROM DAY SAFE --"
+            text: "-- TRANSFER FROM SAFE --"
 
         BoxLayout:
             orientation: "horizontal"
@@ -1925,7 +1926,7 @@
                 halign: "left"
                 valign: "middle"
                 font_name: "Arial Black"
-                font_size:  day_safe_transfer_screen.font_size
+                font_size:  safe_transfer_screen.font_size
                 color: 0,1,0,1
                 text: "To address:"
 
@@ -1936,13 +1937,13 @@
                 size_hint: None, None
                 size: 250,50
                 pos_hint: {'center_x':.5, 'center_y': .5} 
-                on_press: day_safe_transfer_screen.scan_qr()
+                on_press: safe_transfer_screen.scan_qr()
         
         TextInput:
             id: address
             size_hint:1,0.5
             multiline: True
-            #on_double_tap: day_safe_transfer_screen.paste()
+            #on_double_tap: safe_transfer_screen.paste()
             #on_focus:
                 #send.paste()
         
@@ -1981,7 +1982,7 @@
             halign: "auto"
             valign: "bottom"
             font_name: "Arial Black"
-            font_size:  day_safe_transfer_screen.font_size
+            font_size:  safe_transfer_screen.font_size
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
@@ -1997,8 +1998,9 @@
             on_value:
              
         Button: 
+            id: transfer
             text:"Send From\nThis Day"
-            on_press: day_safe_transfer_screen.confirm_popup()
+            on_press: safe_transfer_screen.confirm_popup()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -2012,8 +2014,8 @@
             text: "-- Or --"
         
         Button: 
+            id: transfer_all
             text:"Send All to\nWeek Safe"
-            #on_press: send.confirm_popup()
             font_name: "Arial Black"
             font_size: "20sp"
 
@@ -2028,69 +2030,65 @@
     
     BoxLayout:
         orientation: "vertical"
-        spacing: 20
-        padding: 40
+        spacing: 5
+        padding: 20
         
         Label:
+            id: title
             size_hint: 1, 0.5
-            halign: "auto"
+            halign: "left"
             valign: "middle"
             font_name: "Arial Black"
             font_size:  week_safe_screen.font_size
             color: 0,1,0,1
-            text: "-- WEEK SAFES --"
-
-        Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  week_safe_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: "Total:"
+            text: "-- Date --"
+            
+            
+        Image:
+        #Button:
+            id: qr
+            source: 'images/QRweekly.png'
+            size_hint: None, None
+            size: 300,300
+            pos_hint: {'center_x':.5, 'center_y': .5} 
+            #on_press: send.scan_qr()
             
         Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  week_safe_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            #text: week_safe_screen.total
-            text: "A lot"
-        
-        RecycleView:
-            id: weeksafe_list
-            viewclass: 'SelectWeek'
+            id: address_text
+            text: week_safe_screen.address
+            font_size: "9sp"
             
-            SelectableRecycleBoxLayout:
-                default_size: 1, dp(60)
-                default_size_hint: 1, None
-                size_hint: 1,None
-                height: self.minimum_height
-                orientation: 'vertical'
-                multiselect: False
-                touch_multiselect: False
-                canvas.before:
-                    Color:
-                        rgba: (0.9, 0.9, 0.9, 1)
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
-        
-        
-        Button: 
-            text:"Send All to\nCorporate's Safe"
-            #on_press: send.confirm_popup()
-            font_name: "Arial Black"
-            font_size: "20sp"
+        Button:
+            text: "copy address"
+            size: 300,80
+            on_press: week_safe_screen.copy()
+            size_hint: None, None
+            pos_hint: {"center_x":0.5}
             
+        BoxLayout:
+            orientation: "horizontal"
         
-                   
+            Label:
+                text: "Balance: "
+                
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text: week_safe_screen.btc_balance_text
+                    
+                Label:
+                    text: week_safe_screen.usd_balance_text
+                
+        Button:
+            text: "Transfer"
+            on_press: 
+                week_safe_screen.transfer()
+                root.manager.transition.direction = "right"
+            
+        Button:
+            text: "Transfer All to Corporate Safe"
+            
+            
                    
 <WeekSafeTransferScreen>:
     id: week_safe_transfer_screen
@@ -2898,7 +2896,7 @@
         Button:
             text: "Transfer"
             on_press: 
-                app.root.current = "DaySafeTransferScreen"
+                day_screen.transfer()
                 root.manager.transition.direction = "right"
             
         Button:
