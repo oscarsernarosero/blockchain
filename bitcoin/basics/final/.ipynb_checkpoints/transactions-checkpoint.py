@@ -576,7 +576,9 @@ class MultiSigTransaction(Transaction):
                                        multisig_transaction.testnet, multisig_transaction.segwit), False
         else:
             print("TRANSACTION READY!\nRun serialize().hex() to get the raw transaction.")
-            return final_tx, True
+            return MultiSigTransaction(final_tx, None, multisig_transaction.tx_ins,multisig_transaction.utxos ,
+                                       multisig_transaction.tx_outs, multisig_transaction.fee, multisig_transaction.change,
+                                       multisig_transaction.testnet, multisig_transaction.segwit), True
         
     @classmethod
     def sign_tx():

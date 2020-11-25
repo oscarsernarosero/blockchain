@@ -546,8 +546,9 @@ class Tx:
     
     def verify_signatures(self, m, segwit=False, p2sh_p2wsh=False):
         
+        
+        
         for input_index,tx_input in enumerate(self.tx_ins):
-            
             p2sh_p2wsh = False
             script_pubkey = tx_input.script_pubkey(testnet=self.testnet)
             if script_pubkey.is_p2sh_script_pubkey():
@@ -586,8 +587,8 @@ class Tx:
                 else: self.tx_ins[input_index].script_sig = Script(cmds_copy)
                 #And then we return False
                 return False
-            #If it passes all the inputs and signatures then we can return True.
-            return True
+        #If it passes all the inputs and signatures then we can return True.
+        return True
         
     
     def is_coinbase(self):

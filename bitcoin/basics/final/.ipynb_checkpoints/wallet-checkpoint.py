@@ -339,11 +339,13 @@ class Wallet(MasterAccount):
         print(f"TRANSACTION ID: {tx_id}")
         
         #saving in db
+        
         self.start_conn()
         self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
         self.close_conn()
+        
         #start new thread to check if the transaction goes through in the blockchain or not.
         #Maybe move this to the front end class to pop a warning when it doesn't go through
         mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))

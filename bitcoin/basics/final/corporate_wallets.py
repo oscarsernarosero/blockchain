@@ -11,6 +11,7 @@ from blockcypher import pushtx
 import threading
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 import calendar
+from io import BytesIO
 
 """
 This code is developed entirely by Oscar Serna. This code is subject to copy rights.
@@ -713,10 +714,10 @@ class SHDSafeWallet(Wallet):
         tx_response = self.build_tx(utxos,to_address_amount_list, segwit, send_all)
         self.start_conn()
         consigners_reply = {}
-        [consigners_reply.update({f"{pubkey}":None}) for pubkey in self.public_key_list]
-        consigners_reply.update({f"{self.master_pubkey}":None})
+        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
+        consigners_reply.update({f'{self.master_pubkey}':None})
         if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
-        elif self.wallet_type=="simple": consigners_reply.update({f"{self.pubkey}":True})
+        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
         
         tx_id = tx_response[0].transaction.id()
         tx_hex = tx_response[0].transaction.serialize().hex()
@@ -747,7 +748,7 @@ class SHDSafeWallet(Wallet):
             res = self.db.get_utxo_info(_in.prev_tx.hex(), _in.prev_index)
             print(res)
             utxos.append(res[0])
-            
+        self.close_conn()    
         #We create the multisignature account to sign the transaction.
         account = self.get_signing_account()
         
@@ -756,12 +757,15 @@ class SHDSafeWallet(Wallet):
         tx_id = tx_response[0].transaction.id()
         
         if tx_response[1]: 
-            self.broadcast_tx(tx_response[0],utxos)
-            self.db.new_broadcasted_partial_tx(tx_id)
+            self.broadcast_tx(tx_response[0].transaction,utxos)
+            self.start_conn()
+            self.db.delete_partial_tx(tx_id)
+            
         else:
             #update the cosigners_reply
             if   self.wallet_type=="main"  : pubkey = self.master_pubkey
-            elif self.wallet_type=="simple": pubkey = self.pubkey
+            elif self.wallet_type=="simple": pubkey = int.from_bytes(self.pubkey,"big")
+            self.start_conn()
             self.db.update_cosigners_reply(tx_id, pubkey, reply=True)
             #update the tx_ins in the partial-tx database
             new_tx_hex = tx_response[0].transaction.serialize().hex()
@@ -779,13 +783,13 @@ class SHDSafeWallet(Wallet):
         to pass it to the sign_received_tx() method.
         tx_id: str. The tx id of the new partial tx in the database.
         """
-        
-        tx = Tx.parse(self.db.get_partial_tx_hex(tx_id), self.testnet)
+        self.start_conn()
+        tx = Tx.parse(BytesIO(bytes.fromhex(self.db.get_partial_tx_hex(tx_id)[0][0])), self.testnet)
         print(f"tx {tx}")
         tx_ins = tx.tx_ins
         print(f"tx_ins {tx.tx_ins}")
-        ms_tx = MultiSigTransaction(tx,None,tx_ins,utxos,tx.tx_outs,None,None,self.testnet,None)
-        
+        ms_tx = MultiSigTransaction(tx,None,tx_ins,None,tx.tx_outs,None,None,self.testnet,None)
+        self.close_conn()
         return self.sign_received_tx(ms_tx)
         
         

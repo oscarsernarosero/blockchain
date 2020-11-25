@@ -274,7 +274,7 @@ class Sqlite3Wallet:
         """
         created = int(time.time())
         query1 = "INSERT INTO PartialTransactions (tx_id,created,n_confirmations,lock_time,version,cosigners_reply,tx_hex)\n "
-        query2 = f"VALUES('{tx_id}',{created},{n_confirmations},{lock_time},{version},{str(consigners_reply)},'{tx_hex}');"
+        query2 = f'VALUES("{tx_id}",{created},{n_confirmations},{lock_time},{version},"{str(consigners_reply)}","{tx_hex}");'
         query = query1+query2
         print(query)
         self.execute(query)
@@ -382,7 +382,10 @@ class Sqlite3Wallet:
         query2 = f"WHERE spent_by ='{tx_id}' ;"
         query = query1+query2
         raw_tx_ins = self.execute_w_res(query)
+        print(raw_tx_ins)
+        print(raw_tx_ins)
         tx_ins = [(x[0],x[1]) for x in raw_tx_ins]
+        print(tx_ins)
         
         #get the outputs
         query1 = f"SELECT * FROM Partial_Tx_Outs\n"
