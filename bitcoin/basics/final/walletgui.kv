@@ -1,8 +1,3 @@
-#<WindowManager>:
-    #WalletScreen:
-    #MainScreen:
-    #SendScreen:
-    #ReceiveScreen:
 
 <ToggleSpinner@Spinner+ToggleButton>:
     #size_hint: 1, 1
@@ -38,10 +33,14 @@
 <AddCosignerRow@BoxLayout>:
     orientation: "horizontal"
     spacing: 20
-
+    
+    #Note: I have setup size_hint_y and size_hint_max_y trying to limit how much they can stretch vertically
+    #to fill the screen when only some of them are present, but I have had no success so far.
 
     Label:
-        size_hint: 0.7, 0.1
+        #size_hint: 0.7, 0.1
+        size_hint_y: 0.1
+        size_hint_max_y: 50
         halign: "auto"
         valign: "top"
         font_name: "Arial Black"
@@ -54,16 +53,49 @@
 
     Button: 
         id: button
+        size_hint_max_y: 50
         text:"Add Cosigner"
         #on_press: new_store_safe_screen.add_cosigner("cosigner_1")
         font_name: "Arial Black"
         font_size: "12sp"
-        size_hint: 1.2, 0.5
+        #size_hint: 1.2, 0.5
+        size_hint_y: 0.5
 
     MyCheckBox:
+        size_hint_max_y: 50
         id: check_box
 
-
+<Participant@BoxLayout>:
+    orientation: "horizontal"
+    spacing: 20
+    
+    Label:
+        #size_hint: 0.7, 0.1
+        size_hint_y: 0.5
+        size_hint_max_y: 150
+        halign: "auto"
+        valign: "top"
+        font_name: "Arial Black"
+        #font_size:  new_store_safe_screen.font_size
+        font_size:  "15sp"
+        color: 0,1,0,1
+        multiline: True
+        size: self.texture_size
+        id:name
+        
+    Label:
+        #size_hint: 0.7, 0.1
+        size_hint_y: 0.5
+        size_hint_max_y: 150
+        halign: "auto"
+        valign: "top"
+        font_name: "Arial Black"
+        #font_size:  new_store_safe_screen.font_size
+        font_size:  "15sp"
+        color: 0,1,0,1
+        multiline: True
+        size: self.texture_size
+        id:level
 
 
 <SelectWallet@Selectable>:
@@ -910,37 +942,10 @@
     
     BoxLayout:
         orientation: "vertical"
-        spacing: 30
-        padding: 50
+        spacing: 15
+        padding: [50,80,50,40]
                 
-        Label:
-            size_hint: 1, 0.05
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  store_safes_screen.font_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: "Total:"
-            
-            
-        Label:
-            size_hint: 1, 0.1
-            halign: "auto"
-            valign: "middle"
-            font_name: "Arial Black"
-            font_size:  store_safes_screen.font_total_size
-            color: 0,1,0,1
-            text_size: root.width*0.7, None
-            size: self.texture_size
-            text: store_safes_screen.total
         
-        Label:
-            #this is an empty lable just to add some space
-            size_hint: 1, 0.05
-            
-            
         Label:
             size_hint: 1, 0.1
             halign: "auto"
@@ -957,6 +962,7 @@
         RecycleView:
             id: daysafe_list
             viewclass: 'SelectDay'
+            size_hint: 1, 1
             SelectableRecycleBoxLayout:
                 default_size: 1, dp(60)
                 default_size_hint: 1, None
@@ -981,6 +987,9 @@
             on_press: store_safes_screen.new_daily_safe()
                 
         Label:
+            size_hint: 1, 0.05
+        
+        Label:
             size_hint: 1, 0.1
             halign: "auto"
             valign: "bottom"
@@ -994,6 +1003,7 @@
         RecycleView:
             id: weeksafe_list
             viewclass: 'SelectWeek'
+            size_hint: 1, 1
             
             SelectableRecycleBoxLayout:
                 default_size: 1, dp(60)
@@ -1019,42 +1029,28 @@
             on_press: store_safes_screen.new_weekly_safe()
         
         Label:
-            size_hint: 1, 0.3
+            size_hint: 1, 0.05
         
+        
+        Button: 
+            id: whoshere
+            text: "Who Is In This Wallet?"
+            size_hint: 1, 0.5
+            size: 5,5
+            background_color: 0.3,0.6,1,1
+            #pos_hint: {'center_x':1, 'center_y': 0.25}
+            on_press: store_safes_screen.whoshere()
         
         Button: 
             id: share
             text: "Share This Wallet"
             size_hint: 1, 0.5
             size: 5,5
-            background_color: 0.3,0.6,1,1
+            background_color: 0.3,1,0.6,1
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: store_safes_screen.share()
         
-        BoxLayout:
-            orientation: "horizontal"
-            spacing: 30
-            
-            Button: 
-                id: transfer
-                text: "Tranfer"
-                size_hint: 1, 0.3
-                size: 5,5
-                #pos_hint: {'center_x':1, 'center_y': 0.25}
-                on_press: 
-                    #app.root.current = "Wallets"
-                    root.manager.transition.direction = "right"
-
-            Button: 
-                id: receive
-                text: "Receive"
-                size_hint: 1, 0.3
-                size: 5,5
-                #pos_hint: {'center_x':1, 'center_y': 0.25}
-                on_press: 
-                    #app.root.current = "Wallets"
-                    root.manager.transition.direction = "right"
-
+        
                                            
 <YearListScreen>:
     id: year_list_screen
@@ -1895,9 +1891,7 @@
         size_hint: 1, 0.05
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "DaySafeScreen"
-            root.manager.transition.direction = "left"
+        on_press: safe_transfer_screen.go_back()
     
     
     BoxLayout:
@@ -2557,12 +2551,16 @@
                     text: "Daily AND weekly\nsafe:"
         
             
-
+        Label:
+            size_hint:1,0.1
+            id:spacer
         Button: 
             text:"Create Store Safe"
             on_press: new_store_safe_screen.create_store_safe()
             font_name: "Arial Black"
             font_size: "20sp"
+            size_hint_y: 1
+            size_hint_max_y: 100
 
 
 
@@ -2912,6 +2910,40 @@
             text: "Transfer All to Week Safe"
             
         
+<WhosHereScreen>:
+    id: whos_here_screen
+    name: "WhosHereScreen"
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 15
+        padding: 30
         
+        Label:
+            id: wallet_name
+            font_size: "15sp"
+            halign:"center"
+            valign: "middle"
+            size_hint_y: 1
+            size_hint_max_y:200
+            font_name: "Arial Black"
+            color: 0,1,0,1
+            multiline: True
+            
+        BoxLayout:
+            size_hint: 1,6
+            orientation: "vertical"
+            spacing: 5
+            id: participant_list
+            
         
+        Label:
+            id: spacer
+            size_hint: 1,1
+            
+        Button:
+            text: "Ok. Got it!"
+            on_press: whos_here_screen.go_back()
+            size_hint_y: 1
+            size_hint_max_y:100
                 

@@ -11,6 +11,7 @@ import pyperclip
 import time, threading
 from datetime import date, timedelta
 from abc import ABCMeta, abstractmethod
+import calendar
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -428,9 +429,23 @@ class StoreSafesScreen(Screen):
         daily_safes = self.app.db.get_daily_safe_wallets(self.app.current_wallet)  
         weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)  
         print(f"weekly_safes: {weekly_safes}")
+        full_names = [x[0] for x in daily_safes]
+        print(full_names)
+        daily_safe_date = {}
+        for full_name in full_names: 
+            date_str,name = full_name.split("_")
+            monthday,of,year = date_str.split("-")
+            wallet_date = date(int("20"+year),list(calendar.month_abbr).index(monthday[:3]),int(monthday[-2:]))
+            daily_safe_date.update({f"{full_name}":wallet_date})
+        
+        print(daily_safe_date)
+        today = date.today()
+        two_weeks_ago = today - timedelta(days=14)#CHANGE THIS BACK TO 14!!!!!
+        filtered_daily_safes = [key for key in daily_safe_date if daily_safe_date[key] > two_weeks_ago and daily_safe_date[key] < today]
+        
         no_wallet_msg ="You don't have any stores added yet." 
         
-        if len(daily_safes)>0: self.ids.daysafe_list.data = [{'text': x[0]} for x in daily_safes]
+        if len(daily_safes)>0: self.ids.daysafe_list.data = [{'text': x} for x in filtered_daily_safes]
         else:  self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
             
         if len(weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x[0]} for x in weekly_safes]   
@@ -512,15 +527,60 @@ class StoreSafesScreen(Screen):
         msg = str(my_wallet.share())
         print(msg)
         self.share_ = GenericOkPopup(msg)
-        self.share_window = Popup(title="Server Error", content=self.share_, 
-                                                  size_hint=(None,None),size=(500,800), 
+        self.share_window = Popup(title="Share Wallet", content=self.share_, 
+                                                  size_hint=(None,None),size=(500,1000), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}
                                    )
         self.share_window.open()
         self.share_.OK.bind(on_release=self.share_window.dismiss) 
+        return
+    
+    def whoshere(self):
+        self.app.sm.current = "WhosHereScreen"
 
         
+class WhosHereScreen(Screen):
+    
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        wallet = self.app.wallets[0][self.app.current_wallet]
+        self.ids.wallet_name.text = self.app.current_wallet
+        data = []
+        level1pubkeys = wallet.level1pubkeys
+        for pubkey in wallet.public_key_list:
+            contact = self.app.db.get_contact_by_store_safe_pubkey( str( int.from_bytes(pubkey,"big") ) )
+            print(contact)
+            if contact[-1] in level1pubkeys: 
+                print(f"contact {contact} is a Level1")
+                contact.append("Day-Safe Only")
+            else: contact.append("All Accesss")
+            data.append(contact)
+            
+        participant_list = self.ids.participant_list
+        spacer = self.ids.spacer
+        for contact in data:
+                print(contact)
+                participant = Participant(contact[0][0]+" "+contact[0][1],contact[1])
+                participant_list.add_widget(participant)
         
+        n_ = len(wallet.public_key_list)
+        if n_<6: 
+            participant_list.size_hint_y = n_
+            spacer.size_hint_y = 5.1 - n_
+        else: 
+            participant_list.size_hint_y = 6
+            spacer.size_hint_y = 0.1
+        
+        return  
+    
+    def go_back(self):
+        self.app.sm.current = "StoreSafesScreen"
+           
+            
+            
+            
+            
+    
 class YearListScreen(Screen):
     font_size = "15sp"
     
@@ -682,7 +742,14 @@ class AddCosignerRow(BoxLayout):
         self.name = self.ids.button.cosigner = self.ids.label.text = f"Cosigner {cosigner_n}"
         self.ids.button.bind(on_release=parent.add_cosigner)
         
-        
+class Participant(BoxLayout):
+    
+    def __init__(self,name, level):
+        super().__init__()
+        self.name = self.ids.name.text = name
+        self.ids.level.text = level
+    
+    
 class NewStoreSafeScreen(Screen):
     font_size = "15sp"
     font_size_cosigners = "11sp"
@@ -766,6 +833,9 @@ class NewStoreSafeScreen(Screen):
         if len(level1) < 1 or len(level1) > len(pubkey_list)//2:
             raise Exception("Select at least 1 level1 manager, but not more than half of the total cosigners.")
         
+        if n - len(level1) + 1 < m:raise Exception(f"There must be at least the same amount of cosigners availabel for the \
+        week safe as 'm', but you only left {n - len(level1) + 1} cosigners available for the week safes.")
+        
         print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
             
         try:
@@ -782,6 +852,7 @@ class NewStoreSafeScreen(Screen):
     
     def update_n(self,string_n):
         cosigner_box = self.ids.cosigner_box
+        spacer = self.ids.spacer
         n = int(string_n)
         children = [child for child in cosigner_box.children]
         kids = len(children)
@@ -794,6 +865,13 @@ class NewStoreSafeScreen(Screen):
                 i = kids + kid 
                 box = AddCosignerRow(i,self)
                 cosigner_box.add_widget(box)
+                
+        if n<6: 
+            cosigner_box.size_hint_y = n
+            spacer.size_hint_y = 5.1 - (n-1)
+        else: 
+            cosigner_box.size_hint_y = 6
+            spacer.size_hint_y = 0.1
                 
     
     def go_back(self):
@@ -1142,7 +1220,8 @@ class CameraPopup(FloatLayout):
 class SafeTransferScreen(Screen, Send):
     font_size = "15sp"
     
-    
+    def go_back(self):
+        self.app.sm.current = self.app.caller 
     
     def on_pre_enter(self):
         self.app = App.get_running_app()
@@ -1169,7 +1248,7 @@ class GenericOkPopup(FloatLayout):
         super().__init__()
                                 
         message = TouchLabel(text= msg_txt,
-                       halign="center",size_hint= (0.6,0.3), 
+                       halign="center",size_hint= (0.6,0.3), multiline = True,
                         pos_hint={"center_x":0.5, "center_y":0.65}, font_size="14sp"
                        )
 
@@ -1456,6 +1535,7 @@ class walletguiApp(App):
         self.sm.add_widget(MyContactsScreen())
         self.sm.add_widget(ContactInfoScreen())
         self.sm.add_widget(DayScreen())
+        self.sm.add_widget(WhosHereScreen())
         return self.sm
 
     def on_stop(self):
