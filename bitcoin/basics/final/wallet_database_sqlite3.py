@@ -299,31 +299,50 @@ class Sqlite3Wallet:
             
         return True
     
-    def recover_utxo(self, tx_id):
-        #Set the utxos consumed by the transaction to NOT spent (spent=0)
+    def get_tx_ins(self, tx_id):
         #First, let's get all the tx_ins
         query = f"SELECT tx_id,out_index FROM Tx_Ins\nWHERE spent_by ='{tx_id}' ;"
         tx_ins = self.execute_w_res(query)
         print(f"tx_ins: {tx_ins}")
+        return tx_ins
         
-        #Now let's set the Utxo to NOT spent.
+    def set_utxos_spendable(self, tx_ins):
+        """
+        tx_ins: List of tuples: [(prev_tx1,index1),(prev_tx2,index2)...]
+        """
         for tx_in in tx_ins:
             query1 = f"UPDATE Utxos SET spent = 0  WHERE tx_id ="
             query2 = f" '{tx_in[0]}' AND out_index = '{tx_in[1]}' "
             query = query1 + query2
             self.execute(query)
-        
-        #Check Utxos
-        query1 = f"SELECT spent FROM Utxos WHERE tx_id = ("
-        query2 = f"SELECT tx_id FROM Tx_Ins WHERE spent_by = '{tx_id}') "
-        query3 = f"AND out_index = (SELECT out_index FROM Tx_Ins WHERE spent_by = '{tx_id}')"
-        query = query1 + query2 + query3
-        res = self.execute_w_res(query)
-        for utxo in res:
-            if utxo != 0: 
-                print(f"WARINING: UTXO CONFLICT!\ntx_id: {tx_id}")
-                raise Exception("Utxos are still saved as spent even though they have attempted to be set as not spent.")
         return True
+    
+    def check_utxos_are_spendable(self,utxos):
+        """
+        Checks that all the utxos are still spendable in the database. That is 'spent' = 0.
+        It will return True if all of the utxos are spendable, or False if at least one of\
+         them is not. It would also print in the terminal which ones are not spendable.
+        utxos: List of tuples: [(prev_tx1,index1),(prev_tx2,index2)...]
+        """
+        all_spendable = True
+        for utxo in utxos:
+            query = f"SELECT spent FROM Utxos WHERE tx_id = '{utxo[0]}' AND out_index = '{utxo[1]}' "
+            res = self.execute_w_res(query)
+            try:
+                all_spendable = all_spendable and not bool(res[0][0])
+                if res[0][0] != 0: print(f"utxo {utxo} is NOT spendable.")
+            except:
+                print("No such utxo")
+        return all_spendable
+              
+    def recover_utxo(self, tx_id):
+        #Set the utxos consumed by the transaction to NOT spent (spent=0)
+        tx_ins = self.get_tx_ins(tx_id)
+        #Now let's set the Utxo to NOT spent.
+        self.et_utxos_spendable(tx_ins)
+        #Check Utxos
+        job_done = self.check_utxos_are_spendable(tx_ins)
+        return job_done
     
     def delete_tx(self, tx_id):
         """
@@ -393,6 +412,7 @@ class Sqlite3Wallet:
     
     def new_broadcasted_partial_tx(self, tx_id):
         """
+        DEPRECATED!
         This method will delete the multi-signature transaction from the partial-tx database, and write it \
         into the actual transaction database. This will not modify the status of the UTXOs spent \
         in the partial tx since it was successfully broadcasted.
