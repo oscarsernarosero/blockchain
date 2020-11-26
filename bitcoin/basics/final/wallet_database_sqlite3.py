@@ -339,7 +339,7 @@ class Sqlite3Wallet:
         #Set the utxos consumed by the transaction to NOT spent (spent=0)
         tx_ins = self.get_tx_ins(tx_id)
         #Now let's set the Utxo to NOT spent.
-        self.et_utxos_spendable(tx_ins)
+        self.set_utxos_spendable(tx_ins)
         #Check Utxos
         job_done = self.check_utxos_are_spendable(tx_ins)
         return job_done
@@ -403,12 +403,33 @@ class Sqlite3Wallet:
         return True
     
     def delete_failed_partial_tx(self, tx_id):
-        #Set the utxos consumed by the transaction to NOT spent (spent=0)
-        try: self.recover_utxo(tx_id)
-        except: print("following with the deleting process. Please fix manually the recovering of the utxos.")
-        
+        #Check if the failed partial tx is actually a failed tx or just a successfull transaction that
+        #didn't get properly erased from the partial-tx database:
+        query = f"SELECT created FROM Transactions WHERE tx_id = {tx_id}"
+        res = self.execute_w_res(query)
+        if len(res) == 0:
+            #Set the utxos consumed by the transaction to NOT spent (spent=0)
+            try: self.recover_utxo(tx_id)
+            except: print("following with the deleting process. Please fix manually the recovering of the utxos.")
+
         return self.delete_partial_tx(tx_id)
         
+    def clean_expire_partial_tx(self):
+        """
+        This method cleans automatically the partial-transaction database from already expired partial-txs.
+        """
+        query = f"SELECT tx_id, created FROM PartialTransactions"
+        all_partial_txs = self.execute_w_res(query)
+        print(f"all_partial_txs: {all_partial_txs}")
+        
+        if len(all_partial_txs) > 0:
+            for partial_tx in all_partial_txs:
+                if partial_tx[1] > 60*60*24: 
+                    print(f"deleting expired partial tx {partial_tx[0]} from database")
+                    self.delete_failed_partial_tx(partial_tx[0])
+        else: print("No expired partial txs")  
+            
+        return    
     
     def new_broadcasted_partial_tx(self, tx_id):
         """
@@ -446,7 +467,7 @@ class Sqlite3Wallet:
         return self.delete_partial_tx(tx_id)
         
 
-    def update_cosigners_reply(self, tx_id, pubkey, reply):
+    def update_cosigners_reply(self, tx_id, pubkey, reply,m,n):
         """
         updates the cosigners_reply dictionary with the reply of the participant.
         tx_id: string. The tx id to update.
@@ -465,7 +486,19 @@ class Sqlite3Wallet:
         consigners_reply = ast.literal_eval(tx[3])
         consigners_reply[f"{pubkey}"] = reply
         print(f"consigners_reply updated: {consigners_reply}")
-        
+        #Let's make sure that the tx still has room to be approved. If not, we'll delete the transaction.
+        declined = False
+        declines = 0
+        for cosigner in consigners_reply:
+            reply = consigners_reply[cosigner]
+            if not reply and isinstance(reply,bool):
+                declines+=1
+                if declines > n - m:
+                    declined =  True
+                    print("Transaction has been rejected by cosigners")
+                    return self.delete_failed_partial_tx(tx_id)
+            
+        #if it hasn't been declined, then we proceed to update the reply in the database
         query = f"UPDATE PartialTransactions \nSET consigners_reply = '{str(consigners_reply)}' WHERE tx_id = '{tx_id}'"
         print(f"query from update_cosigners_reply\n{query}")
         return self.execute(query)

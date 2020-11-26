@@ -51,7 +51,7 @@ class Wallet(MasterAccount):
     def clean_addresses(self):
         print("cleaning addresses...")
         self.db.clean_addresses()
-        
+    
     def start_conn(self, conn=None):
         if conn:
             self.db= conn
