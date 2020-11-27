@@ -12,6 +12,7 @@ import time, threading
 from datetime import date, timedelta
 from abc import ABCMeta, abstractmethod
 import calendar
+import operator
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -426,12 +427,13 @@ class StoreSafesScreen(Screen):
         self.total = "A lot"
         self.app = App.get_running_app()
         print(f"StoreSafes app.current_wallet: {self.app.current_wallet}")
+        #Let's retreive the daily safes from the database.
         daily_safes = self.app.db.get_daily_safe_wallets(self.app.current_wallet)  
-        weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)  
-        print(f"weekly_safes: {weekly_safes}")
+        #Let's get the names of them
         full_names = [x[0] for x in daily_safes]
         print(full_names)
         daily_safe_date = {}
+        #Now let's filter them to only the ones from 2 weeks ago until tododay
         for full_name in full_names: 
             date_str,name = full_name.split("_")
             monthday,of,year = date_str.split("-")
@@ -440,15 +442,36 @@ class StoreSafesScreen(Screen):
         
         print(daily_safe_date)
         today = date.today()
-        two_weeks_ago = today - timedelta(days=14)#CHANGE THIS BACK TO 14!!!!!
-        filtered_daily_safes = [key for key in daily_safe_date if daily_safe_date[key] > two_weeks_ago and daily_safe_date[key] < today]
+        two_weeks_ago = today - timedelta(days=14)
+        filtered_daily_safes = [key for key in daily_safe_date if \
+                                daily_safe_date[key] > two_weeks_ago  and  daily_safe_date[key] < today]
         
+        #Now let's do the same with the week safes
+        weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)
+        print(f"weekly_safes: {weekly_safes}")
+        full_names = [x[0] for x in weekly_safes]
+        print(full_names)
+        week_safe_numbers = {}
+        #Now let's filter them to only the ones from 2 weeks ago until tododay
+        for full_name in full_names: 
+            week_number,name = full_name.split("_")
+            week,week_n,of,year = week_number.split("-")
+            #wallet_date = date.fromisocalendar(int("20"+year),int(week_n),1)#This will be available with python 3.8
+            wallet_week_int = int(year+"00") + int(week_n)
+            week_safe_numbers.update({f"{full_name}":wallet_week_int})
+        
+        print(week_safe_numbers)
+        #if len(week_safe_numbers)>7:
+        filtered_weekly_safes = sorted(week_safe_numbers.items(), key=operator.itemgetter(1))[:7]
+        
+
+
         no_wallet_msg ="You don't have any stores added yet." 
         
-        if len(daily_safes)>0: self.ids.daysafe_list.data = [{'text': x} for x in filtered_daily_safes]
+        if len(filtered_daily_safes)>0: self.ids.daysafe_list.data = [{'text': x} for x in filtered_daily_safes]
         else:  self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
             
-        if len(weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x[0]} for x in weekly_safes]   
+        if len(filtered_weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x[0]} for x in filtered_weekly_safes]   
         else: self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
