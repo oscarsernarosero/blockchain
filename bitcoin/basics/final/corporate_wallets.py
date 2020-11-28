@@ -448,9 +448,8 @@ class SHDSafeWallet(Wallet):
         if self.safe_index >= 0: raise Exception ("Only master wallets can create safe wallets.")
         path = "m/"
         if index is None:
-            this_week = datetime.datetime.now().isocalendar()
-            index_string = str(this_week[0])[2:]+str(this_week[1])
-            index = int(index_string)
+            this_year, this_week, _weekday  =  datetime.datetime.now().isocalendar()
+            index = int(  str(this_year)[2:] + f"{this_week:02d}"  )
             
         safe_wallet = self.get_child_wallet(index, path)
         

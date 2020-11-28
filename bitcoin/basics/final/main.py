@@ -1280,12 +1280,19 @@ class SafeTransferScreen(Screen, Send):
         amount = self.balance
         my_wallet = self.app.wallets[0][self.app.current_wallet]
         parent_wallet = self.app.wallets[0][my_wallet.parent_name]
-        this_week_wallet = parent_wallet.get_weekly_safe_wallet()
+        
+        date_str,name = my_wallet.name.split("_")
+        monthday,of,year = date_str.split("-")
+        wallet_date = date(int("20"+year),list(calendar.month_abbr).index(monthday[:3]),int(monthday[-2:]))
+        _year, week, _weekday  =  wallet_date.isocalendar()
+        week_safe_index = int(  str(_year)[2:] + f"{week:02d}"  )
+        
+        wallets_week_wallet = parent_wallet.get_weekly_safe_wallet(week_safe_index)
         
         #get_day_deposit_addresses still works for week safes, so...
-        raw_address = self.app.db.get_day_deposit_addresses(this_week_wallet.name)
+        raw_address = self.app.db.get_day_deposit_addresses(wallets_week_wallet.name)
         print(raw_address)
-        if len(raw_address) == 0: address = this_week_wallet.create_receiving_address()
+        if len(raw_address) == 0: address = wallets_week_wallet.create_receiving_address()
         else: address = raw_address[0][0]
         
         self.ids.address.text = address
