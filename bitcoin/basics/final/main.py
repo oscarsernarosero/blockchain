@@ -342,12 +342,8 @@ class MainScreen(Screen,Balance):
     usd_balance = 0.0
     
     
-    def __int__(self, **kwargs):
-        super().__init__()
-        self.app = App.get_running_app()
-    
     def on_pre_enter(self):
-        
+        self.app = App.get_running_app()
         
         if self.app.current_wallet is not None:
             self.my_wallet = self.app.wallets[0][self.app.current_wallet]
@@ -1054,6 +1050,8 @@ class WeekSafeScreen(Screen,Balance):
         self.app.sm.current = "StoreSafesScreen"
         
     def transfer(self):
+        self.app.current_wallet_balance = self.btc_balance_text
+        print(f"self.btc_balance_text: {self.btc_balance_text}")
         self.app.last_caller = self.app.caller
         self.app.caller = "WeekSafeScreen"
         self.app.sm.current = "SafeTransferScreen"
@@ -1067,37 +1065,45 @@ class Send():
         text_to_paste = pyperclip.paste()
         self.ids.address.text = text_to_paste
   
-    def confirm_popup(self):
+    def get_amount(self):
         #reading the inputs and 
         denomination = self.ids.denomination.text
         amount = None
+        
         try: 
             amount = float(self.ids.amount.text)
-            address = self.ids.address.text
-            if denomination == "Bitcoins": amount = int(amount*100000000)
-            else: amount = int(amount)
-
-            self.show = ConfirmSendPopup(amount,address,denomination)
-            self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(500,500), 
-                                     pos_hint={"center_x":0.5, "center_y":0.5}
-                                #auto_dismiss=False
-                               )
-            self.popupWindow.open()
-            self.show.YES.bind(on_release=self.start_sending)
-            self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
+            
         except: 
             #TRIGGER THE "WRONG INPUT POPUP"
             self.wrong_input = WrongInputPopup()
             self.wrongInputWindow = Popup(title="Not a valid amount", content=self.wrong_input, size_hint=(None,None), 
-                                          size=(500,500), pos_hint={"center_x":0.5, "center_y":0.5}
-                               )
+                                          size=(500,500), pos_hint={"center_x":0.5, "center_y":0.5})
             self.wrongInputWindow.open()
-            self.wrong_input.OK.bind(on_release=self.wrongInputWindow.dismiss)                    
+            self.wrong_input.OK.bind(on_release=self.wrongInputWindow.dismiss) 
+            
+        if denomination == "Bitcoins": amount = int(amount*100000000)
+        else: amount = int(amount)
+            
+        self.confirm_popup(amount,denomination)
+        return 
+    
+    def confirm_popup(self,amount):
+        
+        self.address = self.ids.address.text
+        self.amount = amount
+        
+        self.show = ConfirmSendPopup(amount,self.address,"Satoshis")
+        self.popupWindow = Popup(title="Confirm Transaction", content=self.show, size_hint=(None,None), size=(500,500), 
+                                 pos_hint={"center_x":0.5, "center_y":0.5}
+                            #auto_dismiss=False
+                           )
+        self.popupWindow.open()
+        self.show.YES.bind(on_release=self.start_sending)
+        self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
 
                                 
     def send_tx(self,screen, amount, address):
         "the button is the Button object"
-        print(screen.show.YES.text)
         print(f"amount: {amount}, address: {address}")
         print("SENDING TX")
         app = App.get_running_app() 
@@ -1131,21 +1137,22 @@ class Send():
         
     def send_tx_process(self):
         #reading the inputs and 
-        denomination = self.ids.denomination.text
-        amount = float(self.ids.amount.text)                        
-        address = self.ids.address.text
+        #denomination = self.ids.denomination.text
+        #amount = float(self.ids.amount.text)                        
+        #address = self.ids.address.text
+        address = self.address
         address = address.replace("\n","")
         address = address.strip(" ")
         address = address.strip("'")
         starts = address.rfind("'")
         address = address[starts+1:]                        
         
-        if denomination == "Bitcoins": amount = int(amount*100000000)
-        else: amount = int(amount)
+        #if denomination == "Bitcoins": amount = int(amount*100000000)
+        #else: amount = int(amount)
             
         #broadcasting transaction
         try: 
-            tx, sent = self.send_tx(self, amount, address)
+            tx, sent = self.send_tx(self, self.amount, address)
                                 
             #cleanning the inputs
             self.ids.amount.text = ""
@@ -1243,13 +1250,16 @@ class CameraPopup(FloatLayout):
 class SafeTransferScreen(Screen, Send):
     font_size = "15sp"
     
+    
     def go_back(self):
         self.app.sm.current = self.app.caller 
     
     def on_pre_enter(self):
         self.app = App.get_running_app()
         print(f"self.app.current_wallet_balance {self.app.current_wallet_balance}")
-        self.ids.balance.text = self.app.current_wallet_balance
+        balnace_txt = self.ids.balance.text = self.app.current_wallet_balance
+        self.balance = int(float(balnace_txt.split()[0])*100000000)
+        print(f"balance in satoshis: {self.balance}")
         print(self.app.caller)
         if self.app.caller == "WeekSafeScreen":
             self.ids.title.text = "Transfer Week Safe"
@@ -1259,9 +1269,18 @@ class SafeTransferScreen(Screen, Send):
             self.ids.title.text = "Transfer Day Safe"
             self.ids.transfer.text = "Transfer From This Day"
             self.ids.transfer_all.text = "Transfer All To\Week's Safe"
+            self.ids.transfer_all.bind(on_press=self.send_all_week_safe)
         else: self.ids.title.text = self.ids.transfer.text = self.ids.transfer_all.text =  "Error"
+        
     
-    
+    def send_all_week_safe(self,button):
+        """
+        """
+        amount = self.balance
+        
+        self.confirm_popup(amount)
+        
+        
 
 class NewWalletPopup(FloatLayout):
     pass

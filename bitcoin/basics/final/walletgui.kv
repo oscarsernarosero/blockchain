@@ -562,7 +562,7 @@
                     values: "Bitcoins","Satoshis"
             Button:
                 text:"SEND"
-                on_press: send.confirm_popup()
+                on_press: send.get_amount()
                 font_name: "Arial Black"
                 font_size: "20sp"
                 background_color: 0.6,1,0.8,1
@@ -1442,7 +1442,7 @@
 
         Button: 
             text:"SEND"
-            on_press: send.confirm_popup()
+            on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -1583,7 +1583,7 @@
         Button: 
             text:"ADD PAYMENT"
             size_hint: 1,0.2
-            #on_press: send.confirm_popup()
+            #on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"   
             
@@ -1614,7 +1614,7 @@
 
             Button: 
                 text:"REVIEW"
-                #on_press: send.confirm_popup()
+                #on_press: send.get_amount()
                 font_name: "Arial Black"
                 font_size: "20sp"  
                 size_hint: 1,0.2
@@ -1668,7 +1668,7 @@
         
         Button: 
             text:"Create New Account"
-            #on_press: send.confirm_popup()
+            #on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"  
             size_hint: 1,0.2
@@ -2003,7 +2003,7 @@
         Button: 
             id: transfer
             text:"Send From\nThis Day"
-            on_press: safe_transfer_screen.confirm_popup()
+            on_press: safe_transfer_screen.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -2204,7 +2204,7 @@
              
         Button: 
             text:"Send"
-            #on_press: send.confirm_popup()
+            #on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -2219,7 +2219,7 @@
 
         Button: 
             text:"Send All to\nCorporate Safe"
-            #on_press: send.confirm_popup()
+            #on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"
             
@@ -2234,7 +2234,7 @@
         
         Button: 
             text:"Make Multiple\nPayments"
-            #on_press: send.confirm_popup()
+            #on_press: send.get_amount()
             font_name: "Arial Black"
             font_size: "20sp"
   
@@ -2908,6 +2908,8 @@
             
         Button:
             text: "Transfer All to Week Safe"
+            on_press: 
+                day_screen.send_all_week_safe()
             
         
 <WhosHereScreen>:

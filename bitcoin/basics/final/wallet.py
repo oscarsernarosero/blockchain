@@ -172,11 +172,12 @@ class Wallet(MasterAccount):
                 else:
                     raise Exception (f"index must be less than {2**31-1} ")
         else:
-            try: print(f"{self.db} OK.")
-            except: self.start_conn()
+            #try: print(f"{self.db} OK.")
+            #except: 
+            self.start_conn()
                 
             last_index = self.db.get_max_index( account_path, self.get_xtended_key())
-            
+            print(f"last_index: {last_index}")
             if last_index is None: i = 0
             else: i = last_index + 1
             self.close_conn()

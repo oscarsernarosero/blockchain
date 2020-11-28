@@ -619,7 +619,7 @@ class SHDSafeWallet(Wallet):
         if total_amount>balance:
             raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
         
-        elif total_amount == balance: send_all = True
+        elif total_amount > balance - 200 and total_amount <= balance: send_all = True
             
             
         #We choose the utxos to spend for the transaction
