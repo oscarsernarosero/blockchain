@@ -1265,6 +1265,7 @@ class SafeTransferScreen(Screen, Send):
             self.ids.title.text = "Transfer Week Safe"
             self.ids.transfer.text = "Transfer From This Week"
             self.ids.transfer_all.text = "Transfer All To\nCorporate's Safe"
+            self.ids.transfer_all.bind(on_press=self.send_all)
         elif self.app.caller == "DayScreen":
             self.ids.title.text = "Transfer Day Safe"
             self.ids.transfer.text = "Transfer From This Day"
@@ -1274,6 +1275,26 @@ class SafeTransferScreen(Screen, Send):
         
     
     def send_all_week_safe(self,button):
+        """
+        """
+        amount = self.balance
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
+        parent_wallet = self.app.wallets[0][my_wallet.parent_name]
+        this_week_wallet = parent_wallet.get_weekly_safe_wallet()
+        
+        #get_day_deposit_addresses still works for week safes, so...
+        raw_address = self.app.db.get_day_deposit_addresses(this_week_wallet.name)
+        print(raw_address)
+        if len(raw_address) == 0: address = this_week_wallet.create_receiving_address()
+        else: address = raw_address[0][0]
+        
+        self.ids.address.text = address
+        #self.ids.denomination.text = "Satoshis"
+        #self.ids.amount.text = amount
+        
+        self.confirm_popup(amount)
+        
+    def send_all(self,button):
         """
         """
         amount = self.balance
