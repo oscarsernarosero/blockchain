@@ -1050,7 +1050,6 @@
             #pos_hint: {'center_x':1, 'center_y': 0.25}
             on_press: store_safes_screen.share()
         
-        
                                            
 <YearListScreen>:
     id: year_list_screen
@@ -1177,8 +1176,8 @@
     
     BoxLayout:
         orientation: "vertical"
-        spacing: 50
-        padding: 50
+        spacing: 15
+        padding: [50,80,50,50]
         
         
         
@@ -1191,20 +1190,56 @@
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
-            text: "Total:"
+            text: "Total Bitcoins here:"
             
         Label:
             size_hint: 1, 0.1
             halign: "auto"
             valign: "middle"
             font_name: "Arial Black"
-            font_size:  corporate_screen.font_size
+            font_size:  "20sp"
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
             text: corporate_screen.total
             
         Label:
+            #spacer
+            size_hint_y: 0.1
+            
+         
+        Button: 
+            id: transfer
+            text: "[b]Tranfer[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            background_color: 0.3,0.6,1,1
+            markup: True
+            on_press:corporate_screen.transfer()
+                
+        Button: 
+            id: multiple_transfers
+            background_color: 0.3,0.6,1,1
+            text: "[b]Tranfer to Multiple[/b] Addresses"
+            size_hint: 1, 0.3
+            size: 5,5
+            markup: True
+            on_press:corporate_screen.multiple_transfers()
+        
+        Button: 
+            id: receive
+            background_color: 0.3,1,0.6,1 
+            markup: True
+            text: "[b]Receive[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            on_press: corporate_screen.receive()
+            
+        Label:
+            #spacer
+            size_hint_y:0.1
+        
+        Label:
             size_hint: 1, 0.1
             halign: "auto"
             valign: "middle"
@@ -1213,9 +1248,9 @@
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
-            text: "Year Accounts:"
+            text: "Sub Accounts: "
             
-            
+        
         RecycleView:
             id: account_list
             viewclass: 'SelectAccount'
@@ -1235,34 +1270,12 @@
                         size: self.size
                         
         Button: 
-            id: transfer
-            text: "Tranfer"
-            size_hint: 1, 0.3
-            size: 5,5
-            #pos_hint: {'center_x':1, 'center_y': 0.25}
-            on_press: 
-                app.root.current = "CorporateTransferScreen"
-                root.manager.transition.direction = "right"
-                
-        Button: 
             id: receive
-            text: "Receive"
+            text: "Create New Sub-Account"
             size_hint: 1, 0.3
             size: 5,5
-            #pos_hint: {'center_x':1, 'center_y': 0.25}
-            on_press: 
-                app.root.current = "ReceiveAccountScreen"
-                root.manager.transition.direction = "right"
-        
-        Button: 
-            text: "Go Back"
-            size_hint: 1, 0.2
-            size: 5,5
-            #pos_hint: {'center_x':1, 'center_y': 0.25}
-            on_press: 
-                app.root.current = "WalletType"
-                root.manager.transition.direction = "right"        
-                
+            on_press: corporate_screen.new_subaccount()
+         
                                 
 <CorporateTransferScreen>:
     id: corporate_transfer_screen

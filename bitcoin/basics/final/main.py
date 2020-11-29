@@ -622,7 +622,7 @@ class YearListScreen(Screen):
         
             
 class CorporateScreen(Screen):
-    font_size = "20sp"
+    font_size = "15sp"
     total= StringProperty()
     
     def __init__(self, **kwargs):
