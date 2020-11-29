@@ -38,9 +38,10 @@ from kivy.uix.image import AsyncImage
 from kivy.properties import StringProperty,BooleanProperty, ObjectProperty, NumericProperty, ListProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 import kivy.input.motionevent 
+from kivy.config import Config 
+from kivy.core.window import Window
 from functools import partial
-Config.set('graphics','width',300)
-Config.set('graphics','height',600)
+
 
 def store_wallet(app, rv, index, _wallet):
     app.wallets[0].update({f"{rv.data[index]['text']}": _wallet})
@@ -447,18 +448,18 @@ class StoreSafesScreen(Screen):
         print(f"weekly_safes: {weekly_safes}")
         full_names = [x[0] for x in weekly_safes]
         print(full_names)
-        week_safe_numbers = {}
-        #Now let's filter them to only the ones from 2 weeks ago until tododay
+        week_safe_dates = {}
+        #Now let's filter them to only the ones from 8 weeks ago until tododay
         for full_name in full_names: 
             week_number,name = full_name.split("_")
             week,week_n,of,year = week_number.split("-")
-            #wallet_date = date.fromisocalendar(int("20"+year),int(week_n),1)#This will be available with python 3.8
-            wallet_week_int = int(year+"00") + int(week_n)
-            week_safe_numbers.update({f"{full_name}":wallet_week_int})
-        
-        print(week_safe_numbers)
-        #if len(week_safe_numbers)>7:
-        filtered_weekly_safes = sorted(week_safe_numbers.items(), key=operator.itemgetter(1))[:7]
+            wallet_date = date.fromisocalendar(int("20"+year),int(week_n),1)#This will be available with python 3.8
+            week_safe_dates.update({f"{full_name}":wallet_date})
+            print(wallet_date)
+            
+        eight_weeks_ago = today - timedelta(days=56)
+        filtered_weekly_safes = [key for key in week_safe_dates if \
+                                week_safe_dates[key] > eight_weeks_ago  and  week_safe_dates[key] < today]
         
 
 
@@ -467,7 +468,7 @@ class StoreSafesScreen(Screen):
         if len(filtered_daily_safes)>0: self.ids.daysafe_list.data = [{'text': x} for x in filtered_daily_safes]
         else:  self.ids.daysafe_list.data = [{'text': no_wallet_msg}]
             
-        if len(filtered_weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x[0]} for x in filtered_weekly_safes]   
+        if len(filtered_weekly_safes)>0: self.ids.weeksafe_list.data = [{'text': x} for x in filtered_weekly_safes]   
         else: self.ids.weeksafe_list.data = [{'text': no_wallet_msg}]
         
     def go_back(self):
@@ -1546,6 +1547,11 @@ class ReceiveScreen(Screen):
 
 
 class walletguiApp(App):
+    Config.set('graphics','resizable',0)
+    Config.set('graphics','width',300)
+    Config.set('graphics','height',600)
+    
+    Window.size = (300, 600)
     
     title = "Wallet"
     
