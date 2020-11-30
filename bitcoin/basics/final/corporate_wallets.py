@@ -880,7 +880,12 @@ class HDMWallet(Wallet):
         return self(name, master_pubkey_list,master_privkey, w[2],w[3],
                     w[5],w[6],w[7],parent_name,w[9])
     
-    def get_i(self,wallet_name, account_path, index):
+    def get_i(self,wallet_name, account_path, index=None):
+        
+        if index is not None:
+            if index>=0: 
+                print(f"reusing address with index {index}")
+                return index
         
         self.start_conn()
 
@@ -899,8 +904,15 @@ class HDMWallet(Wallet):
         """
         #data validation
         if self.safe_index > -1: raise Exception ("Only master wallets can create child wallets.")  
-        if index < 20 or index > 99:
-            raise Exception ("Bad index for year wallet. Follow YY format.")
+        
+        #If self.index is < 0 it means it is a master wallet. Therefore, the very next child wallets must be
+        #Year accounts which must follow the YY format.
+        if index < 20 or index > 99: raise Exception ("Bad index for year wallet. Follow YY format.")
+        
+        #Accounts with index 0 and 1 are reserved for deposit and change adddresses. Therefore, the index must be
+        #always greater than 1.
+        #if index < 2: raise Exception ("Bad index for sub-wallet. Index must be greater than 1.")
+            
         
         full_path = path + str(index)
         child_xtended_privkey = self.master_privkey.get_child_from_path(full_path)
@@ -929,26 +941,75 @@ class HDMWallet(Wallet):
         
         return safe_wallet
     
-    def get_unused_addresses_list(self, change_addresses=False):
+    def get_sub_wallet(self, index=None):
+        """
+        WARINING: CURRENTLY NOT BEING USED! this method is not being used due to design changes. The \
+        new design uses only accounts from the year-corporate wallet instead of creating child wallets.
         
+        Returns a year_safe wallet based on the index. If a new wallet is being created, don't pass \
+        any argument since the method should decide what index to assign the new wallet. Index must be\
+         used only when recoverying an existing wallet.
+        """
+        #if self.safe_index >= 0: raise Exception ("Only master wallets can create safe wallets.")
+        path = "m/"
+        if index is None:
+            self.start_conn()
+
+            last_index = self.db.get_max_child_wallet_index( self.name)
+
+            if last_index is None: i = 0
+            else: i = last_index + 1
+
+            self.close_conn()
+            
+        child_wallet = self.get_child_wallet(index, path)
+        
+        return child_wallet
+    
+    def get_unused_addresses_list(self, change_addresses=False, account_index=None):
+        """
+        change_addresses: Boolean. If change addresses are desired, set this to True.
+        account_index: int. The index of the corporate account in the BIP32 tree
+        """
         self.start_conn()
         unused_addresses = self.db.get_unused_safe_addresses(name = self.name)
         self.close_conn()
         print(f"unused_addresses: {unused_addresses}")
         
-        if    change_addresses: unused_addresses_filtered =  [x for x in unused_addresses if x[1]==1]
-        else: unused_addresses_filtered =  [x for x in unused_addresses if x[1]==0]
+        if account_index is None: 
+            if change_addresses: receiving_path = "m/1/"
+            else: receiving_path = "m/0/"
+        else: 
+            if account_index < 2: raise Exception("Acount indeces 0 and 1 are reserved.")
+            if change_addresses: receiving_path = f"m/{account_index}/1/"
+            else: receiving_path = f"m/{account_index}/0/"
+            
+            
+        unused_addresses_filtered = [x for x in unused_addresses if x[2]==receiving_path]
+        
+        #if    change_addresses: unused_addresses_filtered =  [x for x in unused_addresses if x[1]==1]
+        #else: unused_addresses_filtered =  [x for x in unused_addresses if x[1]==0]
         
         return unused_addresses_filtered
                                
                                
-    def create_receiving_address(self, addr_type = "p2wsh",index=None):
+    def create_receiving_address(self, addr_type = "p2wsh",index=None, account_index=None):
+        """
+        index: int. If an address with a specific index is desired then 'index' must be an int.
+        account_index: int. The index of the corporate account in the BIP32 tree
+        """
         if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
         if addr_type.lower() ==    "p2sh":       _type  = P2SH
         elif addr_type.lower() ==   "p2wsh":     _type  = P2WSH
         elif addr_type.lower() == "p2sh_p2wsh":  _type  = P2SH_P2WSH
         else: raise Exception(f"{addr_type} is NOT a valid type of address.")
-        receiving_path = "m/0/"
+            
+        if account_index is None: 
+            receiving_path = "m/0/"
+        else: 
+            if account_index < 2: raise Exception("Acount indeces 0 and 1 are reserved.")
+            receiving_path = f"m/{account_index}/0/"
+            
         i = self.get_i(self.name,receiving_path, index)
         path = receiving_path + str(i)
         print(f"Deposit address's Path: {path}")
@@ -965,11 +1026,22 @@ class HDMWallet(Wallet):
         return address
 
     
-    def create_change_address(self, addr_type = "p2wsh", index=None):
+    def create_change_address(self, addr_type = "p2wsh", index=None, account_index=None):
+        """
+        index: int. If an address with a specific index is desired then 'index' must be an int.
+        account_index: int. The index of the corporate account in the BIP32 tree
+        """
         if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
-        receiving_path = "m/1/"
+        
         
         i = self.get_i(self.name,receiving_path, index)
+        
+        if account_index is None: 
+            receiving_path = "m/1/"
+        else: 
+            if account_index < 2: raise Exception("Acount indeces 0 and 1 are reserved.")
+            receiving_path = f"m/{account_index}/1/"
+        
         path = receiving_path + str(i)
         print(f"Change address's Path: {path}")
         
@@ -982,14 +1054,15 @@ class HDMWallet(Wallet):
         self.close_conn()
         return change_account
     
-    def get_a_change_address(self):
+    def get_a_change_address(self, account_index=None):
         """
         Returns an Account object containing a change address. It returns an existing unused change
         address account, or creates a new one if necessary.
+        account_index: int. The index of the corporate account in the BIP32 tree
         """
         if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
         self.start_conn()
-        unused_addresses = self.get_unused_addresses_list(change_addresses=True)
+        unused_addresses = self.get_unused_addresses_list(change_addresses=True, account_index=account_index)
         self.close_conn()
         
         if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[0][3])
@@ -1001,18 +1074,43 @@ class HDMWallet(Wallet):
                 "testnet":self.testnet, "segwit":self.segwit }
     
 
+    def new_account(self, index, name):
+        """
+        index: int. must be greater than 1.
+        name: name of the account being created.
+        """
+        self.db.new_corportate_account(name,index,self.name)
+       
     def get_utxos(self):
         """
         This method is an overwritten version of the original Wallet-class version.
         """
         self.start_conn()
-        ################################ FOR DEVOLPMENT PORPUSES ONLY ###############################
-        ############### CHANGE BACK TO ORIGINAL STATE ONCE DONE WITH TESTS ##########################
-        #coins = self.db.look_for_coins(self.name) #ORIGINAL LINE!
-        coins = self.db.look_for_coins("2020_Corporate_wallet_master") #TEST LINE
-        ############################################################################################
+        coins = self.db.look_for_coins(self.name) 
         self.close_conn()
         return coins
+    
+    def get_utxos_from_corporate_account(self,account_index=None):
+        """
+        This method is an overwritten version of the original Wallet-class version.
+        account_index: int. The index of the corporate account in the BIP32 tree. If set \
+        to None, it will return only the utxos from accounts 0 and 1.
+        """
+        self.start_conn()
+        coins = self.db.look_for_coins(self.name) #ORIGINAL LINE!
+        
+        if account_index is None: 
+            change_path = "m/1/"
+            deposit_path = "m/0/"
+        else: 
+            if account_index < 2: raise Exception("Acount indeces 0 and 1 are reserved.")
+            change_path = f"m/{account_index}/1/"
+            deposit_path = f"m/{account_index}/0/"
+            
+        coins_from_account = [ x for x in unused_addresses  if  x[3] == change_path  or  x[3] == deposit_path ]
+        
+        self.close_conn()
+        return coins_from_account
     
     def update_balance(self):
         """
@@ -1050,8 +1148,32 @@ class HDMWallet(Wallet):
         self.close_conn()
         return self.get_balance()
         
-    def get_coins(self, to_address_amount_list, segwit=True):
-        send_all = False
+    def get_balance(self, coins):
+        """
+        This is an overwritten version of the parent class.
+        total: Boolean. If true, it will return the total balance of the wallet including the \
+        balances in the accounts. If False, it will return the balance only from accounts 0 and 1.
+        account_index: int. If the balance of a specific account is desired, then specify
+        the index of the account through this argument. If 'total' is True, this argument will \
+        be ignored.
+        """
+        """
+        if    total:               coins = self.get_utxos()
+        elif account_index is None:coins = self.get_utxos_from_corporate_account()
+        else:                      coins = self.get_utxos_from_corporate_account(account_index)
+        
+        print(coins)
+        """
+        balance = 0
+        if len(coins)>0:
+            for coin in coins:
+                print(coin)
+                "coin will be an array with data [ tx_id, out_index, amount ]"
+                balance += coin[2]
+        return balance
+    
+    def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False):
+        
         
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
@@ -1059,17 +1181,29 @@ class HDMWallet(Wallet):
         for output in to_address_amount_list:
             total_amount += output[1]
             
-            
-        #we validate that we have funds to carry out the transaction, or if we are trying to send all the funds  
-        balance = self.get_balance()
-        if total_amount>balance:
-            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
-        
-        elif total_amount == balance: send_all = True
-            
-            
         #We choose the utxos to spend for the transaction
-        all_utxos = self.get_utxos()
+        #all_utxos = self.get_utxos()
+        if    total:               all_utxos = self.get_utxos()
+        elif account_index is None:all_utxos = self.get_utxos_from_corporate_account()
+        else:                      all_utxos = self.get_utxos_from_corporate_account(account_index)
+        
+        balance = self.get_balance(all_utxos)
+        
+        if send_all is None or not send_all:
+            #We make a rough calculation of the fee by asumming 146 bytes per input and 34 bytes per output.
+            #Also, we assume the body of the transaction like version, locktime, etc is around 10 bytes.
+            #we set a minimum value per byte of 2 to do the initial calculation.
+            min_estimated_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*2
+            #we validate that we have funds to carry out the transaction, or if we are trying to send all the funds 
+            if total_amount > balance - min_estimated_fee:
+                raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
+
+            send_all = False
+            #Now we calculate a regular fee with a value per byte of 3 satoshis, and add a dust fee to avoid the 
+            #unnecessary creation of a dust output, to see if we have exactly    
+            max_estimated_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*4 + 546   
+            elif total_amount > balance - max_estimated_fee: send_all = True
+
         
         #If we are trying to send all the funds, then we choose all the utxos
         if send_all: utxos = all_utxos
