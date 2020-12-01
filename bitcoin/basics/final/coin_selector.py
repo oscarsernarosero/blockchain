@@ -335,7 +335,7 @@ def naive_coin_selection(utxos, total_out,n_outputs,min_fee_per_byte=70):
         return coins
      
         
-def get_coins_change(utxos, total_out, n_outputs, min_fee_per_byte=70):
+def get_coins_ready(utxos, total_out, n_outputs, min_fee_per_byte=70):
     #first let's try to get an exact change:
     coins = select_coins_by_exact_match(utxos, total_out, n_outputs,min_fee_per_byte)
     

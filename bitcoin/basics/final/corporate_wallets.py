@@ -603,47 +603,40 @@ class SHDSafeWallet(Wallet):
         self.close_conn()
         return self.get_balance()
         
-    def get_coins(self, to_address_amount_list, segwit=True):
-        send_all = False
+    
+    
+    
+    def get_coins(self, to_address_amount_list, send_all = None, segwit=True,min_fee_per_byte=70):
+        
         
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
-        total_amount = 0
-        for output in to_address_amount_list:
-            total_amount += output[1]
-            
-            
-        #we validate that we have funds to carry out the transaction, or if we are trying to send all the funds  
-        balance = self.get_balance()
-        if total_amount>balance:
-            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
+        total_amount = sum([x[1] for x in to_address_amount_list])
         
-        elif total_amount > balance - 200 and total_amount <= balance: send_all = True
-            
-            
-        #We choose the utxos to spend for the transaction
+        #We get all of our utxos and calculate our balance by the way.
         all_utxos = self.get_utxos()
+        if len(all_utxos) == 0: raise Exception("There is no coins at all here.")
+        balance = sum([x[2] for x in all_utxos])
         
-        #If we are trying to send all the funds, then we choose all the utxos
-        if send_all: utxos = all_utxos
-        #If not, then we have to choose in an efficient manner.
-        else:    
-            utxos = []
-            utxo_total = 0
+        #We calculate the min and max fee for using all of our coins:
+        min_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*min_fee_per_byte
+        max_fee = min_fee*2 + 546
+        
+        #If we are trying to send more than what we have minus the minumim fee, but we are not explicitly
+        #trying to send all of our money somewhere, then we raise an exception. We don't have enough funds.
+        if total_amount>balance-min_fee and send_all is None:
+            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available for a tx\
+            with minimum fee of {min_fee} and a total output of {total_amount}")
+        
+        #If not, we try to find out if this tx is unawarely trying to spend all of our funds:
+        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and send_all is None: send_all = True
             
-            #First we check if only one utxo can carry out the whole transaction
-            for utxo in all_utxos:
-                if utxo[2] > total_amount*1.1:
-                    utxos = [utxo]
-                    break
-            #if we found that none of the utxos is big enough to carry out the whole tx, we have to choose several.
-            if len(utxos)==0:    
-                for utxo in all_utxos:
-                    utxos.append(utxo)
-                    utxo_total += utxo[2]
-                    if utxo_total > (total_amount*1.1) : break
+        #If we are indeed trying to send all the funds, then we choose all the utxos
+        if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
+        #If not, then we have to choose in an efficient manner.
+        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
         
-        return utxos, send_all
+        return coins
     
     def build_tx(self, utxos, to_address_amount_list, segwit=True, send_all = False):
         
