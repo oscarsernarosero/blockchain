@@ -194,7 +194,7 @@ class Transaction(Transact):
         return testnet
     
     @classmethod
-    def get_outputs(self, receivingAddress_w_amount_list, account=None, send_all=False):
+    def get_outputs(self, receivingAddress_w_amount_list, account=None, change=0):
         """
         receivingAddress_w_amount_list: ('receiving_address',amount_in_satoshi)
         account: can be an Account object or an address (String)
@@ -203,8 +203,6 @@ class Transaction(Transact):
         
         #https://en.bitcoin.it/wiki/List_of_address_prefixes
         #We create the tx outputs based on the kind of address
-        
-        if send_all == False and account is None: raise Exception("A change account must be provided if send_all is False. If not, this would result in a lost of funds.")
         
         tx_outs = []
         for output in receivingAddress_w_amount_list:
@@ -219,14 +217,13 @@ class Transaction(Transact):
             else:raise Exception ("Not supported address.")
         
         #Let's return the fake change to our change-account address. 
-        if not send_all:
-            #we check if we received an address or an account as an argument and convert it if necessary.
-                
-            if account.addr_type == "p2pkh":tx_outs.append( TxOut(1000000, p2pkh_script(decode_base58(account.address))))
+        if account:
+            if account.addr_type == "p2pkh":
+                tx_outs.append( TxOut(change, p2pkh_script(decode_base58(account.address))))
             elif account.addr_type in ["p2wpkh","p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
+                tx_outs.append( TxOut(change, p2wpkh_script(self.decode_p2wpkh_addr(account.address))))
             elif account.addr_type in  ["p2sh","p2sh_p2wpkh","p2sh_p2wsh"]:
-                tx_outs.append( TxOut(1000000, p2sh_script(decode_base58(account.address))))
+                tx_outs.append( TxOut(change, p2sh_script(decode_base58(account.address))))
             else: raise Exception ("Not supported address.")
             
         return tx_outs
@@ -373,6 +370,11 @@ class MultiSigTransaction(Transaction):
     
     @classmethod
     def unsigned_tx(self,tx_ins, tx_outs, testnet, segwit, sender_account, utxos,receivingAddress_w_amount_list,send_all):
+        """
+        DEPRECATED. Since the development of a better coin-selector algotithm, this method is no longer needed since the fee is \
+        already calculated in the stated method. The creation of the Tx object is the only step that is still valuable, but \
+        since it is a single-line peace of code, it is done within the method create_from_wallet().
+        """
         
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
         
@@ -391,7 +393,11 @@ class MultiSigTransaction(Transaction):
 
     @classmethod
     def unsigned_tx_from_wallet(self,tx_ins, tx_outs, testnet, segwit,utxos,receivingAddress_w_amount_list, utxo_list, send_all):
-        
+        """
+        DEPRECATED. Since the development of a better coin-selector algotithm, this method is no longer needed since the fee is \
+        already calculated in the stated method. The creation of the Tx object is the only step that is still valuable, but \
+        since it is a single-line peace of code, it is done within the method create_from_wallet().
+        """
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
         
         fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit=segwit)
@@ -424,7 +430,7 @@ class MultiSigTransaction(Transaction):
     def sign1by1_with_wallet(self, utxo_list, transaction, account):
         """
         transaction: must be Tx object.
-        sender account: must be Multisignature object.
+        account: must be Multisignature object.
         """
         
         for tx_input in range(len(transaction.tx_ins)):
@@ -481,13 +487,14 @@ class MultiSigTransaction(Transaction):
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
         sender_account: must be a MultSigAccount object. 
-        change_address: String. The address to receive the change.
+        change_address: String/account object. The address to receive the change/account object.
         If fee is specifyed, then the custom fee will be applied.
         """
         #testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         testnet = sender_account.testnet
-        if send_all:  tx_outs = self.get_outputs(receivingAddress_w_amount_list, send_all = send_all)
-        else:         tx_outs = self.get_outputs(receivingAddress_w_amount_list, account = change_address)
+        if not coins["change"]:  tx_outs = self.get_outputs(receivingAddress_w_amount_list)
+        else: tx_outs = self.get_outputs(receivingAddress_w_amount_list, account = change_address, change = coins["change"])
+            
         #tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
         tx_ins_utxo = self.get_inputs(utxo_tx_id_list)#change name of variable from utxo_tx_id_list to utxo_list
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
@@ -504,9 +511,9 @@ class MultiSigTransaction(Transaction):
             return (final_tx,True)
     
     @classmethod
-    def create_from_wallet(self, utxo_list, receivingAddress_w_amount_list, 
+    def create_from_wallet(self, coins, receivingAddress_w_amount_list, 
                multi_sig_account, 
-               change_address, 
+               change_account, 
                fee=None, #Modify code to allow manual fee!!!
                  segwit=False, send_all=False, no_change=False):
         """
@@ -516,32 +523,30 @@ class MultiSigTransaction(Transaction):
         receivingAddress_w_amount_list: a list of tuples (to_address,amount) specifying
         the amount to send to each address.
         multi_sig_account: must be a multi-signature account such as SHMAccount or an FHMAccount object. 
-        change_address: String. The address to receive the change.
+        change_account: Account object. The Account of the address to receive the change.
         If fee is specifyed, then the custom fee will be applied.
         """
         #testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         testnet = multi_sig_account.testnet
         #Maybe, we can create the change account inside this method instead of receiving it through the arguments.
-        if send_all:  tx_outs = self.get_outputs(receivingAddress_w_amount_list, send_all = send_all)
-        else:         tx_outs = self.get_outputs(receivingAddress_w_amount_list, account = change_address)
+        if not coins["change"]: tx_outs = self.get_outputs(receivingAddress_w_amount_list)
+        else: tx_outs = self.get_outputs(receivingAddress_w_amount_list,account = change_account,change=coins["change"])
+            
         #tx_ins_utxo = self.get_tx_ins_utxo(utxo_tx_id_list, sender_account.address, testnet)
-        tx_ins_utxo = self.get_inputs(utxo_list)
+        tx_ins_utxo = self.get_inputs(coins["utxos"])
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
         
-        #THIS IS BASICALLY WHERE OUR NEW METHOD PUTS US. ALL ABOVE THIS IS PRACTICALLY USELESS NOW. 
-        #WE STILL HAVE TO MODIFY THE FOLLOWIN METHOD SINCE WE DON'T NEED FEES OR CHANGE ANYMORE.
-        #unsigned_tx_from_wallet NOW IS USELESS TOO SINCE WE ONLY NEED THE Tx OBJECT WHICH WE CAN JUST
-        #CREATE HERE WITH THE INFO CONTAINED IN THE RESPONSE FROM THE COIN-SELECTION ALGORITHM
-        fee, change, transaction = self.unsigned_tx_from_wallet(tx_ins, tx_outs, testnet, segwit,
-                                                                utxos,receivingAddress_w_amount_list, 
-                                                                utxo_list, send_all)
         
-        transaction = self.sign1by1_with_wallet(utxo_list, transaction, multi_sig_account)
+        transaction = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
+        
+        
+        transaction = self.sign1by1_with_wallet(coins["utxos"], transaction, multi_sig_account)
         final_tx =  self.verify_signatures_with_wallet(transaction, multi_sig_account)
         if isinstance(final_tx,bool):
             print("transaction not ready to broadcast")
-            return (MultiSigTransaction(transaction, None, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit),False)
+            return (MultiSigTransaction(transaction, None, tx_ins,utxos ,tx_outs, coins['fee'], coins['change'], 
+                                        testnet, segwit),False)
         else:
             print("transaction ready!")
             return (final_tx,True)
