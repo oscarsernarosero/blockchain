@@ -602,12 +602,14 @@ class SHDSafeWallet(Wallet):
       
         self.close_conn()
         return self.get_balance()
-        
-    
     
     
     def get_coins(self, to_address_amount_list, send_all = None, segwit=True,min_fee_per_byte=70):
-        
+        """
+        Returns a dictionary with the utxos, fee, and change.
+        to_address_amount_list: List of tuples [(address1,amount1),(address2,amount2),...]
+        send_all: bool/None: if you are trying to send all of your funds somewhere else, set this to True.
+        """
         
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
@@ -624,12 +626,12 @@ class SHDSafeWallet(Wallet):
         
         #If we are trying to send more than what we have minus the minumim fee, but we are not explicitly
         #trying to send all of our money somewhere, then we raise an exception. We don't have enough funds.
-        if total_amount>balance-min_fee and send_all is None:
+        if total_amount>balance-min_fee and not send_all:
             raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available for a tx\
             with minimum fee of {min_fee} and a total output of {total_amount}")
         
         #If not, we try to find out if this tx is unawarely trying to spend all of our funds:
-        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and send_all is None: send_all = True
+        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and not send_all: send_all = True
             
         #If we are indeed trying to send all the funds, then we choose all the utxos
         if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
@@ -638,12 +640,12 @@ class SHDSafeWallet(Wallet):
         
         return coins
     
-    def build_tx(self, utxos, to_address_amount_list, segwit=True, send_all = False):
+    def build_tx(self, coins, to_address_amount_list, segwit=True):
         
         account = self.get_signing_account()
         
         #if we want to send all the funds we don't need a change address.
-        if send_all: change_address = None    
+        if not coins["change"]: change_address = None    
         else:        change_address = self.get_a_change_address()
         #We create the Multi-Signature Transaction object
         tx_response = MultiSigTransaction.create_from_wallet(utxo_list=utxos,
@@ -701,15 +703,16 @@ class SHDSafeWallet(Wallet):
         return tx,push
         
         
-    def send(self, to_address_amount_list, segwit=True):
+    def send(self, to_address_amount_list, segwit=True, send_all = None, min_fee_per_byte=70):
         """
         to_address_amount_list: List of tuples [(address1,amount1),...]
         """
         #First let's get ready the inputs for the transaction
-        utxos, send_all = self.get_coins(to_address_amount_list, segwit)
+        coins = self.get_coins(to_address_amount_list, send_all=send_all,
+                                         segwit=segwit,min_fee_per_byte=min_fee_per_byte)
         
         #Now, let's build the transaction
-        tx_response = self.build_tx(utxos,to_address_amount_list, segwit, send_all)
+        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
         self.start_conn()
         consigners_reply = {}
         [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
@@ -726,6 +729,7 @@ class SHDSafeWallet(Wallet):
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
         #transaction is ready to be broadcasted or if it needs more signatures:
+        utxos = coins["utxos"]
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
             self.broadcast_tx(tx_response[0],utxos)
@@ -1166,65 +1170,60 @@ class HDMWallet(Wallet):
         return balance
     
     def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False):
+        """
+        Returns a dictionary with the utxos, fee, and change.
+        to_address_amount_list: List of tuples [(address1,amount1),(address2,amount2),...]
+        send_all: bool/None: if you are trying to send all of your funds somewhere else, set this to True.
+        account_index: if we are trying to spend from a specific account, then spicify the index here.
+        total: if we are trying to spend from the wallet and not from a specific account, then set this to True. \
+        If True, account_index will be ignored.
+        
+        """
         
         
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
-        total_amount = 0
-        for output in to_address_amount_list:
-            total_amount += output[1]
-            
-        #We choose the utxos to spend for the transaction
-        #all_utxos = self.get_utxos()
+        total_amount = sum([x[1] for x in to_address_amount_list])
+        
+        #We get all of our utxos depending if we are spending the 'total' of our wallet, or from
+        #a specific account.
         if    total:               all_utxos = self.get_utxos()
         elif account_index is None:all_utxos = self.get_utxos_from_corporate_account()
         else:                      all_utxos = self.get_utxos_from_corporate_account(account_index)
         
+        # ..and calculate our balance.
         balance = self.get_balance(all_utxos)
         
-        if send_all is None or not send_all:
-            #We make a rough calculation of the fee by asumming 146 bytes per input and 34 bytes per output.
-            #Also, we assume the body of the transaction like version, locktime, etc is around 10 bytes.
-            #we set a minimum value per byte of 2 to do the initial calculation.
-            min_estimated_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*2
-            #we validate that we have funds to carry out the transaction, or if we are trying to send all the funds 
-            if total_amount > balance - min_estimated_fee:
-                raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
-
-            send_all = False
-            #Now we calculate a regular fee with a value per byte of 3 satoshis, and add a dust fee to avoid the 
-            #unnecessary creation of a dust output, to see if we have exactly    
-            max_estimated_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*4 + 546   
-            elif total_amount > balance - max_estimated_fee: send_all = True
-
+        if len(all_utxos) == 0: raise Exception("There is no coins at all here.")
+        balance = sum([x[2] for x in all_utxos])
         
-        #If we are trying to send all the funds, then we choose all the utxos
-        if send_all: utxos = all_utxos
-        #If not, then we have to choose in an efficient manner.
-        else:    
-            utxos = []
-            utxo_total = 0
+        #We calculate the min and max fee for using all of our coins:
+        min_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*min_fee_per_byte
+        max_fee = min_fee*2 + 546
+        
+        #If we are trying to send more than what we have minus the minumim fee, but we are not explicitly
+        #trying to send all of our money somewhere, then we raise an exception. We don't have enough funds.
+        if total_amount>balance-min_fee and not send_all:
+            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available for a tx\
+            with minimum fee of {min_fee} and a total output of {total_amount}")
+        
+        #If not, we try to find out if this tx is unawarely trying to spend all of our funds:
+        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and not send_all: send_all = True
             
-            #First we check if only one utxo can carry out the whole transaction
-            for utxo in all_utxos:
-                if utxo[2] > total_amount*1.1:
-                    utxos = [utxo]
-                    break
-            #if we found that none of the utxos is big enough to carry out the whole tx, we have to choose several.
-            if len(utxos)==0:    
-                for utxo in all_utxos:
-                    utxos.append(utxo)
-                    utxo_total += utxo[2]
-                    if utxo_total > (total_amount*1.1) : break
+        #If we are indeed trying to send all the funds, then we choose all the utxos
+        if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
+        #If not, then we have to choose in an efficient manner.
+        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
         
-        return utxos, send_all
+        return coins
+        
     
-    def build_tx(self, utxos, to_address_amount_list, segwit=True, send_all = False):
+    def build_tx(self, utxos, to_address_amount_list, segwit=True):
         
         account = self.get_signing_account()
         
         #if we want to send all the funds we don't need a change address.
-        if send_all: change_address = None    
+        if not coins["change"]: change_address = None    
         else:        change_address = self.get_a_change_address()
         
         #We create the Multi-Signature Transaction object
@@ -1270,7 +1269,7 @@ class HDMWallet(Wallet):
         return tx,push
         
         
-    def send(self, to_address_amount_list, segwit=True):
+    def send(self,to_address_amount_list,segwit=True,send_all=False,account_index=None,total=False,min_fee_per_byte=70):
         """
         to_address can be a single address or a list.
         amount can be an integer or a list of integers.
@@ -1278,13 +1277,15 @@ class HDMWallet(Wallet):
         adrress 2 will be sent amount2.. adress n will be sent amount n.
         """
         #First let's get ready the inputs for the transaction
-        utxos, send_all = self.get_coins(to_address_amount_list, segwit)
+        coins = self.get_coins(to_address_amount_list, send_all=send_all,total=total, account_index=account_index,
+                               segwit=segwit,min_fee_per_byte=min_fee_per_byte)
         
         #Now, let's build the transaction
-        tx_response = self.build_tx(utxos,to_address_amount_list, segwit, send_all)
+        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
         #transaction is ready to be broadcasted or if it needs more signatures:
+        utxos = coins["utxos"]
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
             self.broadcast_tx(tx_response[0],utxos)

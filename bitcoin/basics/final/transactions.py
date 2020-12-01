@@ -529,6 +529,10 @@ class MultiSigTransaction(Transaction):
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
         
+        #THIS IS BASICALLY WHERE OUR NEW METHOD PUTS US. ALL ABOVE THIS IS PRACTICALLY USELESS NOW. 
+        #WE STILL HAVE TO MODIFY THE FOLLOWIN METHOD SINCE WE DON'T NEED FEES OR CHANGE ANYMORE.
+        #unsigned_tx_from_wallet NOW IS USELESS TOO SINCE WE ONLY NEED THE Tx OBJECT WHICH WE CAN JUST
+        #CREATE HERE WITH THE INFO CONTAINED IN THE RESPONSE FROM THE COIN-SELECTION ALGORITHM
         fee, change, transaction = self.unsigned_tx_from_wallet(tx_ins, tx_outs, testnet, segwit,
                                                                 utxos,receivingAddress_w_amount_list, 
                                                                 utxo_list, send_all)
