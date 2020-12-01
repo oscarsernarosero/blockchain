@@ -508,7 +508,7 @@ class MultiSigTransaction(Transaction):
                multi_sig_account, 
                change_address, 
                fee=None, #Modify code to allow manual fee!!!
-                 segwit=False, send_all=False):
+                 segwit=False, send_all=False, no_change=False):
         """
         Currently only works with simple multisignature accounts. HD Multisignature accounts is next step!!
         utxo_list: the list of touples with all the UTXOs information. Likethis:
