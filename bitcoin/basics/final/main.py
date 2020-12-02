@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from abc import ABCMeta, abstractmethod
 import calendar
 import operator
+import traceback
 
 from kivy.core.clipboard import Clipboard 
 from kivy.clock import Clock
@@ -1214,7 +1215,8 @@ class Send():
                                 
             else:
                 #TRIGGER THE "OOPS! POPUP"
-                self.exception_popup = GenericOkPopup(f"Oops! Something went wrong.\n{str(e)}\nPlease try again later.")
+                self.exception_popup = GenericOkPopup(f"Oops! Something went wrong.\
+                \n{str(e)}\n{traceback.format_exc()}Please try again later.")
                 self.notEnoughFundsWindow = Popup(title="Unknown Exception", content=self.exception_popup, 
                                                   size_hint=(None,None),size=(500,500), 
                                                   pos_hint={"center_x":0.5, "center_y":0.5}

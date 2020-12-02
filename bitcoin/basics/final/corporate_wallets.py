@@ -602,9 +602,10 @@ class SHDSafeWallet(Wallet):
                                          confirmed = 1)
       
         self.close_conn()
-        return self.get_balance()
+        return
     
-    
+    #THIS METHOD HAS BEEN COPIED EXACTLY THE SAME TO THE WALLET CLASS. IF IT IS STILL THE SAME
+    #WE CAN JUST DELETE THIS METHOD FROM HERE SINCE WE ARE ALREADY GETTING IT THROUGH INHERITANCE.
     def get_coins(self, to_address_amount_list, send_all = None, segwit=True,min_fee_per_byte=70):
         """
         Returns a dictionary with the utxos, fee, and change.
@@ -1145,32 +1146,8 @@ class HDMWallet(Wallet):
                                          confirmed = 1)
       
         self.close_conn()
-        return self.get_balance()
+        return
         
-    def get_balance(self, coins):
-        """
-        This is an overwritten version of the parent class.
-        total: Boolean. If true, it will return the total balance of the wallet including the \
-        balances in the accounts. If False, it will return the balance only from accounts 0 and 1.
-        account_index: int. If the balance of a specific account is desired, then specify
-        the index of the account through this argument. If 'total' is True, this argument will \
-        be ignored.
-        """
-        """
-        if    total:               coins = self.get_utxos()
-        elif account_index is None:coins = self.get_utxos_from_corporate_account()
-        else:                      coins = self.get_utxos_from_corporate_account(account_index)
-        
-        print(coins)
-        """
-        balance = 0
-        if len(coins)>0:
-            for coin in coins:
-                print(coin)
-                "coin will be an array with data [ tx_id, out_index, amount ]"
-                balance += coin[2]
-        return balance
-    
     def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False):
         """
         Returns a dictionary with the utxos, fee, and change.
@@ -1194,7 +1171,6 @@ class HDMWallet(Wallet):
         else:                      all_utxos = self.get_utxos_from_corporate_account(account_index)
         
         # ..and calculate our balance.
-        balance = self.get_balance(all_utxos)
         
         if len(all_utxos) == 0: raise Exception("There is no coins at all here.")
         balance = sum([x[2] for x in all_utxos])
@@ -1281,17 +1257,34 @@ class HDMWallet(Wallet):
         #First let's get ready the inputs for the transaction
         coins = self.get_coins(to_address_amount_list, send_all=send_all,total=total, account_index=account_index,
                                segwit=segwit,min_fee_per_byte=min_fee_per_byte)
+        print(f"coins from coin-selector: {coins}")
         
         #Now, let's build the transaction
         tx_response = self.build_tx(coins,to_address_amount_list, segwit)
+        self.start_conn()
+        consigners_reply = {}
+        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
+        consigners_reply.update({f'{self.master_pubkey}':None})
+        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
+        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
+        
+        tx_id = tx_response[0].transaction.id()
+        tx_hex = tx_response[0].transaction.serialize().hex()
+        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
+                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
+                               consigners_reply, tx_hex)
+        
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
         #transaction is ready to be broadcasted or if it needs more signatures:
-        utxos = coins["utxos"]
+        #utxos = coins["utxos"]
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
-            self.broadcast_tx(tx_response[0],utxos)
+            self.broadcast_tx(tx_response[0],coins["utxos"])
             
+        self.close_conn()  
+        #share it with the other participants of the multi-signature wallet. For now:
+        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
         return tx_response 
         
     def sign_received_tx(self, tx):

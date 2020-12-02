@@ -266,7 +266,9 @@ class Transaction(Transact):
     @classmethod
     def unsigned_tx_w_master(self,tx_ins, tx_outs, testnet, segwit, 
                              utxos,receivingAddress_w_amount_list, utxo_list):
-        
+        """
+        DEPRECATED.
+        """
         my_tx = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)#check for segwit later!!!!
        
         fee = self.calculate_fee_w_master(utxo_list, my_tx, segwit=segwit)
@@ -341,7 +343,7 @@ class Transaction(Transact):
             raise Exception("Signature faliled") 
             
     @classmethod
-    def create_from_master(self, utxo_list, receivingAddress_w_amount_list, master_account,change_account,
+    def create_from_master(self, coins, receivingAddress_w_amount_list, master_account,change_account,
                            fee=None, #Modify code to allow manual fee!!!
                  segwit=False):
         """
@@ -355,13 +357,16 @@ class Transaction(Transact):
         If fee is specifyed, then the custom fee will be applied.
         """
         testnet = master_account.testnet
-        tx_outs = self.get_outputs(receivingAddress_w_amount_list, change_account)
-        tx_ins_utxo = self.get_inputs(utxo_list)
+        if not coins["change"]: tx_outs = self.get_outputs(receivingAddress_w_amount_list)
+        else: tx_outs = self.get_outputs(receivingAddress_w_amount_list,account = change_account,change=coins["change"])
+        tx_ins_utxo = self.get_inputs(coins["utxos"])
         tx_ins = [x["tx_in"] for x in tx_ins_utxo]
         utxos = [x["utxo"] for x in tx_ins_utxo]
-        fee, change, transaction = self.unsigned_tx_w_master(tx_ins, tx_outs, testnet, segwit, utxos,receivingAddress_w_amount_list, utxo_list)
-        if self.sign_w_master( utxo_list, transaction, master_account, segwit):
-            return Transaction(transaction, master_account, tx_ins,utxos ,tx_outs, fee, change, testnet, segwit)
+        
+        transaction = Tx(1, tx_ins, tx_outs, 0, testnet=testnet, segwit=segwit)
+        
+        if self.sign_w_master( coins["utxos"], transaction, master_account, segwit):
+            return Transaction(transaction, master_account, tx_ins,utxos ,tx_outs, coins["fee"], coins["change"], testnet, segwit)
         else:
             raise Exception("Signature faliled") 
      
@@ -528,7 +533,7 @@ class MultiSigTransaction(Transaction):
         """
         #testnet = self.validate_data(sender_account.address,receivingAddress_w_amount_list)
         testnet = multi_sig_account.testnet
-        #Maybe, we can create the change account inside this method instead of receiving it through the arguments.
+        
         if not coins["change"]: tx_outs = self.get_outputs(receivingAddress_w_amount_list)
         else: tx_outs = self.get_outputs(receivingAddress_w_amount_list,account = change_account,change=coins["change"])
             

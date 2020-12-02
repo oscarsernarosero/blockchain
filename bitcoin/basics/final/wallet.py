@@ -11,6 +11,7 @@ from constants import *
 from accounts import MasterAccount, Account, MultSigAccount
 from transactions import Transaction, MultiSigTransaction
 from os import urandom
+from coin_selector import get_coins_ready
 #from database import WalletDB
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 from blockcypher import get_address_details, get_transaction_details
@@ -250,6 +251,47 @@ class Wallet(MasterAccount):
     def get_utxos(self):
         self.start_conn()
         return self.db.look_for_coins(self.get_xtended_key())
+    
+    def get_coins(self, to_address_amount_list, send_all=None, segwit=True, min_fee_per_byte=70):
+        """
+        Returns a dictionary with the utxos, fee, and change.
+        to_address_amount_list: List of tuples [(address1,amount1),(address2,amount2),...]
+        send_all: bool/None: if you are trying to send all of your funds somewhere else, set this to True.
+        account_index: if we are trying to spend from a specific account, then spicify the index here.
+        total: if we are trying to spend from the wallet and not from a specific account, then set this to True. \
+        If True, account_index will be ignored.
+        
+        """
+        
+        print(f"From wallet.send(): {to_address_amount_list}")
+        #calculate total amount to send from the wallet
+        total_amount = sum([x[1] for x in to_address_amount_list])
+        
+        #We get all of our utxos and calculate our balance by the way.
+        all_utxos = self.get_utxos()
+        if len(all_utxos) == 0: raise Exception("There is no coins at all here.")
+        balance = sum([x[2] for x in all_utxos])
+        
+        #We calculate the min and max fee for using all of our coins:
+        min_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*min_fee_per_byte
+        max_fee = min_fee*2 + 546
+        
+        #If we are trying to send more than what we have minus the minumim fee, but we are not explicitly
+        #trying to send all of our money somewhere, then we raise an exception. We don't have enough funds.
+        if total_amount>balance-min_fee and not send_all:
+            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available for a tx\
+            with minimum fee of {min_fee} and a total output of {total_amount}")
+        
+        #If not, we try to find out if this tx is unawarely trying to spend all of our funds:
+        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and not send_all: send_all = True
+            
+        #If we are indeed trying to send all the funds, then we choose all the utxos
+        if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
+        #If not, then we have to choose in an efficient manner.
+        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
+        
+        return coins
+        
         
     def get_balance(self):
         coins = self.get_utxos()
@@ -291,7 +333,7 @@ class Wallet(MasterAccount):
                         
         self.close_conn()
         
-        return self.get_balance()
+        return 
     
     #@classmethod
     #def create_multisig_account(m,public_key_list,account,addr_type="p2sh", testnet = False, segwit=True):
@@ -299,7 +341,7 @@ class Wallet(MasterAccount):
     #    return MultiSigTransaction(m, n, int.from_bytes(account.private_key,"big"), public_key_list, addr_type, testnet, segwit)
 
     #@classmethod
-    def send(self, to_address_amount_list, segwit=True):
+    def send(self, to_address_amount_list, segwit=True,send_all=False,min_fee_per_byte=70):
         """
         to_address can be a single address or a list.
         amount can be an integer or a list of integers.
@@ -307,31 +349,16 @@ class Wallet(MasterAccount):
         adrress 2 will be sent amount2.. adress n will be sent amount n.
         """
         print(f"From wallet.send(): {to_address_amount_list}")
-        total_amount = 0
-        for output in to_address_amount_list:
-            total_amount += output[1]
-            
-        balance = self.get_balance()
-        if total_amount>balance:
-            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available")
-            
-        all_utxos = self.get_utxos()
-        utxos = []
-        utxo_total = 0
-        for utxo in all_utxos:
-            if utxo[2] > total_amount*1.1:
-                utxos = [utxo]
-                break
-                
-        if len(utxos)==0:    
-            for utxo in all_utxos:
-                utxos.append(utxo)
-                utxo_total += utxo[2]
-                if utxo_total > (total_amount*1.1) : break
-        change_account = self.get_a_change_address()
+        coins = self.get_coins(to_address_amount_list, send_all=send_all,
+                                         segwit=segwit,min_fee_per_byte=min_fee_per_byte)
+        print(f"coins from coin-selector: {coins}")
+        
+        
+        if coins["change"]: change_account = self.get_a_change_address()
+        else: change_account = None
           
-        tx = Transaction.create_from_master( utxos,to_address_amount_list, self,change_account,
-                           fee=None, segwit=segwit)
+        tx = Transaction.create_from_master( coins,to_address_amount_list, self,change_account,
+                           fee=coins["fee"], segwit=segwit)
         
         if self.testnet: symbol = "btc-testnet"
         else: symbol= "btc"
@@ -346,7 +373,7 @@ class Wallet(MasterAccount):
         #saving in db
         
         self.start_conn()
-        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
+        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in coins['utxos']] ,
                        [str(x).split(":")+[i] for i,x in enumerate(tx.transaction.tx_outs)]
                       )
         self.close_conn()
