@@ -304,9 +304,13 @@ class Wallet(MasterAccount):
                 balance += coin[2]
         return balance
 
+    def get_all_addresses(self):
+        return self.db.get_all_addresses(self.get_xtended_key())
+        
+    
     def update_balance(self):
         self.start_conn()
-        addresses = self.db.get_all_addresses(self.get_xtended_key())
+        addresses = self.get_all_addresses()
         
         if self.testnet: coin_symbol = "btc-testnet"
         else: coin_symbol = "btc"

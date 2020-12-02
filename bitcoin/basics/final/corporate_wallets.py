@@ -19,6 +19,166 @@ This code is developed entirely by Oscar Serna. This code is subject to copy rig
 This file contains the different kind of corporate wallets that exists in this porject.
 """
 
+class MultiSignatureWallet(Wallet):
+    
+    def get_all_addresses(self):
+        return self.db.get_all_addresses(self.name)
+    
+    def get_utxos(self):
+        """
+        This method is an overwritten version of the original Wallet-class version.
+        """
+        self.start_conn()
+        coins = self.db.look_for_coins(self.name) 
+        self.close_conn()
+        return coins
+    
+    
+    def get_a_change_address(self):
+        """
+        Returns an Account object containing a change address. It returns an existing unused change
+        address account, or creates a new one if necessary.
+        """
+        if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
+        self.start_conn()
+        unused_addresses = self.get_unused_addresses_list(change_addresses=True)
+        self.close_conn()
+        
+        if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[-1][-1])
+        else: return self.create_change_address()
+        
+    
+    def get_i(self,wallet_name, account_path, index=None):
+        
+        if index is not None:
+            if index>=0: 
+                print(f"reusing address with index {index}")
+                return index
+        
+        self.start_conn()
+        last_index = self.db.get_max_index( account_path, wallet_name)
+
+        if last_index is None: i = 0
+        else: i = last_index + 1
+        
+        self.close_conn()
+        return i
+    
+    def broadcast_tx(self, tx,utxos):
+        
+        if self.testnet: symbol = "btc-testnet"
+        else: symbol= "btc"
+
+        env = Sqlite3Environment()
+        BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
+        env.close_database()
+        push = pushtx(tx_hex= tx.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
+        tx_id = tx.id()
+        print(f"TRANSACTION ID: {tx_id}")
+
+        #saving in db
+        self.start_conn()
+        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
+                       [str(x).split(":")+[i] for i,x in enumerate(tx.tx_outs)])
+        self.close_conn()
+        #start new thread to check if the transaction goes through in the blockchain or not.
+        #Maybe move this to the front end class to pop a warning when it doesn't go through
+        mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))
+        mythread.start()
+
+        return tx,push
+        
+    def build_tx(self, coins, to_address_amount_list, segwit=True):
+        
+        account = self.get_signing_account()
+        
+        #if we want to send all the funds we don't need a change address.
+        if not coins["change"]: change_address = None    
+        else:        change_address = self.get_a_change_address()
+        #We create the Multi-Signature Transaction object
+        tx_response = MultiSigTransaction.create_from_wallet(coins=coins,
+                                                             receivingAddress_w_amount_list =to_address_amount_list,
+                                                             multi_sig_account = account,change_account = change_address,
+                                                             fee=None,segwit=True)
+        
+        return tx_response
+    
+    def send(self, to_address_amount_list, segwit=True, send_all = None, min_fee_per_byte=70):
+        """
+        to_address_amount_list: List of tuples [(address1,amount1),...]
+        """
+        #First let's get ready the inputs for the transaction
+        coins = self.get_coins(to_address_amount_list, send_all=send_all,
+                                         segwit=segwit,min_fee_per_byte=min_fee_per_byte)
+        print(f"coins from coin-selector: {coins}")
+        
+        #Now, let's build the transaction
+        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
+        self.start_conn()
+        consigners_reply = {}
+        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
+        consigners_reply.update({f'{self.master_pubkey}':None})
+        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
+        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
+        
+        tx_id = tx_response[0].transaction.id()
+        tx_hex = tx_response[0].transaction.serialize().hex()
+        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
+                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
+                               consigners_reply, tx_hex)
+        
+        
+        # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
+        #transaction is ready to be broadcasted or if it needs more signatures:
+        #utxos = coins["utxos"]
+        if tx_response[1]: 
+            #if it is ready, we broadcast the transaction
+            self.broadcast_tx(tx_response[0],coins["utxos"])
+            
+        self.close_conn()  
+        #share it with the other participants of the multi-signature wallet. For now:
+        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
+        return tx_response 
+        
+    def sign_received_tx(self, tx):
+        """
+        tx: MultiSignatureTx object. The transaction object that needs to be signed.
+        """
+        utxos = []
+        self.start_conn()
+        for _in in tx.tx_ins:
+            res = self.db.get_utxo_info(_in.prev_tx.hex(), _in.prev_index)
+            print(res)
+            utxos.append(res[0])
+        self.close_conn()    
+        #We create the multisignature account to sign the transaction.
+        account = self.get_signing_account()
+        
+        tx_response = MultiSigTransaction.sign_received_tx_with_wallet(utxos,tx,account)
+        
+        tx_id = tx_response[0].transaction.id()
+        
+        if tx_response[1]: 
+            self.broadcast_tx(tx_response[0].transaction,utxos)
+            #self.start_conn()
+            #self.db.delete_partial_tx(tx_id)
+            
+        else:
+            #update the cosigners_reply
+            if   self.wallet_type=="main"  : pubkey = self.master_pubkey
+            elif self.wallet_type=="simple": pubkey = int.from_bytes(self.pubkey,"big")
+            self.start_conn()
+            self.db.update_cosigners_reply(tx_id, pubkey, reply=True)
+            #update the tx_ins in the partial-tx database
+            new_tx_hex = tx_response[0].transaction.serialize().hex()
+            self.db.update_partial_tx(tx_id, new_tx_hex)
+            #share it with the other participants of the multi-signature wallet. For now:
+            print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}\ntx_in: \
+            {tx_response[0].tx_ins}")
+        
+        self.close_conn()
+        return tx_response
+
 
 class CorporateSuperWallet(Wallet):
     
@@ -190,10 +350,9 @@ class ManagerWallet(Wallet):
      
         return safe_wallet
         
-
-
-
-class SHDSafeWallet(Wallet):
+        
+        
+class SHDSafeWallet(MultiSignatureWallet):
     """
     SafeWallet is a Multisignature SHD wallet.
     SHDM Single Herarchical Deterministic Multi-Signature Wallet
@@ -359,21 +518,7 @@ class SHDSafeWallet(Wallet):
                     master_pubkey=master_pubkey, master_privkey=master_privkey,
                     testnet=w[8], segwit=w[9], parent_name=parent_name, safe_index=w[11], level1pubkeys = level1pubkeys)
     
-    def get_i(self,wallet_name, account_path, index=None):
-        
-        if index is not None:
-            if index>=0: 
-                print(f"reusing address with index {index}")
-                return index
-        
-        self.start_conn()
-        last_index = self.db.get_max_index( account_path, wallet_name)
-
-        if last_index is None: i = 0
-        else: i = last_index + 1
-        
-        self.close_conn()
-        return i
+    
         
     def get_child_wallet(self, index, path):
         """
@@ -538,19 +683,7 @@ class SHDSafeWallet(Wallet):
         self.close_conn()
         return change_account
     
-    def get_a_change_address(self):
-        """
-        Returns an Account object containing a change address. It returns an existing unused change
-        address account, or creates a new one if necessary.
-        """
-        if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
-        self.start_conn()
-        unused_addresses = self.get_unused_addresses_list(change_addresses=True)
-        self.close_conn()
-        
-        if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[-1][-1])
-        else: return self.create_change_address()
-        
+    
     def share(self):
         if self.safe_index >= 0: raise Exception ("Only master wallets can be shared.")
         return {"public_key_list":self.public_key_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
@@ -558,105 +691,6 @@ class SHDSafeWallet(Wallet):
                 "level1pubkeys":self.level1pubkeys }
     
 
-    def get_utxos(self):
-        """
-        This method is an overwritten version of the original Wallet-class version.
-        """
-        self.start_conn()
-        coins = self.db.look_for_coins(self.name) 
-        self.close_conn()
-        return coins
-    
-    def update_balance(self):
-        """
-        This method is an overwritten version of the original Wallet-class version.
-        """
-        self.start_conn()
-        addresses = self.db.get_all_addresses(self.name)
-        print(f"\n\nupdate balance.\naddresses: {addresses}")
-        self.close_conn()
-        
-        if self.testnet: coin_symbol = "btc-testnet"
-        else: coin_symbol = "btc"
-            
-        for address in addresses:
-            "address will be a touple with data (address,)"
-            print(f"consulting blockchain for address {address}")
-            addr_info = get_address_details(address[0], coin_symbol = coin_symbol, unspent_only=True)
-            print(f"res for {address}:\n{addr_info}")
-            
-            self.start_conn()
-            if addr_info["unconfirmed_n_tx"] > 0:
-                print("got unconfirmed transactions.")
-                for utxo in addr_info["unconfirmed_txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 0):
-                        print("new unconfirmed UTXO")
-                        self.db.new_utxo(utxo["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 0)
-            
-            if addr_info["n_tx"] - addr_info["unconfirmed_n_tx"] > 0 :
-                print("got transactions.")
-                for utxo in addr_info["txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 1):
-                        print("new confirmed UTXO")
-                        self.db.new_utxo(addr_info["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],
-                                         confirmed = 1)
-      
-        self.close_conn()
-        return
-    
-    #THIS METHOD HAS BEEN COPIED EXACTLY THE SAME TO THE WALLET CLASS. IF IT IS STILL THE SAME
-    #WE CAN JUST DELETE THIS METHOD FROM HERE SINCE WE ARE ALREADY GETTING IT THROUGH INHERITANCE.
-    def get_coins(self, to_address_amount_list, send_all = None, segwit=True,min_fee_per_byte=70):
-        """
-        Returns a dictionary with the utxos, fee, and change.
-        to_address_amount_list: List of tuples [(address1,amount1),(address2,amount2),...]
-        send_all: bool/None: if you are trying to send all of your funds somewhere else, set this to True.
-        """
-        
-        print(f"From wallet.send(): {to_address_amount_list}")
-        #calculate total amount to send from the wallet
-        total_amount = sum([x[1] for x in to_address_amount_list])
-        
-        #We get all of our utxos and calculate our balance by the way.
-        all_utxos = self.get_utxos()
-        if len(all_utxos) == 0: raise Exception("There is no coins at all here.")
-        balance = sum([x[2] for x in all_utxos])
-        
-        #We calculate the min and max fee for using all of our coins:
-        min_fee = (len(all_utxos)*146 + len(to_address_amount_list)*34 + 20)*min_fee_per_byte
-        max_fee = min_fee*2 + 546
-        
-        #If we are trying to send more than what we have minus the minumim fee, but we are not explicitly
-        #trying to send all of our money somewhere, then we raise an exception. We don't have enough funds.
-        if total_amount>balance-min_fee and not send_all:
-            raise Exception(f"Not enough funds in wallet for this transaction.\nOnly {balance} satoshis available for a tx\
-            with minimum fee of {min_fee} and a total output of {total_amount}")
-        
-        #If not, we try to find out if this tx is unawarely trying to spend all of our funds:
-        elif total_amount >= balance - max_fee and total_amount <= balance-min_fee and not send_all: send_all = True
-            
-        #If we are indeed trying to send all the funds, then we choose all the utxos
-        if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
-        #If not, then we have to choose in an efficient manner.
-        else: coins = coin_selector(all_utxos, total_amount, len(to_address_amount_list)) 
-        
-        return coins
-    
-    def build_tx(self, coins, to_address_amount_list, segwit=True):
-        
-        account = self.get_signing_account()
-        
-        #if we want to send all the funds we don't need a change address.
-        if not coins["change"]: change_address = None    
-        else:        change_address = self.get_a_change_address()
-        #We create the Multi-Signature Transaction object
-        tx_response = MultiSigTransaction.create_from_wallet(coins=coins,
-                                                             receivingAddress_w_amount_list =to_address_amount_list,
-                                                             multi_sig_account = account,change_account = change_address,
-                                                             fee=None,segwit=True)
-        
-        return tx_response
-    
     
     def get_signing_account(self):
         
@@ -679,108 +713,6 @@ class SHDSafeWallet(Wallet):
             
         return account
         
-        
-    def broadcast_tx(self, tx,utxos):
-        
-        if self.testnet: symbol = "btc-testnet"
-        else: symbol= "btc"
-
-        env = Sqlite3Environment()
-        BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
-        env.close_database()
-        push = pushtx(tx_hex= tx.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
-        tx_id = tx.id()
-        print(f"TRANSACTION ID: {tx_id}")
-
-        #saving in db
-        self.start_conn()
-        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
-                       [str(x).split(":")+[i] for i,x in enumerate(tx.tx_outs)])
-        self.close_conn()
-        #start new thread to check if the transaction goes through in the blockchain or not.
-        #Maybe move this to the front end class to pop a warning when it doesn't go through
-        mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))
-        mythread.start()
-
-        return tx,push
-        
-        
-    def send(self, to_address_amount_list, segwit=True, send_all = None, min_fee_per_byte=70):
-        """
-        to_address_amount_list: List of tuples [(address1,amount1),...]
-        """
-        #First let's get ready the inputs for the transaction
-        coins = self.get_coins(to_address_amount_list, send_all=send_all,
-                                         segwit=segwit,min_fee_per_byte=min_fee_per_byte)
-        print(f"coins from coin-selector: {coins}")
-        
-        #Now, let's build the transaction
-        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
-        self.start_conn()
-        consigners_reply = {}
-        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
-        consigners_reply.update({f'{self.master_pubkey}':None})
-        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
-        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
-        
-        tx_id = tx_response[0].transaction.id()
-        tx_hex = tx_response[0].transaction.serialize().hex()
-        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
-                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
-                               consigners_reply, tx_hex)
-        
-        
-        # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
-        #transaction is ready to be broadcasted or if it needs more signatures:
-        #utxos = coins["utxos"]
-        if tx_response[1]: 
-            #if it is ready, we broadcast the transaction
-            self.broadcast_tx(tx_response[0],coins["utxos"])
-            
-        self.close_conn()  
-        #share it with the other participants of the multi-signature wallet. For now:
-        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
-        return tx_response 
-        
-    def sign_received_tx(self, tx):
-        """
-        tx: MultiSignatureTx object. The transaction object that needs to be signed.
-        """
-        utxos = []
-        self.start_conn()
-        for _in in tx.tx_ins:
-            res = self.db.get_utxo_info(_in.prev_tx.hex(), _in.prev_index)
-            print(res)
-            utxos.append(res[0])
-        self.close_conn()    
-        #We create the multisignature account to sign the transaction.
-        account = self.get_signing_account()
-        
-        tx_response = MultiSigTransaction.sign_received_tx_with_wallet(utxos,tx,account)
-        
-        tx_id = tx_response[0].transaction.id()
-        
-        if tx_response[1]: 
-            self.broadcast_tx(tx_response[0].transaction,utxos)
-            #self.start_conn()
-            #self.db.delete_partial_tx(tx_id)
-            
-        else:
-            #update the cosigners_reply
-            if   self.wallet_type=="main"  : pubkey = self.master_pubkey
-            elif self.wallet_type=="simple": pubkey = int.from_bytes(self.pubkey,"big")
-            self.start_conn()
-            self.db.update_cosigners_reply(tx_id, pubkey, reply=True)
-            #update the tx_ins in the partial-tx database
-            new_tx_hex = tx_response[0].transaction.serialize().hex()
-            self.db.update_partial_tx(tx_id, new_tx_hex)
-            #share it with the other participants of the multi-signature wallet. For now:
-            print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}\ntx_in: \
-            {tx_response[0].tx_ins}")
-        
-        self.close_conn()
-        return tx_response
-    
     def open_partial_tx(self, tx_id):
         """
         Opens the new partial transaction in the database, and reconstructs the MultiSigTransaction object \
@@ -797,7 +729,7 @@ class SHDSafeWallet(Wallet):
         return self.sign_received_tx(ms_tx)
         
         
-class HDMWallet(Wallet):
+class HDMWallet(MultiSignatureWallet):
     """
     HDMWallet is a Herarchical Deterministic Multi-signature Wallet (HDM-Wallet).
     It is a Fully HD MS wallet which means that all its participants share the extended public key, \
@@ -880,22 +812,7 @@ class HDMWallet(Wallet):
         return self(name, master_pubkey_list,master_privkey, w[2],w[3],
                     w[5],w[6],w[7],parent_name,w[9])
     
-    def get_i(self,wallet_name, account_path, index=None):
-        
-        if index is not None:
-            if index>=0: 
-                print(f"reusing address with index {index}")
-                return index
-        
-        self.start_conn()
-
-        last_index = self.db.get_max_index( account_path, wallet_name)
-
-        if last_index is None: i = 0
-        else: i = last_index + 1
-        
-        self.close_conn()
-        return i
+    
     
     def get_child_wallet(self, index, path):
         """
@@ -1054,20 +971,7 @@ class HDMWallet(Wallet):
         self.close_conn()
         return change_account
     
-    def get_a_change_address(self, account_index=None):
-        """
-        Returns an Account object containing a change address. It returns an existing unused change
-        address account, or creates a new one if necessary.
-        account_index: int. The index of the corporate account in the BIP32 tree
-        """
-        if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
-        self.start_conn()
-        unused_addresses = self.get_unused_addresses_list(change_addresses=True, account_index=account_index)
-        self.close_conn()
-        
-        if len(unused_addresses)>0: return self.create_change_address(index=unused_addresses[0][3])
-        else: return self.create_change_address()
-        
+    
     def share(self):
         if self.safe_index >= 0: raise Exception ("Only master wallets can be shared.")
         return {"master_pubkey_list":self.xtended_pubkey_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
@@ -1080,15 +984,6 @@ class HDMWallet(Wallet):
         name: name of the account being created.
         """
         self.db.new_corportate_account(name,index,self.name)
-       
-    def get_utxos(self):
-        """
-        This method is an overwritten version of the original Wallet-class version.
-        """
-        self.start_conn()
-        coins = self.db.look_for_coins(self.name) 
-        self.close_conn()
-        return coins
     
     def get_utxos_from_corporate_account(self,account_index=None):
         """
@@ -1112,41 +1007,6 @@ class HDMWallet(Wallet):
         self.close_conn()
         return coins_from_account
     
-    def update_balance(self):
-        """
-        This method is an overwritten version of the original Wallet-class version.
-        """
-        self.start_conn()
-        addresses = self.db.get_all_addresses(self.name)
-        self.close_conn()
-        
-        if self.testnet: coin_symbol = "btc-testnet"
-        else: coin_symbol = "btc"
-            
-        for address in addresses:
-            "address will be a touple with data (address,)"
-            print(f"consulting blockchain for address {address}")
-            addr_info = get_address_details(address[0], coin_symbol = coin_symbol, unspent_only=True)
-            print(f"res for {address}:\n{addr_info}")
-            
-            self.start_conn()
-            if addr_info["unconfirmed_n_tx"] > 0:
-                print("got unconfirmed transactions.")
-                for utxo in addr_info["unconfirmed_txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 0):
-                        print("new unconfirmed UTXO")
-                        self.db.new_utxo(utxo["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 0)
-            
-            if addr_info["n_tx"] - addr_info["unconfirmed_n_tx"] > 0 :
-                print("got transactions.")
-                for utxo in addr_info["txrefs"]:
-                    if not self.db.exist_utxo( utxo["tx_hash"], utxo["tx_output_n"], 1):
-                        print("new confirmed UTXO")
-                        self.db.new_utxo(addr_info["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],
-                                         confirmed = 1)
-      
-        self.close_conn()
-        return
         
     def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False):
         """
@@ -1158,8 +1018,6 @@ class HDMWallet(Wallet):
         If True, account_index will be ignored.
         
         """
-        
-        
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
         total_amount = sum([x[1] for x in to_address_amount_list])
@@ -1195,24 +1053,6 @@ class HDMWallet(Wallet):
         
         return coins
         
-    
-    def build_tx(self, utxos, to_address_amount_list, segwit=True):
-        
-        account = self.get_signing_account()
-        
-        #if we want to send all the funds we don't need a change address.
-        if not coins["change"]: change_address = None    
-        else:        change_address = self.get_a_change_address()
-        
-        #We create the Multi-Signature Transaction object
-        tx_response = MultiSigTransaction.create_from_wallet(utxo_list=utxos,
-                                                             receivingAddress_w_amount_list =to_address_amount_list,
-                                                             multi_sig_account = account,change_address = change_address,
-                                                             fee=None,segwit=True,send_all=send_all)
-        
-        return tx_response
-    
-    
     def get_signing_account(self):
         
         #We create the multisignature account to sign the transaction. 
@@ -1221,92 +1061,4 @@ class HDMWallet(Wallet):
         
         return account
         
-        
-    def broadcast_tx(self, tx,utxos):
-        
-        if self.testnet: symbol = "btc-testnet"
-        else: symbol= "btc"
-
-        env = Sqlite3Environment()
-        BLOCKCYPHER_API_KEY = env.get_key("BLOCKCYPHER_API_KEY")[0][0]
-        env.close_database()
-        push = pushtx(tx_hex= tx.serialize().hex(), coin_symbol=symbol,api_key=BLOCKCYPHER_API_KEY)
-        tx_id = tx.id()
-        print(f"TRANSACTION ID: {tx_id}")
-
-        #saving in db
-        self.start_conn()
-        self.db.new_tx(tx_id, [ (x[0],x[1]) for x in utxos] ,
-                       [str(x).split(":")+[i] for i,x in enumerate(tx.tx_outs)])
-        self.close_conn()
-        #start new thread to check if the transaction goes through in the blockchain or not.
-        #Maybe move this to the front end class to pop a warning when it doesn't go through
-        mythread = threading.Thread(target=self.confirm_tx_sent,args=(tx_id,))
-        mythread.start()
-
-        return tx,push
-        
-        
-    def send(self,to_address_amount_list,segwit=True,send_all=False,account_index=None,total=False,min_fee_per_byte=70):
-        """
-        to_address can be a single address or a list.
-        amount can be an integer or a list of integers.
-        If they are lists, they must be ordered in the same way. address 1 will e sent amount 1, 
-        adrress 2 will be sent amount2.. adress n will be sent amount n.
-        """
-        #First let's get ready the inputs for the transaction
-        coins = self.get_coins(to_address_amount_list, send_all=send_all,total=total, account_index=account_index,
-                               segwit=segwit,min_fee_per_byte=min_fee_per_byte)
-        print(f"coins from coin-selector: {coins}")
-        
-        #Now, let's build the transaction
-        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
-        self.start_conn()
-        consigners_reply = {}
-        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
-        consigners_reply.update({f'{self.master_pubkey}':None})
-        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
-        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
-        
-        tx_id = tx_response[0].transaction.id()
-        tx_hex = tx_response[0].transaction.serialize().hex()
-        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
-                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
-                               consigners_reply, tx_hex)
-        
-        
-        # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
-        #transaction is ready to be broadcasted or if it needs more signatures:
-        #utxos = coins["utxos"]
-        if tx_response[1]: 
-            #if it is ready, we broadcast the transaction
-            self.broadcast_tx(tx_response[0],coins["utxos"])
-            
-        self.close_conn()  
-        #share it with the other participants of the multi-signature wallet. For now:
-        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
-        return tx_response 
-        
-    def sign_received_tx(self, tx):
-        """
-        tx: Tx object. The transaction object that needs to be signed.
-        """
-        
-        #to do: we need to get the utxo list from the database using the transaction to be able to sign
-        utxos = []
-        self.start_conn()
-        for _in in tx.tx_ins:
-            res = self.db.get_utxo_info(_in.prev_tx.hex(), _in.prev_index)
-            print(res)
-            utxos.append(res[0])
-            
-        self.close_conn()
-        #We create the multisignature account to sign the transaction.
-        account = self.get_signing_account()
-        
-        tx_response = MultiSigTransaction.sign_received_tx_with_wallet(utxos,tx,account)
-        
-        if tx_response[1]: self.broadcast_tx(tx_response[0],utxos)
-            
-        return tx_response
-            
+    

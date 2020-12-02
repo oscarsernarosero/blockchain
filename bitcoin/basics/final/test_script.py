@@ -8,5 +8,5 @@ invite = {'public_key_list': [b"\x02\x17n\x0c\xfd\x84]'\xce\x83)\x1fC\x1d\xda3s\
 
 store_safev2 = manager2.accept_invite(invite, "Buenos Aires Manager2v3")
 
-nov_21_safe = store_safev2.get_daily_safe_wallet(201121)
-res = nov_21_safe.open_partial_tx("492f1e707b3ef212872307d665b5682e1cf52ec0aebb91952fad4f09b41dd54a")
+nov_21_safe = store_safev2.get_weekly_safe_wallet(2047)
+res = nov_21_safe.open_partial_tx("87f1fc154295fb0043611f43484f820b57cd630adaf29e3d5877e5d3f814b376")
