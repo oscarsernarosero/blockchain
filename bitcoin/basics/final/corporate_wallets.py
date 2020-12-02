@@ -12,7 +12,7 @@ import threading
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 import calendar
 from io import BytesIO
-from coin_selector import get_coins_ready
+from coin_selector import coin_selector
 
 """
 This code is developed entirely by Oscar Serna. This code is subject to copy rights.
@@ -638,7 +638,7 @@ class SHDSafeWallet(Wallet):
         #If we are indeed trying to send all the funds, then we choose all the utxos
         if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
         #If not, then we have to choose in an efficient manner.
-        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
+        else: coins = coin_selector(all_utxos, total_amount, len(to_address_amount_list)) 
         
         return coins
     
@@ -1191,7 +1191,7 @@ class HDMWallet(Wallet):
         #If we are indeed trying to send all the funds, then we choose all the utxos
         if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
         #If not, then we have to choose in an efficient manner.
-        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
+        else: coins = coin_selector(all_utxos, total_amount, len(to_address_amount_list)) 
         
         return coins
         

@@ -174,8 +174,8 @@ def iterate_these_available_coins_reversed(total_out, available_coins, chosen_co
                     chosen_coins.append(coin)
                     available_coins.remove(coin)
                     total_remaining_available = sum([x[2] for x in available_coins])
-                    
-                    min_balance = ((len(chosen_coins)+1 + len(available_coins))*146 + n_outputs*34 + 20)*min_fee_per_byte - total_out
+                
+                    min_balance=((len(chosen_coins)+1+len(available_coins))*146+n_outputs*34+20)*min_fee_per_byte-total_out
                     
                     #we check that we will still have money for next iterations
                     diff = total_chosen_coins + total_remaining_available - min_balance
@@ -328,14 +328,14 @@ def naive_coin_selection(utxos, total_out,n_outputs,min_fee_per_byte=70):
     
     if utxo_total > total_out + max_estimated_fee + 146*min_fee_per_byte:
         change = utxo_total - total_out - (min_estimated_fee + 146*2)
-        #coins.append(("change","change",change))
-        return coins
+        return {"utxos":coins, "fee":min_estimated_fee + 146*2,"change":change}
     else: 
         print("NO change")
-        return coins
+        fee = utxo_total - total_out
+        return {"utxos":coins, "fee":fee,"change":False}
      
         
-def get_coins_ready(utxos, total_out, n_outputs, min_fee_per_byte=70):
+def coin_selector(utxos, total_out, n_outputs, min_fee_per_byte=70):
     #first let's try to get an exact change:
     coins = select_coins_by_exact_match(utxos, total_out, n_outputs,min_fee_per_byte)
     
@@ -358,9 +358,5 @@ def get_coins_ready(utxos, total_out, n_outputs, min_fee_per_byte=70):
     coins = naive_coin_selection(utxos, total_out, n_outputs,min_fee_per_byte)  
     if not isinstance(coins,bool):
         print("naive selection necessary.")
-        #fee will be the minimum plus the dust fee
-        fee = (len(coins)*146 + (n_outputs+1)*34 + 20)*min_fee_per_byte + 546
-        total_coins = sum([x[2] for x in coins])
-        change = total_coins - total_out - fee
-        return {"utxos":coins, "fee":fee,"change":False}
+        return coins
     return {"utxos":"Not enough money", "fee":0,"change":False}

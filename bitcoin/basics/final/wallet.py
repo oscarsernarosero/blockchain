@@ -11,7 +11,7 @@ from constants import *
 from accounts import MasterAccount, Account, MultSigAccount
 from transactions import Transaction, MultiSigTransaction
 from os import urandom
-from coin_selector import get_coins_ready
+from coin_selector import coin_selector
 #from database import WalletDB
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 from blockcypher import get_address_details, get_transaction_details
@@ -288,7 +288,7 @@ class Wallet(MasterAccount):
         #If we are indeed trying to send all the funds, then we choose all the utxos
         if send_all: coins = {"utxos":all_utxos,"fee":min_fee,"change":False}
         #If not, then we have to choose in an efficient manner.
-        else: coins = get_coins_ready(all_utxos, total_amount, len(to_address_amount_list)) 
+        else: coins = coin_selector(all_utxos, total_amount, len(to_address_amount_list)) 
         
         return coins
         
