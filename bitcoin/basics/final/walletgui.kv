@@ -782,6 +782,28 @@
         text: "CREATE NEW WALLET"
         size_hint: 1, None
         #on_release: qrcam.scanqr(address.text)
+        
+<NewAccountPopup>:
+    id: new_account
+    Label:
+        size_hint: None, None
+        size: 0, 50
+        font_size: "12sp"
+        pos_hint: {"center_x":0.5, "center_y":0.7}
+        text: 'Name your new account:' 
+    TextInput:
+        id: account_name
+        size_hint: 1, None
+        size: 400, 50
+        font_size: "12sp"
+        pos_hint: {"center_x":0.5, "center_y":0.45}
+        
+    Button:
+        id: button
+        pos_hint: {"center_x":0.5, "center_y":0.1}
+        text: "CREATE NEW ACCOUNT"
+        size_hint: 1, None
+        #on_release: qrcam.scanqr(address.text)
 
        
     
@@ -1215,7 +1237,7 @@
             size: 5,5
             background_color: 0.3,0.6,1,1
             markup: True
-            on_press:corporate_screen.transfer()
+            on_press:corporate_screen.transfer(total = True)
                 
         Button: 
             id: multiple_transfers
@@ -1224,7 +1246,7 @@
             size_hint: 1, 0.3
             size: 5,5
             markup: True
-            on_press:corporate_screen.multiple_transfers()
+            on_press:corporate_screen.multiple_transfers(total = True)
         
         Button: 
             id: receive
@@ -1233,7 +1255,7 @@
             text: "[b]Receive[/b]"
             size_hint: 1, 0.3
             size: 5,5
-            on_press: corporate_screen.receive()
+            on_press: corporate_screen.receive(total = True)
             
         Label:
             #spacer
@@ -1248,7 +1270,7 @@
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
-            text: "Sub Accounts: "
+            text: "Accounts: "
             
         
         RecycleView:
@@ -1271,7 +1293,7 @@
                         
         Button: 
             id: receive
-            text: "Create New Sub-Account"
+            text: "Create New Account"
             size_hint: 1, 0.3
             size: 5,5
             on_press: corporate_screen.new_subaccount()

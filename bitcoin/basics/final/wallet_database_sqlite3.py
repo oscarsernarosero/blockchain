@@ -77,11 +77,10 @@ class Sqlite3Wallet:
         """
         name is the primary key
         """
-        query = "CREATE TABLE IF NOT EXISTS CorporateAccount (index INT NOT NULL, \
-        account_name TEXT NOT NULL, wallet_name TEXT NOT NULL)\
-        \nPRIMARY KEY (index, wallet_name)"
+        query = "CREATE TABLE IF NOT EXISTS CorporateAccount ( acc_index INT NOT NULL, account_name text NOT NULL, \n\
+        wallet_name text NOT NULL,\nPRIMARY KEY (acc_index, wallet_name) ) WITHOUT ROWID;"
         
-        #print(query)
+        print(query)
         return self.execute(query)
 
     
@@ -737,18 +736,36 @@ class Sqlite3Wallet:
         query = f"SELECT MAX(safe_index) FROM HDMWallet WHERE parent_name='{name}';"
         return self.execute_w_res(query)[0][0]
     
-    def new_corportate_account(self, account_name,index,wallet_name):
+    def get_max_corporate_account_index(self, name):
         """
         Returns an INTEGER representing the highest index of the child-wallet for \
         the specified HDMWallet. If there is NO addresses under specified account, it \
         will return None.
+        name: String; name of the HDMWallet
+        """
+        query = f"SELECT MAX(acc_index) FROM CorporateAccount WHERE wallet_name='{name}';"
+        return self.execute_w_res(query)
+    
+    def get_all_corporate_accounts(self, name):
+        """
+        Returns an INTEGER representing the highest index of the child-wallet for \
+        the specified HDMWallet. If there is NO addresses under specified account, it \
+        will return None.
+        name: String; name of the HDMWallet
+        """
+        query = f"SELECT * FROM CorporateAccount WHERE wallet_name='{name}';"
+        return self.execute_w_res(query)
+    
+    def new_corportate_account(self, account_name,index,wallet_name):
+        """
         account_name: String; name or alias of the account being created
         wallet_name: String; name of the corportate wallet in the HDMWallet database
         index: int. The index of the account being created. Must be greater than 1 since \
         accounts with index 0 and 1 are reserved for depossit and change address generation.
         """
-        query = f"INSERT OR IGNORE INTO CorporateAccount (index, account_name, parent_name) \
-        VALUES(index = {index}, account_name = '{account_name}', wallet_name ='{wallet_name}');"
+        query = f"INSERT OR IGNORE INTO CorporateAccount (acc_index, account_name, wallet_name) \
+        VALUES({index}, '{account_name}', '{wallet_name}');"
+        print(query)
         return self.execute(query)
     
     def erase_database(self):

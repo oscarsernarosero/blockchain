@@ -629,10 +629,10 @@ class CorporateScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__()
         self.app = App.get_running_app()
-        account_list = ["Account 1","Account 2","Account 3","Account 5"]
+        account_list = self.app.db.get_all_corporate_accounts(self.app.current_wallet)
         no_data_msg ="You don't have any accounts yet." 
         if len(account_list)>0:
-            self.ids.account_list.data = [{'text': x} for x in account_list]
+            self.ids.account_list.data = [{'text': x[1]} for x in account_list]
         else:
             self.ids.account_list.data = [{'text': no_data_msg}]
             
@@ -641,6 +641,26 @@ class CorporateScreen(Screen):
         
     def go_back(self):
         self.app.sm.current = self.app.caller
+        
+    def new_subaccount(self):
+        self.new_account_popup = NewAccountPopup()
+        self.newAccountWindow = Popup(title="New Account", content=self.new_account_popup, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.6}
+                           )
+        self.newAccountWindow.open()
+        self.new_account_popup.ids.button.bind(on_release=self.create_account)
+        
+    def create_account(self,button):
+        name = self.new_account_popup.ids.account_name.text
+        max_index = self.app.db.get_max_corporate_account_index(self.app.current_wallet)
+        print(max_index)
+        if not max_index[0][0]: index = 2
+        else: index = int(max_index[0][0]) + 1
+        self.app.db.new_corportate_account(name,index,self.app.current_wallet)
+        account_list = self.app.db.get_all_corporate_accounts(self.app.current_wallet)
+        self.ids.account_list.data = [{'text': x[1]} for x in account_list]
+        self.newAccountWindow.dismiss()
+        
         
 class CorporateTransferScreen(Screen):
     font_size = "20sp"
@@ -1314,6 +1334,9 @@ class SafeTransferScreen(Screen, Send):
         
 
 class NewWalletPopup(FloatLayout):
+    pass
+
+class NewAccountPopup(FloatLayout):
     pass
 
 class GenericOkPopup(FloatLayout):

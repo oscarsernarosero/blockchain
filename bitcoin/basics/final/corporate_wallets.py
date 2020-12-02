@@ -690,8 +690,6 @@ class SHDSafeWallet(MultiSignatureWallet):
                 "master_pubkey":f"{self.master_pubkey}","testnet":self.testnet, "segwit":self.segwit,
                 "level1pubkeys":self.level1pubkeys }
     
-
-    
     def get_signing_account(self):
         
         #we take care of validating and formatting the private key
