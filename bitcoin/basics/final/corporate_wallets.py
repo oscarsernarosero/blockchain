@@ -12,6 +12,7 @@ import threading
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
 import calendar
 from io import BytesIO
+from coin_selector import get_coins_ready
 
 """
 This code is developed entirely by Oscar Serna. This code is subject to copy rights.
@@ -648,10 +649,10 @@ class SHDSafeWallet(Wallet):
         if not coins["change"]: change_address = None    
         else:        change_address = self.get_a_change_address()
         #We create the Multi-Signature Transaction object
-        tx_response = MultiSigTransaction.create_from_wallet(utxo_list=utxos,
+        tx_response = MultiSigTransaction.create_from_wallet(coins=coins,
                                                              receivingAddress_w_amount_list =to_address_amount_list,
-                                                             multi_sig_account = account,change_address = change_address,
-                                                             fee=None,segwit=True,send_all=send_all)
+                                                             multi_sig_account = account,change_account = change_address,
+                                                             fee=None,segwit=True)
         
         return tx_response
     
@@ -710,6 +711,7 @@ class SHDSafeWallet(Wallet):
         #First let's get ready the inputs for the transaction
         coins = self.get_coins(to_address_amount_list, send_all=send_all,
                                          segwit=segwit,min_fee_per_byte=min_fee_per_byte)
+        print(f"coins from coin-selector: {coins}")
         
         #Now, let's build the transaction
         tx_response = self.build_tx(coins,to_address_amount_list, segwit)
@@ -722,17 +724,17 @@ class SHDSafeWallet(Wallet):
         
         tx_id = tx_response[0].transaction.id()
         tx_hex = tx_response[0].transaction.serialize().hex()
-        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in utxos], 
+        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
                                [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
                                consigners_reply, tx_hex)
         
         
         # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
         #transaction is ready to be broadcasted or if it needs more signatures:
-        utxos = coins["utxos"]
+        #utxos = coins["utxos"]
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
-            self.broadcast_tx(tx_response[0],utxos)
+            self.broadcast_tx(tx_response[0],coins["utxos"])
             
         self.close_conn()  
         #share it with the other participants of the multi-signature wallet. For now:

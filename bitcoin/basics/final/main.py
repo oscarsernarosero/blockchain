@@ -1085,7 +1085,7 @@ class Send():
         if denomination == "Bitcoins": amount = int(amount*100000000)
         else: amount = int(amount)
             
-        self.confirm_popup(amount,denomination)
+        self.confirm_popup(amount)
         return 
     
     def confirm_popup(self,amount):
