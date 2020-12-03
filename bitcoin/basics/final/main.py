@@ -44,6 +44,7 @@ from kivy.core.window import Window
 from functools import partial
 
 
+#WALLET METHOD
 def store_wallet(app, rv, index, _wallet):
     app.wallets[0].update({f"{rv.data[index]['text']}": _wallet})
     app.current_wallet = rv.data[index]['text']
@@ -251,6 +252,10 @@ class SelectYear(SelectRV):
 
     def if_selected(self, rv, index):
         if "You don't have" in rv.data[index]["text"]: return
+        _wallet = HDMWallet.from_database(rv.data[index]["text"])
+        
+        store_wallet(self.app, rv, index, _wallet)
+        
         Clock.schedule_once(self.go_to_year, 0.7)  
 
             
@@ -263,12 +268,12 @@ class SelectAccount(SelectRV):
 
     def if_selected(self, rv, index):
         if "You don't have" in rv.data[index]["text"]: return
-        Clock.schedule_once(self.go_to_store, 0.7)  
+        Clock.schedule_once(self.go_to_account, 0.7)  
 
             
-    def go_to_store(self,obj):
+    def go_to_account(self,obj):
         self.selected = False
-        self.app.sm.current = "StoreSafesScreen"   
+        self.app.sm.current = "CorporateAccountScreen"   
 
 class SelectPayment(SelectRV):
 
@@ -295,6 +300,13 @@ class SelectContact(SelectRV):
             self.app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
             Clock.schedule_once(self.go_back, 0.7) 
 
+        elif self.app.caller == "MyContactsScreen" and self.app.last_caller == "NewCorporateWalletScreen":
+            print("in second if")
+            contact = self.app.db.get_contact(contact_xpub)
+            current_contact = self.app.arguments[0]["new_wallet_consigners"]["current"]
+            self.app.arguments[0]["new_wallet_consigners"].update({current_contact:contact})
+            Clock.schedule_once(self.go_back, 0.7) 
+            
         elif self.app.caller == "MyContactsScreen" or self.app.caller == "YearList":
             self.app.arguments[0].update({"current_contact":contact_xpub})
             Clock.schedule_once(self.see_contact, 0.7) 
@@ -442,7 +454,7 @@ class StoreSafesScreen(Screen):
         today = date.today()
         two_weeks_ago = today - timedelta(days=14)
         filtered_daily_safes = [key for key in daily_safe_date if \
-                                daily_safe_date[key] > two_weeks_ago  and  daily_safe_date[key] < today]
+                                daily_safe_date[key] > two_weeks_ago  and  daily_safe_date[key] <= today]
         
         #Now let's do the same with the week safes
         weekly_safes = self.app.db.get_weekly_safe_wallets(self.app.current_wallet)
@@ -460,7 +472,7 @@ class StoreSafesScreen(Screen):
             
         eight_weeks_ago = today - timedelta(days=56)
         filtered_weekly_safes = [key for key in week_safe_dates if \
-                                week_safe_dates[key] > eight_weeks_ago  and  week_safe_dates[key] < today]
+                                week_safe_dates[key] > eight_weeks_ago  and  week_safe_dates[key] <= today]
         
 
 
@@ -519,10 +531,20 @@ class StoreSafesScreen(Screen):
         : 'today', 'yesterday', 'this_week', or 'last_week'. Not {kargs['when']}")
         
         print(f"master_safe: {master_safe}\nindex: {index}")
-        if kargs["when"] == "today" or kargs["when"] == "yesterday": master_safe.get_daily_safe_wallet(index)
-        else: master_safe.get_weekly_safe_wallet(index)
-        
-        self.app.sm.current = "DaySafeScreen"
+        if kargs["when"] == "today" or kargs["when"] == "yesterday": 
+            day_wallet = master_safe.get_daily_safe_wallet(index)
+            self.app.wallets[0].update({f"{day_wallet.name}": day_wallet})
+            self.app.current_wallet = f"{day_wallet.name}"
+            print(f"self.app.wallets[0]: {self.app.wallets[0]}, current: {self.app.current_wallet}")
+            self.popupWindow.dismiss()
+            self.app.sm.current = "DayScreen"
+        else: 
+            week_wallet = master_safe.get_weekly_safe_wallet(index)
+            self.app.wallets[0].update({f"{week_wallet.name}": week_wallet})
+            self.app.current_wallet = f"{week_wallet.name}"
+            print(f"self.app.wallets[0]: {self.app.wallets[0]}, current: {self.app.current_wallet}")
+            self.popupWindow.dismiss()
+            self.app.sm.current = "WeekSafeScreen"
         
         
     def custom_safe(self,*args, **kargs):
@@ -597,21 +619,18 @@ class WhosHereScreen(Screen):
     def go_back(self):
         self.app.sm.current = "StoreSafesScreen"
            
+
             
-            
-            
-            
-    
 class YearListScreen(Screen):
     font_size = "15sp"
     
     def __init__(self, **kwargs):
         super().__init__()
         self.app = App.get_running_app()
-        year_list = [2020,2019]
-        no_data_msg ="You don't have any year accounts yet." 
+        year_list = self.app.db.get_year_wallets(self.app.current_wallet)
+        no_data_msg ="You don't have any year wallets yet." 
         if len(year_list)>0:
-            self.ids.year_list.data = [{'text': str(x)} for x in year_list]
+            self.ids.year_list.data = [{'text': x[0]} for x in year_list]
         else:
             self.ids.year_list.data = [{'text': no_data_msg}]
             
@@ -619,8 +638,174 @@ class YearListScreen(Screen):
         self.app.sm.current = self.app.caller
         
     def on_leave(self):
+        #self.app.last_wallet = self.app.current_wallet
         self.app.caller = "YearList"
         
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        
+    def new_year_safe_popup(self):
+        self.show = NewSafePopup("year")
+        self.popupWindow = Popup(title="Create New Year Wallet", content=self.show, size_hint=(None,None), size=(500,700), 
+                                 pos_hint={"center_x":0.5, "center_y":0.5}
+                            #auto_dismiss=False
+                           )
+        self.popupWindow.open()
+        self.show.current.bind(on_release=partial(self.new_year_safe,when="this_year"))
+        self.show.past.bind(on_release=partial(self.new_year_safe,when="last_year"))
+        self.show.other.bind(on_release=partial(self.new_year_safe,when="1111"))
+        
+    def new_year_safe(self,*args, **kargs):
+        print(f"args: {args}, kargs {kargs}")
+        master_safe = self.app.wallets[0][self.app.current_wallet]
+        #master_safe.start_conn() #maybe uncomment this
+        
+        if kargs["when"] == "this_year": index = None
+        
+        elif kargs["when"] == "last_year":
+            today = date.today()
+            index = today.year - 1
+            #index = int(index_string)
+            
+        
+        else: raise Exception(f"new_year_safe takes only one argument 'when' and it can only be 1 out of 2 options\
+        : 'this_year' or 'last_year'. Not {kargs['when']}")
+        
+        print(f"master_safe: {master_safe}\nindex: {index}")
+        year_wallet = master_safe.get_year_wallet(index)
+        
+        self.app.wallets[0].update({f"{year_wallet.name}": year_wallet})
+        self.app.current_wallet = f"{year_wallet.name}"
+        print(f"self.app.wallets[0]: {self.app.wallets[0]}, current: {self.app.current_wallet}")
+        self.popupWindow.dismiss()
+        self.app.sm.current = "CorporateAccountScreen"
+            
+
+class NewCorporateWalletScreen(Screen):
+    font_size = "15sp"
+    font_size_cosigners = "11sp"
+    consigners = {}
+    
+    def __init__(self,**kwargs):
+        super().__init__()
+        self.app = App.get_running_app()
+        self.last_caller = "init"
+        
+    def add_cosigner(self,obj):
+        self.app.arguments[0]["new_wallet_consigners"].update({"current":obj.cosigner})
+        self.app.caller = "NewCorporateWalletScreen"
+        self.app.sm.current = "MyContactsScreen" 
+        
+    def on_pre_enter(self):
+        
+        if self.last_caller == "init": 
+            self.last_caller = self.app.caller
+            self.update_n("3")
+            
+        current_args = self.app.arguments[0]
+        cosigners = current_args["new_wallet_consigners"]
+        print(f"cosigners: {cosigners}")
+        
+        #we iterate the 'cosigners' selected
+        for key in cosigners:
+            print(f"key: {key}")
+            #we skip if cosigner is "current" because this is just a helper
+            if key == "current": continue
+            cosigner_box = self.ids.cosigner_box
+            #now we iterate through the boxes in the Layout
+            for i,child in enumerate(cosigner_box.children):
+                #We try to store the name of the box. If it hasn't been selected it would have no name. That's 
+                #the reason for the try-except clause.
+                try: name = child.name
+                except:  continue
+                
+                #if we find the box that belongs to the cosigner, we proceed to change the text and color of the 
+                #button by looking for the second ([1]) child of the box (the button) and setting the properties.
+                if name == key:
+                    cosigner_box.children[i].children[1].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+                    cosigner_box.children[i].children[1].background_color = (0.3,0.6,1,1) 
+            
+            
+    def create_store_safe(self):
+        current_args = self.app.arguments[0]
+        wallet = self.app.wallets[0][self.app.current_wallet]
+        
+        #I reconstruct a corporatesuperwallet with the same seed info from my regular wallet.
+        self.app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
+                                                              passphrase=wallet.passphrase,
+                                                              testnet = wallet.testnet)
+        print(f"self.app.corporate_wallet: {self.app.corporate_wallet}")
+        
+        alias = self.ids.wallet_name.text
+        if alias is None: raise Exception("Must provide a name/alias for the store")
+        if "_" in alias:  raise Exception("'_' is a character reserved. You can always use blank spaces to separate words.")
+        n = int(self.ids.n.text)
+        m = int(self.ids.m.text)
+        cosigners = current_args["new_wallet_consigners"]
+        #we substract 1 from n since we are 1 of the cosigners, and we substract the "current" from the "cosigners"
+        #variable. Since we have -1 on both sides of the "<", then they cancel each other.
+        if len(cosigners)  < n: raise Exception("Not enough cosigners selected")
+        pubkey_list = []
+        for key in cosigners:
+            if key == "current": continue
+            pubkey_list.append(cosigners[key][0][4])
+            
+        print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
+            
+        try:
+            safe = HDMWallet(alias,pubkey_list,
+                                                master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
+                                               n=n,m=m,testnet=wallet.testnet, parent_name=self.app.current_wallet,
+                                                    level1pubkeys=level1)
+        except: print("Could not create SHDSafeWallet.")
+        
+        #We clean the current arguments
+        self.app.arguments[0]["new_wallet_consigners"] = {"current":""}
+        self.go_back()
+                                              
+    
+    def update_n(self,string_n):
+        cosigner_box = self.ids.cosigner_box
+        spacer = self.ids.spacer
+        n = int(string_n)
+        children = [child for child in cosigner_box.children]
+        kids = len(children)
+        if n < kids:
+            for kid in range(kids - n):
+                cosigner_box.remove_widget(children[ kid ])
+                
+        elif n > kids:
+            for kid in range( n - kids):
+                i = kids + kid 
+                box = AddCorporateCosignerRow(i,self)
+                cosigner_box.add_widget(box)
+                
+        if n<3: 
+            cosigner_box.size_hint_y = n
+            spacer.size_hint_y = 5.1 - (n-1)
+        else: 
+            cosigner_box.size_hint_y = 6
+            spacer.size_hint_y = 0.1
+                
+    
+    def go_back(self):
+        print(self.last_caller)
+        self.app.sm.current = "StoreList"
+    
+
+                        
+            
+            
+class CorporateWallesScreen(Screen):
+    
+    def on_pre_enter(self):
+        self.app = App.get_running_app()
+        
+    def new_corporate_wallet(self):
+        
+        
+    def accept_invite(self):
+    
             
 class CorporateScreen(Screen):
     font_size = "15sp"
@@ -637,6 +822,7 @@ class CorporateScreen(Screen):
             self.ids.account_list.data = [{'text': no_data_msg}]
             
     def on_pre_enter(self):
+        self.app = App.get_running_app()
         self.total = "A lot"
         
     def go_back(self):
@@ -661,7 +847,18 @@ class CorporateScreen(Screen):
         self.ids.account_list.data = [{'text': x[1]} for x in account_list]
         self.newAccountWindow.dismiss()
         
-        
+class CorporateAccountScreen(Screen):
+    font_size = "15sp"
+    total= StringProperty()
+    
+    def go_back(self):
+        self.app = App.get_running_app()
+        self.app.current_wallet = self.my_wallet.parent_name
+        print(f"\n\nfrom CorporateAccountScreen.go_back() app.current_wallet: {self.app.current_wallet} ")
+        sm = self.app.sm
+        sm.current = "YearList"
+    
+    
 class CorporateTransferScreen(Screen):
     font_size = "20sp"
     
@@ -783,12 +980,20 @@ class AddCosignerRow(BoxLayout):
         self.name = self.ids.button.cosigner = self.ids.label.text = f"Cosigner {cosigner_n}"
         self.ids.button.bind(on_release=parent.add_cosigner)
         
+class AddCorporateCosignerRow(BoxLayout):
+    
+    def __init__(self,cosigner_n, parent):
+        super().__init__()
+        self.name = self.ids.button.cosigner = self.ids.label.text = f"Cosigner {cosigner_n}"
+        self.ids.button.bind(on_release=parent.add_cosigner)
+        
 class Participant(BoxLayout):
     
     def __init__(self,name, level):
         super().__init__()
         self.name = self.ids.name.text = name
         self.ids.level.text = level
+    
     
     
 class NewStoreSafeScreen(Screen):
@@ -800,6 +1005,7 @@ class NewStoreSafeScreen(Screen):
         super().__init__()
         self.app = App.get_running_app()
         self.last_caller = "init"
+        
         
     
     def add_cosigner(self,obj):
@@ -851,6 +1057,7 @@ class NewStoreSafeScreen(Screen):
         
         alias = self.ids.store_name.text
         if alias is None: raise Exception("Must provide a name/alias for the store")
+        if "_" in alias:  raise Exception("'_' is a character reserved. You can always use blank spaces to separate words.")
         n = int(self.ids.n.text)
         m = int(self.ids.m.text)
         cosigners = current_args["new_wallet_consigners"]
@@ -1363,6 +1570,7 @@ class NewSafePopup(FloatLayout):
         
         if kind == "daily": message = ["Today's","Yesterday's", "day's"]
         elif kind == "weekly": message = ["This week's","Last week's", "week's"]
+        elif kind == "year": message = ["This year's","Last years's", "year's"]
         else: raise Exception(f"argument kind only accepts String 'daily' or 'weekly'. Not {kind}")
                                 
         label = Label(text= "Create new safe wallet.\nChoose one option:",

@@ -65,6 +65,35 @@
         size_hint_max_y: 50
         id: check_box
 
+<AddCorporateCosignerRow@BoxLayout>:
+    orientation: "horizontal"
+    spacing: 20
+    
+    Label:
+        #size_hint: 0.7, 0.1
+        size_hint_y: 0.1
+        size_hint_max_y: 50
+        halign: "auto"
+        valign: "top"
+        font_name: "Arial Black"
+        #font_size:  new_store_safe_screen.font_size
+        font_size:  "15sp"
+        color: 0,1,0,1
+        multiline: True
+        size: self.texture_size
+        id:label
+
+    Button: 
+        id: button
+        size_hint_max_y: 50
+        text:"Add Cosigner"
+        #on_press: new_store_safe_screen.add_cosigner("cosigner_1")
+        font_name: "Arial Black"
+        font_size: "12sp"
+        #size_hint: 1.2, 0.5
+        size_hint_y: 0.5
+
+
 <Participant@BoxLayout>:
     orientation: "horizontal"
     spacing: 20
@@ -1173,6 +1202,14 @@
                         pos: self.pos
                         size: self.size
                         
+        Button: 
+            text: "Create Year Wallet"
+            background_color: 0.5,1,0.75,1
+            size_hint: 1, 0.2
+            size: 5,5
+            #pos_hint: {'center_x':1, 'center_y': 0.25}
+            on_press: year_list_screen.new_year_safe_popup()
+        
         Button: 
             text: "Go Back"
             size_hint: 1, 0.2
@@ -2598,6 +2635,144 @@
             size_hint_max_y: 100
 
 
+<NewCorporateWalletScreen>:
+    id: new_corporate_wallet_screen
+    name: "NewCorporateWalletScreen"
+    
+    TopGoBackButton:
+        on_press:new_corporate_wallet_screen.go_back()
+    
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 20
+        padding: 40
+        
+        Label:
+            size_hint: 1, 0.5
+            halign: "left"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  new_corporate_wallet_screen.font_size
+            color: 0,1,0,1
+            text: "-- New Corporate Wallet --"
+
+        
+
+        Label:
+            size_hint: 1, 0.1
+            halign: "center"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  "12sp"
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Wallet Name/Alias:"
+
+        TextInput:
+            id: wallet_name
+            size_hint:1,0.5
+            multiline: True
+            #on_double_tap: send.paste()
+            #on_focus:
+                #send.paste()
+                        
+        BoxLayout:
+            orientation: "horizontal"
+            spacing: 20
+            size_hint: 1, 0.5
+            
+            Label:
+                size_hint: 1, 0.1
+                halign: "left"
+                valign: "top"
+                font_name: "Arial Black"
+                font_size:  new_store_safe_screen.font_size_cosigners
+                color: 0,1,0,1
+                multiline: True
+                size: self.texture_size
+                text: "Total\nCosigners:"
+
+            Spinner:
+                id: n
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.6,0.8
+                halign: "left"
+                text: "3"
+                values: 3","4","5","6"
+                on_text: new_store_safe_screen.update_n(self.text)
+                
+            Label:
+                size_hint: 1, 0.1
+                halign: "left"
+                valign: "top"
+                font_name: "Arial Black"
+                font_size:  new_store_safe_screen.font_size_cosigners
+                color: 0,1,0,1
+                multiline: True
+                size: self.texture_size
+                text: "Signatures\nrequired:"
+
+            Spinner:
+                id: m
+                font_name: "Arial Black"
+                color: 0,1,0,1
+                size_hint:0.6,0.8
+                halign: "left"
+                text: "2"
+                values: "2","3"
+                on_text: new_store_safe_screen.update_n(self.text)
+                
+        
+        
+        BoxLayout:
+            orientation: "vertical"
+            spacing: 50
+            padding: 0
+            size_hint: 1, 6
+            id: cosigner_box
+            
+            #Labels for the cosigners        
+            BoxLayout:
+                size_hint: 1, 0.1
+                orientation: "horizontal"
+                spacing: 20
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    #valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size_cosigners
+                    color: 0,1,0,1
+                    multiline: True
+                    #size: self.texture_size
+                    text: "Order:"
+
+                Label:
+                    size_hint: 0.7, 0.1
+                    halign: "auto"
+                    #valign: "top"
+                    font_name: "Arial Black"
+                    font_size:  new_store_safe_screen.font_size_cosigners
+                    color: 0,1,0,1
+                    multiline: True
+                    #size: self.texture_size
+                    text: "Add:"
+        
+            
+        Label:
+            size_hint:1,0.1
+            id:spacer
+        Button: 
+            text:"Create Store Safe"
+            on_press: new_store_safe_screen.create_store_safe()
+            font_name: "Arial Black"
+            font_size: "20sp"
+            size_hint_y: 1
+            size_hint_max_y: 100
 
 <MyContactsScreen>:
     id: my_contacts_screen
@@ -2984,3 +3159,163 @@
             size_hint_y: 1
             size_hint_max_y:100
                 
+
+
+<CorporateAccountScreen>:
+    id: corporate_account_screen
+    name: "CorporateAccountScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "CorporateScreen"
+            root.manager.transition.direction = "left"
+ 
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 15
+        padding: [50,80,50,50]
+        
+        
+        
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Total Bitcoins here:"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  "20sp"
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: corporate_account_screen.total
+            
+        Label:
+            #spacer
+            size_hint_y: 0.1
+            
+         
+        Button: 
+            id: transfer
+            text: "[b]Tranfer[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            background_color: 0.3,0.6,1,1
+            markup: True
+            on_press:corporate_account_screen.transfer()
+                
+        Button: 
+            id: multiple_transfers
+            background_color: 0.3,0.6,1,1
+            text: "[b]Tranfer to Multiple[/b] Addresses"
+            size_hint: 1, 0.3
+            size: 5,5
+            markup: True
+            on_press:corporate_account_screen.multiple_transfers()
+        
+        Button: 
+            id: receive
+            background_color: 0.3,1,0.6,1 
+            markup: True
+            text: "[b]Receive[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            on_press: corporate_account_screen.receive()
+            
+        Button: 
+            id: delete
+            background_color: 0.3,1,0.6,1 
+            markup: True
+            text: "[b]Delete This Account[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            on_press: corporate_account_screen.delete()
+            
+        
+<CorporateWallesScreen>:
+    id: corporate_wallets_screen
+    name: "CorporateWallesScreen"
+    
+    Button:
+        size:60,10
+        size_hint: 1, 0.05
+        text: "Back"
+        pos_hint: {"center_x":0.5,"center_y":0.98}
+        on_press:
+            app.root.current = "WalletTypeScreen"
+            root.manager.transition.direction = "left"
+    
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 15
+        padding: [50,80,50,50]
+        
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_wallets_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "Corporate Wallets:"
+            
+        RecycleView:
+            id: rv
+            viewclass: 'SelectWallet'
+            SelectableRecycleBoxLayout:
+                default_size: 1, dp(60)
+                default_size_hint: 1, None
+                size_hint: 1,None
+                height: self.minimum_height
+                orientation: 'vertical'
+                multiselect: False
+                touch_multiselect: False
+                canvas.before:
+                    Color:
+                        rgba: (0.9, 0.9, 0.9, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+            
+        Label:
+            #spacer
+            size_hint_y: 0.1
+         
+        Button: 
+            id: new_corporate_wallet
+            text: "[b]New Corporate Wallet[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            background_color: 0.3,0.6,1,1
+            markup: True
+            on_press:corporate_wallets_screen.new_corporate_wallet()
+                
+        Button: 
+            id: accept_invite
+            background_color: 0.3,0.6,1,1
+            text: "[b]Accept Invite[/b]"
+            size_hint: 1, 0.3
+            size: 5,5
+            markup: True
+            on_press:corporate_wallets_screen.accept_invite()
+        
+        
+            
+        
+                  

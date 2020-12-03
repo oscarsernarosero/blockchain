@@ -699,6 +699,10 @@ class Sqlite3Wallet:
         query = f"SELECT * FROM HDMWallet;"
         return self.execute_w_res(query)
     
+    def get_year_wallets(self,parent_wallet):
+        query = f"SELECT * FROM HDMWallet WHERE parent_name = '{parent_wallet}' and safe_index >= 2019;"
+        return self.execute_w_res(query)
+    
     def recover_SHDSafeWallet(self,name):
         query = f"SELECT * FROM SHDSafeWallet WHERE name='{name}'"
         return self.execute_w_res(query)

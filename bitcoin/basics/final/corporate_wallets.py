@@ -822,7 +822,7 @@ class HDMWallet(MultiSignatureWallet):
         
         #If self.index is < 0 it means it is a master wallet. Therefore, the very next child wallets must be
         #Year accounts which must follow the YY format.
-        if index < 20 or index > 99: raise Exception ("Bad index for year wallet. Follow YY format.")
+        if index < 2020 or index > 2199: raise Exception ("Bad index for year wallet. Follow YYYY format.")
         
         #Accounts with index 0 and 1 are reserved for deposit and change adddresses. Therefore, the index must be
         #always greater than 1.
@@ -834,7 +834,7 @@ class HDMWallet(MultiSignatureWallet):
         
         child_pubkey_list = [x.get_child_from_path(full_path) for x in self.xtended_pubkey_list]
             
-        child_wallet = HDMWallet( "20"+str(index)+"_"+self.name,  child_pubkey_list,
+        child_wallet = HDMWallet( str(index)+"_"+self.name,  child_pubkey_list,
                                  child_xtended_privkey,  self.m,  self.n,  self.addr_type,
                                  self.testnet, self.segwit,  self.name, index)
         
@@ -846,10 +846,10 @@ class HDMWallet(MultiSignatureWallet):
         If this-years's wallet is desired, don't pass any argument or set index to None.
         """
         if self.safe_index >= 0: raise Exception ("Only master wallets can create safe wallets.")
-        path = "m/"
+        path = "m/44H/0H/3H/"
         if index is None:
             today = datetime.datetime.now()
-            index_string = str(today.year)[2:]
+            index_string = str(today.year)
             index = int(index_string)
             
         safe_wallet = self.get_child_wallet(index, path)
