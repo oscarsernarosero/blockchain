@@ -48,8 +48,9 @@ from functools import partial
 #WALLET METHOD
 def store_wallet(app, rv, index, _wallet):
     app.wallets[0].update({f"{rv.data[index]['text']}": _wallet})
+    print(f"from SelectCorporateWallet _wallet.name {_wallet}")
     app.current_wallet = rv.data[index]['text']
-    print(f"self.app.wallets[0]: {app.wallets[0]}, current: {app.current_wallet}")
+    print(f"self.app.wallets[0]: {app.wallets[0]}, \n$$current: {app.current_wallet}")
 
 
 class Balance():
@@ -218,7 +219,9 @@ class SelectCorporateWallet(SelectRV):
     def if_selected(self, rv, index):
         print("selection changed to {0}".format(rv.data[index]))
         if "You don't have" in rv.data[index]["text"]: return
+        print(f"from SelectCorporateWallet rv.data[index]['text'] {rv.data[index]['text']}")
         _wallet = HDMWallet.from_database(rv.data[index]["text"])
+        print(f"from SelectCorporateWallet _wallet.name {_wallet }")
         
         store_wallet(self.app, rv, index, _wallet)
         
@@ -284,6 +287,12 @@ class SelectAccount(SelectRV):
 
     def if_selected(self, rv, index):
         if "You don't have" in rv.data[index]["text"]: return
+        wallet = self.app.wallets[0][self.app.current_wallet]
+        acc_info = self.app.db.get_corporate_account_by_name(rv.data[index]['text'], wallet.name)
+        self.app.current_corpacc = acc_info
+        print(f"from SelectAccount account: {acc_info}")
+        print(f"\nfrom SelectAccount self.app.current_corpacc: {self.app.current_corpacc}\n")
+        
         Clock.schedule_once(self.go_to_account, 0.7)  
 
             
@@ -642,13 +651,7 @@ class YearListScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
-        self.app = App.get_running_app()
-        year_list = self.app.db.get_year_wallets(self.app.current_wallet)
-        no_data_msg ="You don't have any year wallets yet." 
-        if len(year_list)>0:
-            self.ids.year_list.data = [{'text': x[0]} for x in year_list]
-        else:
-            self.ids.year_list.data = [{'text': no_data_msg}]
+        
             
     def go_back(self):
         self.app.sm.current = self.app.caller
@@ -659,6 +662,14 @@ class YearListScreen(Screen):
         
     def on_pre_enter(self):
         self.app = App.get_running_app()
+        self.app = App.get_running_app()
+        print(f"from yearlist: current_wallet: {self.app.current_wallet}")
+        year_list = self.app.db.get_year_wallets(self.app.current_wallet)
+        no_data_msg ="You don't have any year wallets yet." 
+        if len(year_list)>0:
+            self.ids.year_list.data = [{'text': x[0]} for x in year_list]
+        else:
+            self.ids.year_list.data = [{'text': no_data_msg}]
         
     def new_year_safe_popup(self):
         self.show = NewSafePopup("year")
@@ -674,6 +685,7 @@ class YearListScreen(Screen):
     def new_year_safe(self,*args, **kargs):
         print(f"args: {args}, kargs {kargs}")
         master_safe = self.app.wallets[0][self.app.current_wallet]
+        print(f"master_safe wallet (corporate Wallet): {master_safe.name}")
         #master_safe.start_conn() #maybe uncomment this
         
         if kargs["when"] == "this_year": index = None
@@ -840,7 +852,10 @@ class CorporateScreen(Screen):
     
     def __init__(self, **kwargs):
         super().__init__()
+        
+    def on_pre_enter(self):
         self.app = App.get_running_app()
+        self.total = "A lot"
         account_list = self.app.db.get_all_corporate_accounts(self.app.current_wallet)
         no_data_msg ="You don't have any accounts yet." 
         if len(account_list)>0:
@@ -848,12 +863,15 @@ class CorporateScreen(Screen):
         else:
             self.ids.account_list.data = [{'text': no_data_msg}]
             
-    def on_pre_enter(self):
-        self.app = App.get_running_app()
-        self.total = "A lot"
         
     def go_back(self):
-        self.app.sm.current = self.app.caller
+        #self.app.current_wallet = self.my_wallet.parent_name
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
+        print(f"leaving. wallet. name: {my_wallet.name}")
+        self.app.current_wallet = my_wallet.parent_name
+        sm = self.app.sm
+        sm.current = "YearList"
+        #self.app.sm.current = self.app.caller
         
     def new_subaccount(self):
         self.new_account_popup = NewAccountPopup()
@@ -874,16 +892,70 @@ class CorporateScreen(Screen):
         self.ids.account_list.data = [{'text': x[1]} for x in account_list]
         self.newAccountWindow.dismiss()
         
-class CorporateAccountScreen(Screen):
+class CorporateAccountScreen(Screen,Balance):
     font_size = "15sp"
     total= StringProperty()
     
-    def go_back(self):
+    
+    btc_balance = NumericProperty(0)
+    usd_balance = 0.0
+    
+    btc_balance_text = StringProperty(str(btc_balance) + " BTC")
+    usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
+    
+    def on_pre_enter(self):
         self.app = App.get_running_app()
-        self.app.current_wallet = self.my_wallet.parent_name
-        print(f"\n\nfrom CorporateAccountScreen.go_back() app.current_wallet: {self.app.current_wallet} ")
+        self.my_wallet = self.app.wallets[0][self.app.current_wallet]
+        print(f"On corporate account: current_wallet: {self.app.current_wallet}")
+        self.update_real_balance()
+        
+    def copy(self):
+        pyperclip.copy(self.ids.address_text.text)
+   
+    def transfer(self):
+        self.app.current_wallet_balance = self.btc_balance_text
+        print(f"self.btc_balance_text: {self.btc_balance_text}")
+        self.app.last_caller = self.app.caller
+        self.app.caller = "CorporateAccountScreen"
+        #self.app.sm.current = "SafeTransferScreen"
+        print(f"from Transfer: not developed yet. ")
+        
+    def go_back(self):
+        #self.app.current_wallet = self.my_wallet.parent_name
+        #self.app.current_wallet = self.my_wallet.parent_name
+        #print(f"leaving. setting wallet to: {self.app.current_wallet}")
         sm = self.app.sm
-        sm.current = "YearList"
+        sm.current = "CorporateScreen"
+        
+    def update_balance_process(self):
+        """
+        This is an overwritten version of the method from Balance class.
+        """
+        env = Sqlite3Environment()
+        api_key = env.get_key("CC_API")[0][0]
+        env.close_database()
+        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
+        raw_data = self.read_json(url)
+        btc_price = raw_data["USD"]
+        
+        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
+        
+        self.my_wallet.start_conn()
+        #self.btc_balance = self.my_wallet.get_balance()/100000000
+        print(f"account_index: {self.app.current_corpacc[0][0]}")
+        utxos = self.my_wallet.get_utxos_from_corporate_account(self.app.current_corpacc[0][0])
+        self.btc_balance = (sum([x[3] for x in utxos]))/100000000
+        print(f"balance: {self.btc_balance}")
+        print(f"account_index: {self.app.current_corpacc[0][0]}")
+        #self.btc_balance = app.btc_balance/100000000
+        self.usd_balance = self.btc_balance * btc_price
+        self.btc_balance_text =  str(self.btc_balance) + " BTC"
+        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
+        
+        print("closing loading window")
+        self.loadingBalance.dismiss()
+        self.my_wallet.close_conn()
+        
     
     
 class CorporateTransferScreen(Screen):
@@ -1821,6 +1893,7 @@ class walletguiApp(App):
     last_wallet = StringProperty()
     store_list=ListProperty()
     corporate_wallet = ObjectProperty()
+    current_corpacc = ListProperty()
     db = ObjectProperty()
     sm = ObjectProperty()
     caller = StringProperty()
@@ -1874,6 +1947,7 @@ class walletguiApp(App):
         self.sm.add_widget(WhosHereScreen())
         self.sm.add_widget(CorporateWalletsScreen())
         self.sm.add_widget(NewCorporateWalletScreen())
+        self.sm.add_widget(CorporateAccountScreen())
         return self.sm
 
     def on_stop(self):

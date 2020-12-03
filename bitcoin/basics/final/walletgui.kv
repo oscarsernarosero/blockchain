@@ -1243,9 +1243,7 @@
         size_hint: 1, 0.05
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "YearList"
-            root.manager.transition.direction = "left"
+        on_press:corporate_screen.go_back()
  
     
     BoxLayout:
@@ -3185,9 +3183,7 @@
         size_hint: 1, 0.05
         text: "Back"
         pos_hint: {"center_x":0.5,"center_y":0.98}
-        on_press:
-            app.root.current = "CorporateScreen"
-            root.manager.transition.direction = "left"
+        on_press:corporate_account_screen.go_back()
  
     
     BoxLayout:
@@ -3202,7 +3198,7 @@
             halign: "auto"
             valign: "middle"
             font_name: "Arial Black"
-            font_size:  corporate_screen.font_size
+            font_size:  corporate_account_screen.font_size
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
@@ -3217,7 +3213,7 @@
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
-            text: corporate_account_screen.total
+            text: corporate_account_screen.btc_balance_text
             
         Label:
             #spacer

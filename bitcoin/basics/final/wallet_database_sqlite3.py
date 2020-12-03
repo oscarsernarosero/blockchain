@@ -765,6 +765,16 @@ class Sqlite3Wallet:
         query = f"SELECT * FROM CorporateAccount WHERE wallet_name='{name}';"
         return self.execute_w_res(query)
     
+    def get_corporate_account_by_name(self, name, wallet_name):
+        """
+        Returns an INTEGER representing the highest index of the child-wallet for \
+        the specified HDMWallet. If there is NO addresses under specified account, it \
+        will return None.
+        name: String; name of the HDMWallet
+        """
+        query = f"SELECT * FROM CorporateAccount WHERE wallet_name='{wallet_name}' AND account_name = '{name}';"
+        return self.execute_w_res(query)
+    
     def new_corportate_account(self, account_name,index,wallet_name):
         """
         account_name: String; name or alias of the account being created

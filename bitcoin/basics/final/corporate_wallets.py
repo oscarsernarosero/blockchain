@@ -854,7 +854,7 @@ class HDMWallet(MultiSignatureWallet):
         If this-years's wallet is desired, don't pass any argument or set index to None.
         """
         if self.safe_index >= 0: raise Exception ("Only master wallets can create safe wallets.")
-        path = "m/44H/0H/3H/"
+        path = "m/"
         if index is None:
             today = datetime.datetime.now()
             index_string = str(today.year)
@@ -1008,7 +1008,7 @@ class HDMWallet(MultiSignatureWallet):
             change_path = f"m/{account_index}/1/"
             deposit_path = f"m/{account_index}/0/"
             
-        coins_from_account = [ x for x in unused_addresses  if  x[3] == change_path  or  x[3] == deposit_path ]
+        coins_from_account = [ x for x in coins  if  x[3] == change_path  or  x[3] == deposit_path ]
         
         self.close_conn()
         return coins_from_account
