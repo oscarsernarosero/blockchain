@@ -262,6 +262,11 @@ class CorporateSuperWallet(Wallet):
         year_account = self.get_child_from_path(path)
         return year_account.xtended_public_key
     
+    def get_corporate_account(self):
+        path = "m/44H/0H/3H"
+        year_account = self.get_child_from_path(path)
+        return year_account
+    
     def accept_corporate_safe_invite(self,invite, name):
         """
         accepts the invitation from a SuperCorporateWallet to participate in a daily-safe wallet.
@@ -801,8 +806,11 @@ class HDMWallet(MultiSignatureWallet):
         self.close_conn(self)
         print(w)
         pubkeys = w[1][1:-1].split(", ")
+        #print(f"pubkeys list {pubkeys} ")
+        pubkeys = [x.strip("'") for x in pubkeys]
+        #print(f"pubkeys list after stripped {pubkeys} ")
         master_pubkey_list = [Xtended_pubkey.parse(x) for x in pubkeys]
-        print(f"parsed master public keys: {public_key_list}")
+        print(f"parsed master public keys: {master_pubkey_list}")
         master_privkey = Xtended_privkey.parse(w[4])
         if w[8] == "None": parent_name = None
         else: parent_name = w[8]

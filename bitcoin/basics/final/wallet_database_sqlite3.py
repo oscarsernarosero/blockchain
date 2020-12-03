@@ -711,6 +711,11 @@ class Sqlite3Wallet:
         query = f"SELECT * FROM HDMWallet WHERE name='{name}'"
         return self.execute_w_res(query)
     
+    def get_child_corporate_wallets(self,parent_name):
+        query = f"SELECT * FROM HDMWallet WHERE parent_name='{parent_name}'"
+        return self.execute_w_res(query)
+    
+    
     def get_partial_tx_hex(self, tx_id):
         query = f"SELECT tx_hex FROM PartialTransactions WHERE tx_id='{tx_id}'"
         return self.execute_w_res(query)

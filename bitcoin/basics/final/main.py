@@ -3,6 +3,7 @@ kivy.require('1.11.1') # replace with your current kivy version !
 from wallet import Wallet
 from corporate_wallets import CorporateSuperWallet, StoreWallet, ManagerWallet, SHDSafeWallet, HDMWallet
 from wallet_database_sqlite3 import Sqlite3Wallet, Sqlite3Environment
+from bip32 import Xtended_pubkey
 import qrcode
 from urllib.request import Request, urlopen
 import json
@@ -212,7 +213,22 @@ class SelectDay(SelectRV):
         self.selected = False
         self.app.sm.current = "DayScreen"
         
+class SelectCorporateWallet(SelectRV):
+
+    def if_selected(self, rv, index):
+        print("selection changed to {0}".format(rv.data[index]))
+        if "You don't have" in rv.data[index]["text"]: return
+        _wallet = HDMWallet.from_database(rv.data[index]["text"])
+        
+        store_wallet(self.app, rv, index, _wallet)
+        
+        Clock.schedule_once(self.go_to_day, 0.7)  
+
             
+    def go_to_day(self,obj):
+        self.selected = False
+        self.app.sm.current = "YearList"
+                    
 class SelectWeek(SelectRV):
     
     def if_selected(self, rv, index):
@@ -722,8 +738,8 @@ class NewCorporateWalletScreen(Screen):
                 #if we find the box that belongs to the cosigner, we proceed to change the text and color of the 
                 #button by looking for the second ([1]) child of the box (the button) and setting the properties.
                 if name == key:
-                    cosigner_box.children[i].children[1].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
-                    cosigner_box.children[i].children[1].background_color = (0.3,0.6,1,1) 
+                    cosigner_box.children[i].children[0].text = cosigners[key][0][0]+" "+cosigners[key][0][1]
+                    cosigner_box.children[i].children[0].background_color = (0.3,0.6,1,1) 
             
             
     def create_store_safe(self):
@@ -731,7 +747,7 @@ class NewCorporateWalletScreen(Screen):
         wallet = self.app.wallets[0][self.app.current_wallet]
         
         #I reconstruct a corporatesuperwallet with the same seed info from my regular wallet.
-        self.app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
+        corp_wallet = self.app.corporate_wallet = CorporateSuperWallet.recover_from_words(mnemonic_list=wallet.words,
                                                               passphrase=wallet.passphrase,
                                                               testnet = wallet.testnet)
         print(f"self.app.corporate_wallet: {self.app.corporate_wallet}")
@@ -745,19 +761,21 @@ class NewCorporateWalletScreen(Screen):
         #we substract 1 from n since we are 1 of the cosigners, and we substract the "current" from the "cosigners"
         #variable. Since we have -1 on both sides of the "<", then they cancel each other.
         if len(cosigners)  < n: raise Exception("Not enough cosigners selected")
-        pubkey_list = []
+        
+        my_corporate_account = corp_wallet.get_corporate_account()
+        
+        pubkey_list = [my_corporate_account.xtended_public_key]
         for key in cosigners:
             if key == "current": continue
-            pubkey_list.append(cosigners[key][0][4])
+            pubkey_list.append(Xtended_pubkey.parse(cosigners[key][0][4]))
             
         print(f"alias {alias}, n {n}, pubkey_list {pubkey_list}")
             
         try:
-            safe = HDMWallet(alias,pubkey_list,
-                                                master_privkey=wallet.get_child_from_path("m/44H/0H/1H"),
-                                               n=n,m=m,testnet=wallet.testnet, parent_name=self.app.current_wallet,
-                                                    level1pubkeys=level1)
-        except: print("Could not create SHDSafeWallet.")
+            #there is an error in the HDMWallet class. private key is actually receiving an account object.
+            safe = HDMWallet(alias,pubkey_list, my_corporate_account, n=n, m=m, testnet=wallet.testnet,
+                             parent_name=self.app.current_wallet)
+        except Exception as e: print(f"Could not create HDMWallet. {traceback.format_exc()}")
         
         #We clean the current arguments
         self.app.arguments[0]["new_wallet_consigners"] = {"current":""}
@@ -790,21 +808,30 @@ class NewCorporateWalletScreen(Screen):
     
     def go_back(self):
         print(self.last_caller)
-        self.app.sm.current = "StoreList"
+        self.app.sm.current = "WalletType"
     
-
-                        
-            
-            
-class CorporateWallesScreen(Screen):
+      
+class CorporateWalletsScreen(Screen):
+    font_size = "13sp"
     
     def on_pre_enter(self):
         self.app = App.get_running_app()
+        corp_wallets_list= self.app.db.get_child_corporate_wallets(self.app.current_wallet)
+        print(f"corp_wallets_list {corp_wallets_list}")
+        no_wallet_msg ="You don't have any corp.\nmulti-signature wallets yet." 
+        if len(corp_wallets_list)>0:
+            self.ids.corp_wallet_list.data = [{'text': x[0]} for x in corp_wallets_list]
+        else:
+            self.ids.corp_wallet_list.data = [{'text': no_wallet_msg}]
+        self.app.caller = "CorporateWalletsScreen"
         
     def new_corporate_wallet(self):
+        #self.app.caller = "CorporateWalletsScreen"
+        self.app.sm.current = "NewCorporateWalletScreen"
         
         
     def accept_invite(self):
+        print("Not developed yet")
     
             
 class CorporateScreen(Screen):
@@ -1845,6 +1872,8 @@ class walletguiApp(App):
         self.sm.add_widget(ContactInfoScreen())
         self.sm.add_widget(DayScreen())
         self.sm.add_widget(WhosHereScreen())
+        self.sm.add_widget(CorporateWalletsScreen())
+        self.sm.add_widget(NewCorporateWalletScreen())
         return self.sm
 
     def on_stop(self):
