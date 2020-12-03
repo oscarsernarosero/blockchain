@@ -1273,7 +1273,29 @@
             color: 0,1,0,1
             text_size: root.width*0.7, None
             size: self.texture_size
-            text: corporate_screen.total
+            text: corporate_screen.btc_balance_text
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  corporate_screen.font_size
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: "General Account:"
+            
+        Label:
+            size_hint: 1, 0.1
+            halign: "auto"
+            valign: "middle"
+            font_name: "Arial Black"
+            font_size:  "20sp"
+            color: 0,1,0,1
+            text_size: root.width*0.7, None
+            size: self.texture_size
+            text: corporate_screen.btc_balance_account_text
             
         Label:
             #spacer
@@ -1287,7 +1309,7 @@
             size: 5,5
             background_color: 0.3,0.6,1,1
             markup: True
-            on_press:corporate_screen.transfer(total = True)
+            on_press:corporate_screen.transfer()
                 
         Button: 
             id: multiple_transfers
@@ -1296,7 +1318,7 @@
             size_hint: 1, 0.3
             size: 5,5
             markup: True
-            on_press:corporate_screen.multiple_transfers(total = True)
+            on_press:corporate_screen.multiple_transfers()
         
         Button: 
             id: receive
@@ -1305,7 +1327,7 @@
             text: "[b]Receive[/b]"
             size_hint: 1, 0.3
             size: 5,5
-            on_press: corporate_screen.receive(total = True)
+            on_press: corporate_screen.receive()
             
         Label:
             #spacer

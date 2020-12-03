@@ -846,16 +846,30 @@ class CorporateWalletsScreen(Screen):
         print("Not developed yet")
     
             
-class CorporateScreen(Screen):
+class CorporateScreen(Screen,Balance):
     font_size = "15sp"
     total= StringProperty()
+    
+    btc_balance = NumericProperty(0)
+    btc_balance_account = NumericProperty(0)
+    usd_balance = 0.0
+    btc_balance_account = 0.0
+    
+    btc_balance_text = StringProperty("0 BTC")
+    btc_balance_account_text = StringProperty("0 BTC")
+    usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
+    
     
     def __init__(self, **kwargs):
         super().__init__()
         
+        
     def on_pre_enter(self):
         self.app = App.get_running_app()
-        self.total = "A lot"
+        self.my_wallet = self.app.wallets[0][self.app.current_wallet]
+        self.update_real_balance()
+        print(f"balance: {self.btc_balance}")
+        
         account_list = self.app.db.get_all_corporate_accounts(self.app.current_wallet)
         no_data_msg ="You don't have any accounts yet." 
         if len(account_list)>0:
@@ -863,7 +877,17 @@ class CorporateScreen(Screen):
         else:
             self.ids.account_list.data = [{'text': no_data_msg}]
             
+    def on_enter(self):
+        utxos = self.my_wallet.get_utxos_from_corporate_account()
+        self.btc_balance_account = (sum([x[3] for x in utxos]))/100000000
         
+    def transfer(self):
+        self.app.current_wallet_balance = self.btc_balance_account_text
+        print(f"self.btc_balance_account: {self.btc_balance_account_text}")
+        self.app.last_caller = self.app.caller
+        self.app.caller = "CorporateScreen"
+        self.app.sm.current = "SafeTransferScreen"
+            
     def go_back(self):
         #self.app.current_wallet = self.my_wallet.parent_name
         my_wallet = self.app.wallets[0][self.app.current_wallet]
@@ -892,7 +916,7 @@ class CorporateScreen(Screen):
         self.ids.account_list.data = [{'text': x[1]} for x in account_list]
         self.newAccountWindow.dismiss()
         
-class CorporateAccountScreen(Screen,Balance):
+class CorporateAccountScreen(Screen):
     font_size = "15sp"
     total= StringProperty()
     
@@ -907,7 +931,14 @@ class CorporateAccountScreen(Screen,Balance):
         self.app = App.get_running_app()
         self.my_wallet = self.app.wallets[0][self.app.current_wallet]
         print(f"On corporate account: current_wallet: {self.app.current_wallet}")
-        self.update_real_balance()
+        #self.update_real_balance()
+        print(f"account_index: {self.app.current_corpacc[0][0]}")
+        utxos = self.my_wallet.get_utxos_from_corporate_account(self.app.current_corpacc[0][0])
+        self.btc_balance = (sum([x[3] for x in utxos]))/100000000
+        print(f"balance: {self.btc_balance}")
+        #self.usd_balance = self.btc_balance * btc_price
+        self.btc_balance_text =  str(self.btc_balance) + " BTC"
+        #self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
         
     def copy(self):
         pyperclip.copy(self.ids.address_text.text)
@@ -917,7 +948,7 @@ class CorporateAccountScreen(Screen,Balance):
         print(f"self.btc_balance_text: {self.btc_balance_text}")
         self.app.last_caller = self.app.caller
         self.app.caller = "CorporateAccountScreen"
-        #self.app.sm.current = "SafeTransferScreen"
+        self.app.sm.current = "SafeTransferScreen"
         print(f"from Transfer: not developed yet. ")
         
     def go_back(self):
@@ -926,35 +957,7 @@ class CorporateAccountScreen(Screen,Balance):
         #print(f"leaving. setting wallet to: {self.app.current_wallet}")
         sm = self.app.sm
         sm.current = "CorporateScreen"
-        
-    def update_balance_process(self):
-        """
-        This is an overwritten version of the method from Balance class.
-        """
-        env = Sqlite3Environment()
-        api_key = env.get_key("CC_API")[0][0]
-        env.close_database()
-        url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
-        raw_data = self.read_json(url)
-        btc_price = raw_data["USD"]
-        
-        print(f"update_balance_process:\napp.wallets {self.app.wallets}, current wallet: {self.app.current_wallet}")
-        
-        self.my_wallet.start_conn()
-        #self.btc_balance = self.my_wallet.get_balance()/100000000
-        print(f"account_index: {self.app.current_corpacc[0][0]}")
-        utxos = self.my_wallet.get_utxos_from_corporate_account(self.app.current_corpacc[0][0])
-        self.btc_balance = (sum([x[3] for x in utxos]))/100000000
-        print(f"balance: {self.btc_balance}")
-        print(f"account_index: {self.app.current_corpacc[0][0]}")
-        #self.btc_balance = app.btc_balance/100000000
-        self.usd_balance = self.btc_balance * btc_price
-        self.btc_balance_text =  str(self.btc_balance) + " BTC"
-        self.usd_balance_text = "{:10.2f}".format(self.usd_balance) + " USD"
-        
-        print("closing loading window")
-        self.loadingBalance.dismiss()
-        self.my_wallet.close_conn()
+       
         
     
     
@@ -1577,6 +1580,11 @@ class CameraPopup(FloatLayout):
     pass
 
 class SafeTransferScreen(Screen, Send):
+    """
+    This screen manages all the transfers from every single kind of wallet, safe or account. \
+    It handles the transfer depending on the screen calling the transfer. Therefore, it is \
+    important that the properties app.caller, self.app.current_wallet_balance, are set properly.
+    """
     font_size = "15sp"
     
     
@@ -1595,13 +1603,30 @@ class SafeTransferScreen(Screen, Send):
             self.ids.transfer.text = "Transfer From This Week"
             self.ids.transfer_all.text = "Transfer All To\nCorporate's Safe"
             self.ids.transfer_all.bind(on_press=self.send_all)
+            
         elif self.app.caller == "DayScreen":
             self.ids.title.text = "Transfer Day Safe"
             self.ids.transfer.text = "Transfer From This Day"
             self.ids.transfer_all.text = "Transfer All To\Week's Safe"
             self.ids.transfer_all.bind(on_press=self.send_all_week_safe)
+            
+        elif self.app.caller == "CorporateScreen":
+            self.ids.title.text = f"Transfer from {self.app.current_wallet}"
+            self.ids.transfer.text = "Transfer"
+            self.ids.transfer_all.text = "Transfer All"
+            self.ids.transfer_all.bind(on_press=self.corporate_send_all)
+            
+        elif self.app.caller == "CorporateAccountScreen":
+            self.ids.title.text = f"Transfer from\n{self.app.current_corpacc[0][1]} - {self.app.current_wallet}"
+            self.ids.transfer.text = "Transfer"
+            self.ids.transfer_all.text = "Transfer All"
+            self.ids.transfer_all.bind(on_press=self.corporate_send_all)
+            
+        
         else: self.ids.title.text = self.ids.transfer.text = self.ids.transfer_all.text =  "Error"
         
+    def corporate_send_all(self, button):
+        print("in corporate_send_all(). Not developed yet.")
     
     def send_all_week_safe(self,button):
         """
