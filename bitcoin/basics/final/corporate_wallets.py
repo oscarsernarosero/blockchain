@@ -1059,6 +1059,45 @@ class HDMWallet(MultiSignatureWallet):
         
         return coins
         
+    
+    def send(self, to_address_amount_list, segwit=True, acc_index=None, send_all = None, min_fee_per_byte=70):
+        """
+        to_address_amount_list: List of tuples [(address1,amount1),...]
+        """
+        #First let's get ready the inputs for the transaction
+        coins = self.get_coins(to_address_amount_list, send_all=send_all, acc_index=acc_index,
+                                         segwit=segwit,min_fee_per_byte=min_fee_per_byte)
+        print(f"coins from coin-selector: {coins}")
+        
+        #Now, let's build the transaction
+        tx_response = self.build_tx(coins,to_address_amount_list, segwit)
+        self.start_conn()
+        consigners_reply = {}
+        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
+        consigners_reply.update({f'{self.master_pubkey}':None})
+        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
+        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
+        
+        tx_id = tx_response[0].transaction.id()
+        tx_hex = tx_response[0].transaction.serialize().hex()
+        self.db.new_partial_tx(tx_id, [ (x[0],x[1]) for x in coins["utxos"]], 
+                               [str(x).split(":")+[i] for i,x in enumerate(tx_response[0].transaction.tx_outs)], 
+                               consigners_reply, tx_hex)
+        
+        
+        # tx_response will be a touple of the transaction object and a boolean (tx,READY) that tells us if the  
+        #transaction is ready to be broadcasted or if it needs more signatures:
+        #utxos = coins["utxos"]
+        if tx_response[1]: 
+            #if it is ready, we broadcast the transaction
+            self.broadcast_tx(tx_response[0],coins["utxos"])
+            
+        self.close_conn()  
+        #share it with the other participants of the multi-signature wallet. For now:
+        print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}")
+        return tx_response 
+        
+    
     def get_signing_account(self):
         
         #We create the multisignature account to sign the transaction. 

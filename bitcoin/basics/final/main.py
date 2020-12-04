@@ -77,7 +77,7 @@ class Balance():
 
             self.update_balance()
         except Exception as e:
-            print("update balance exception")
+            print(f"update balance exception {traceback.format_exc()}")
             if str(e).startswith("('Status Code 429'"):
                 #TRIGGER THE "WRONG INPUT POPUP"
                 self.exception_popup = GenericOkPopup("Too many requests in the\npast hour.\nTry again later.")
@@ -105,7 +105,7 @@ class Balance():
     def update_balance_process(self):
         env = Sqlite3Environment()
         api_key = env.get_key("CC_API")[0][0]
-        env.close_database()
+        #env.close_database()
         url = f"https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD"
         raw_data = self.read_json(url)
         btc_price = raw_data["USD"]
@@ -859,15 +859,15 @@ class CorporateScreen(Screen,Balance):
     btc_balance_account_text = StringProperty("0 BTC")
     usd_balance_text = StringProperty("{:10.2f}".format(usd_balance) + " USD")
     
-    
-    def __init__(self, **kwargs):
-        super().__init__()
         
         
     def on_pre_enter(self):
         self.app = App.get_running_app()
         self.my_wallet = self.app.wallets[0][self.app.current_wallet]
-        self.update_real_balance()
+        utxos = self.my_wallet.get_utxos_from_corporate_account()
+        print(f"utxos on_enter: {utxos}")
+        self.btc_balance_account_text = str((sum([x[2] for x in utxos]))/100000000)+" BTC"
+        
         print(f"balance: {self.btc_balance}")
         
         account_list = self.app.db.get_all_corporate_accounts(self.app.current_wallet)
@@ -876,14 +876,19 @@ class CorporateScreen(Screen,Balance):
             self.ids.account_list.data = [{'text': x[1]} for x in account_list]
         else:
             self.ids.account_list.data = [{'text': no_data_msg}]
+        self.update_real_balance()
             
     def on_enter(self):
-        utxos = self.my_wallet.get_utxos_from_corporate_account()
-        self.btc_balance_account = (sum([x[3] for x in utxos]))/100000000
+        #utxos = self.my_wallet.get_utxos_from_corporate_account()
+        #print(f"utxos on_enter: {utxos}")
+        #self.btc_balance_account_text = str((sum([x[2] for x in utxos]))/100000000)+" BTC"
+        pass
         
     def transfer(self):
         self.app.current_wallet_balance = self.btc_balance_account_text
         print(f"self.btc_balance_account: {self.btc_balance_account_text}")
+        self.app.current_corpacc = [(None)]
+        print(f"account_index: {self.app.current_corpacc[0][0]}")
         self.app.last_caller = self.app.caller
         self.app.caller = "CorporateScreen"
         self.app.sm.current = "SafeTransferScreen"
@@ -904,6 +909,27 @@ class CorporateScreen(Screen,Balance):
                            )
         self.newAccountWindow.open()
         self.new_account_popup.ids.button.bind(on_release=self.create_account)
+        
+    def receive(self):
+        self.qr_popup()
+        
+    def qr_popup(self):
+        
+        self.my_wallet.start_conn()
+        
+        addresses = self.my_wallet.get_unused_addresses_list()
+        print(addresses)
+        if len(addresses)==0: address = self.my_wallet.create_receiving_address(addr_type="p2wsh")
+        else: address = addresses[0][0]
+        
+        self.show = QRcodePopup(address)
+                
+    
+        self.popupWindow = Popup(title="Address and QR Code", content=self.show, size_hint=(None,None), size=(550,700),
+                                pos_hint={"center_x":0.5, "center_y":0.5})
+        self.popupWindow.open()
+        #self.show.YES.bind(on_press=self.send_tx)
+        self.show.OK.bind(on_release=self.popupWindow.dismiss)
         
     def create_account(self,button):
         name = self.new_account_popup.ids.account_name.text
@@ -942,6 +968,29 @@ class CorporateAccountScreen(Screen):
         
     def copy(self):
         pyperclip.copy(self.ids.address_text.text)
+        
+    def receive(self):
+        self.qr_popup()
+    
+    def qr_popup(self):
+        
+        self.my_wallet.start_conn()
+        print(f"about to create address for acount: {self.app.current_corpacc[0][0]}")
+        addresses = self.my_wallet.get_unused_addresses_list(account_index=self.app.current_corpacc[0][0])
+        print(addresses)
+        
+        if len(addresses)==0: address = self.my_wallet.create_receiving_address(account_index=self.app.current_corpacc[0][0],addr_type="p2wsh")
+        else: address = addresses[0][0]
+        
+        self.show = QRcodePopup(address)
+                
+    
+        self.popupWindow = Popup(title="Address and QR Code", content=self.show, size_hint=(None,None), size=(550,700),
+                                pos_hint={"center_x":0.5, "center_y":0.5})
+        self.popupWindow.open()
+        #self.show.YES.bind(on_press=self.send_tx)
+        self.show.OK.bind(on_release=self.popupWindow.dismiss)
+        
    
     def transfer(self):
         self.app.current_wallet_balance = self.btc_balance_text
@@ -1432,7 +1481,7 @@ class Send():
         self.show.YES.bind(on_release=self.start_sending)
         self.show.CANCEL.bind(on_release=self.popupWindow.dismiss)
 
-                                
+    #This is where the actual transaction happens                            
     def send_tx(self,screen, amount, address):
         "the button is the Button object"
         print(f"amount: {amount}, address: {address}")
@@ -1440,8 +1489,20 @@ class Send():
         app = App.get_running_app() 
         #my_wallet = app.my_wallet
         my_wallet = app.wallets[0][app.current_wallet]
-        my_wallet.start_conn()
-        transaction = my_wallet.send([(address,amount)])
+        
+        #We check what kind of wallet is trying to send BTC. If it is a HDMWallet, then we check which account is trying to spend:
+        if isinstance(my_wallet,HDMWallet):
+            if app.current_corpacc[0][0]:
+                acc_index = app.current_corpacc[0][0]
+            else: acc_index = None
+            
+            my_wallet.start_conn()
+            transaction = my_wallet.send([(address,amount)], acc_index=acc_index)
+        else:
+            my_wallet.start_conn()
+            transaction = my_wallet.send([(address,amount)])
+            
+        #I STOPPED HERE!!! TESTE THE LAST IF STATEMENT!!! OH! BUT BEFORE, MAKE SURE YOU HAVE SET app.current_corpacc to None when not in an account!!!
         print(f"SENT SUCCESSFULLY. TX ID: {transaction[0].transaction.id()}")
         #closing popups
         self.loadingWindow.dismiss()

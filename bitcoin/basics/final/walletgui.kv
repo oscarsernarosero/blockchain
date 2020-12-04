@@ -1276,12 +1276,16 @@
             text: corporate_screen.btc_balance_text
             
         Label:
+            id:space_balance
+            size_hint_y: 0.05
+        
+        Label:
             size_hint: 1, 0.1
             halign: "auto"
             valign: "middle"
             font_name: "Arial Black"
             font_size:  corporate_screen.font_size
-            color: 0,1,0,1
+            color: 1,1,1,1
             text_size: root.width*0.7, None
             size: self.texture_size
             text: "General Account:"
@@ -1292,7 +1296,7 @@
             valign: "middle"
             font_name: "Arial Black"
             font_size:  "20sp"
-            color: 0,1,0,1
+            color: 1,1,1,1
             text_size: root.width*0.7, None
             size: self.texture_size
             text: corporate_screen.btc_balance_account_text

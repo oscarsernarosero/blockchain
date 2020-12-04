@@ -335,7 +335,8 @@ class Wallet(MasterAccount):
                         print("new confirmed UTXO")
                         self.db.new_utxo(addr_info["address"],utxo["value"],utxo["tx_hash"],utxo["tx_output_n"],confirmed = 1)
                         
-        self.close_conn()
+        try: self.close_conn()
+        except: pass
         
         return 
     
