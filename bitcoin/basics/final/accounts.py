@@ -420,63 +420,28 @@ class FHMAccount(Xtended_pubkey):
         self.addr_type = addr_type.lower()
         self.privkey_index = index
         
-    def get_deposit_address(self,index=0):
+    
+    def get_address_from_path(self,path):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        #date_account = self.xtended_pubkey.get_child_from_path(f'm/{date}/0/{index}')
-        
-        date_accounts = [x.get_child_from_path(f'm/0/{index}') for x in self.xtended_pubkey_list]
+        date_accounts = [x.get_child_from_path(path) for x in self.xtended_pubkey_list]
         all_public_keys = [x.public_key for x in date_accounts]
         redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
         serialized_redeem = redeem_script.raw_serialize()
         address = self.get_address(serialized_redeem)
         return address
     
-    def get_deposit_account(self,date=None,index=0):
+    def get_account_from_path(self,path):
         """
         date: Integer. Must be YYMMDD format
         index: index of the deposit address.
         """
-        #if self.privkey is None: raise Exception("There is no private key for the account")
-        if date is None: 
-            date_accounts = [x.get_child_from_path(f'm/0/{index}') for x in self.xtended_pubkey_list]
-            privkey = self.master_privkey.get_child_from_path(f'm/0/{index}') 
-        else: 
-            date_accounts = [x.get_child_from_path(f'm/{date}/0/{index}') for x in self.xtended_pubkey_list]
-            privkey = self.master_privkey.get_child_from_path(f'm/{date}/0/{index}')
-            
-        all_public_keys = [x.public_key for x in date_accounts]
         
-        account = MultSigAccount(self.m, privkey.private_key_obj.secret, all_public_keys, self.addr_type, self.testnet)
-        
-        return account
+        date_accounts = [x.get_child_from_path(path) for x in self.xtended_pubkey_list]
+        privkey = self.master_privkey.get_child_from_path(path) 
 
-    def get_change_address(self,index=0):
-        """
-        date: Integer. Must be YYMMDD format
-        index: index of the deposit address.
-        """
-        date_accounts = [x.get_child_from_path(f'm/1/{index}') for x in self.xtended_pubkey_list]
-        all_public_keys = [x.public_key for x in date_accounts]
-        redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
-        serialized_redeem = redeem_script.raw_serialize()
-        address = self.get_address(serialized_redeem)
-        return address
-    
-    def get_change_account(self,date=None,index=0):
-        """
-        date: Integer. Must be YYMMDD format
-        index: index of the deposit address.
-        """
-        if date is None: 
-            date_accounts = [x.get_child_from_path(f'm/1/{index}') for x in self.xtended_pubkey_list]
-            privkey = self.master_privkey.get_child_from_path(f'm/1/{index}') 
-        else: 
-            date_accounts = [x.get_child_from_path(f'm/{date}/1/{index}') for x in self.xtended_pubkey_list]
-            privkey = self.master_privkey.get_child_from_path(f'm/{date}/1/{index}')
-            
         all_public_keys = [x.public_key for x in date_accounts]
         
         account = MultSigAccount(self.m, privkey.private_key_obj.secret, all_public_keys, self.addr_type, self.testnet)

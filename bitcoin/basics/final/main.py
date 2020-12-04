@@ -888,7 +888,7 @@ class CorporateScreen(Screen,Balance):
         self.app.current_wallet_balance = self.btc_balance_account_text
         print(f"self.btc_balance_account: {self.btc_balance_account_text}")
         self.app.current_corpacc = [(None)]
-        print(f"account_index: {self.app.current_corpacc[0][0]}")
+        print(f"account_index: {self.app.current_corpacc}")
         self.app.last_caller = self.app.caller
         self.app.caller = "CorporateScreen"
         self.app.sm.current = "SafeTransferScreen"
@@ -960,7 +960,7 @@ class CorporateAccountScreen(Screen):
         #self.update_real_balance()
         print(f"account_index: {self.app.current_corpacc[0][0]}")
         utxos = self.my_wallet.get_utxos_from_corporate_account(self.app.current_corpacc[0][0])
-        self.btc_balance = (sum([x[3] for x in utxos]))/100000000
+        self.btc_balance = (sum([x[2] for x in utxos]))/100000000
         print(f"balance: {self.btc_balance}")
         #self.usd_balance = self.btc_balance * btc_price
         self.btc_balance_text =  str(self.btc_balance) + " BTC"

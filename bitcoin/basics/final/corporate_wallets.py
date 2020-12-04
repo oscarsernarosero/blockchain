@@ -682,7 +682,7 @@ class SHDSafeWallet(MultiSignatureWallet):
         else: privkey = None
         
         #address = account.get_change_address(index=i)
-        change_account = account.get_change_account(index=i)
+        change_account = account.get_change_account(path)
         self.start_conn()
         self.db.new_address(change_account.address,receiving_path,i,TRUE, P2WSH, self.name, self.safe_index)
         self.close_conn()
@@ -921,6 +921,7 @@ class HDMWallet(MultiSignatureWallet):
         index: int. If an address with a specific index is desired then 'index' must be an int.
         account_index: int. The index of the corporate account in the BIP32 tree
         """
+        print(f"from create_receiving_address, account_index: {account_index}")
         if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
         if addr_type.lower() ==    "p2sh":       _type  = P2SH
         elif addr_type.lower() ==   "p2wsh":     _type  = P2WSH
@@ -942,7 +943,7 @@ class HDMWallet(MultiSignatureWallet):
         
         
         
-        address = account.get_deposit_address(i)
+        address = account.get_address_from_path(path)
         self.start_conn()
         self.db.new_address(address,receiving_path,i,FALSE, _type, self.name, self.safe_index)
         self.close_conn()
@@ -971,7 +972,7 @@ class HDMWallet(MultiSignatureWallet):
         account = FHMAccount(self.m, self.xtended_pubkey_list, self.master_privkey, self.addr_type,
                              self.testnet, self.segwit)
         
-        change_account = account.get_change_account(index=i)
+        change_account = account.get_account_from_path(path)
         self.start_conn()
         self.db.new_address(change_account.address,receiving_path,i,TRUE, P2WSH, self.name, self.safe_index)
         self.close_conn()
@@ -997,6 +998,7 @@ class HDMWallet(MultiSignatureWallet):
         account_index: int. The index of the corporate account in the BIP32 tree. If set \
         to None, it will return only the utxos from accounts 0 and 1.
         """
+        print(f"from get_utxos_from_corporate_account, account_index: {account_index}")
         self.start_conn()
         coins = self.db.look_for_coins(self.name) #ORIGINAL LINE!
         
@@ -1024,6 +1026,7 @@ class HDMWallet(MultiSignatureWallet):
         If True, account_index will be ignored.
         
         """
+        print(f"from get_coins, account_index: {account_index}")
         print(f"From wallet.send(): {to_address_amount_list}")
         #calculate total amount to send from the wallet
         total_amount = sum([x[1] for x in to_address_amount_list])
