@@ -494,7 +494,8 @@ class Sqlite3Wallet:
         query = query1+query2
         tx = self.execute_w_res(query)
         
-        consigners_reply = ast.literal_eval(tx[3])
+        print(f"from database: tx: {tx}")
+        consigners_reply = ast.literal_eval(tx[0][5])#original was tx[3]
         consigners_reply[f"{pubkey}"] = reply
         print(f"consigners_reply updated: {consigners_reply}")
         #Let's make sure that the tx still has room to be approved. If not, we'll delete the transaction.

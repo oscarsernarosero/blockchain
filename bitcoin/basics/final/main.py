@@ -76,6 +76,7 @@ class Balance():
             self.loadingDB.dismiss()
 
             self.update_balance()
+            
         except Exception as e:
             print(f"update balance exception {traceback.format_exc()}")
             if str(e).startswith("('Status Code 429'"):
@@ -123,6 +124,12 @@ class Balance():
         print("closing loading window")
         self.loadingBalance.dismiss()
         self.my_wallet.close_conn()
+        
+        #IF a corporate account is calling these methods, we will also update the account balance for indeces 0 and 1.
+        #but if it is not a corporate account, this will result in an exception. Therefore:
+        try: self.update_general_account_balance()
+        except: pass
+        
         
     def read_json(self,url):
         request = Request(url)
@@ -682,6 +689,19 @@ class YearListScreen(Screen):
         self.show.past.bind(on_release=partial(self.new_year_safe,when="last_year"))
         self.show.other.bind(on_release=partial(self.new_year_safe,when="1111"))
         
+    def share(self):
+        my_wallet = self.app.wallets[0][self.app.current_wallet]
+        msg = str(my_wallet.share())
+        print(msg)
+        self.share_ = GenericOkPopup(msg)
+        self.share_window = Popup(title="Share Wallet", content=self.share_, 
+                                                  size_hint=(None,None),size=(500,1000), 
+                                                  pos_hint={"center_x":0.5, "center_y":0.5}
+                                   )
+        self.share_window.open()
+        self.share_.OK.bind(on_release=self.share_window.dismiss) 
+        return
+    
     def new_year_safe(self,*args, **kargs):
         print(f"args: {args}, kargs {kargs}")
         master_safe = self.app.wallets[0][self.app.current_wallet]
@@ -864,9 +884,6 @@ class CorporateScreen(Screen,Balance):
     def on_pre_enter(self):
         self.app = App.get_running_app()
         self.my_wallet = self.app.wallets[0][self.app.current_wallet]
-        utxos = self.my_wallet.get_utxos_from_corporate_account()
-        print(f"utxos on_enter: {utxos}")
-        self.btc_balance_account_text = str((sum([x[2] for x in utxos]))/100000000)+" BTC"
         
         print(f"balance: {self.btc_balance}")
         
@@ -878,16 +895,17 @@ class CorporateScreen(Screen,Balance):
             self.ids.account_list.data = [{'text': no_data_msg}]
         self.update_real_balance()
             
-    def on_enter(self):
-        #utxos = self.my_wallet.get_utxos_from_corporate_account()
-        #print(f"utxos on_enter: {utxos}")
-        #self.btc_balance_account_text = str((sum([x[2] for x in utxos]))/100000000)+" BTC"
-        pass
+    
+    def update_general_account_balance(self):
+        utxos = self.my_wallet.get_utxos_from_corporate_account()
+        print(f"utxos on_enter: {utxos}")
+        self.btc_balance_account_text = str((sum([x[2] for x in utxos]))/100000000)+" BTC"
+        
         
     def transfer(self):
         self.app.current_wallet_balance = self.btc_balance_account_text
         print(f"self.btc_balance_account: {self.btc_balance_account_text}")
-        self.app.current_corpacc = [(None)]
+        self.app.current_corpacc = [[None]]
         print(f"account_index: {self.app.current_corpacc}")
         self.app.last_caller = self.app.caller
         self.app.caller = "CorporateScreen"
@@ -1118,7 +1136,7 @@ class NewContactScreen(Screen):
         else:
             self.app.db.update_contact(self.original_xpub,first_name, last_name, phone_number, position, xpub,safe_pubkey)
             self.app.arguments[0].update({"current_contact":xpub})
-            self.app.sm.current = app.caller
+            self.app.sm.current = self.app.caller
             
     
     def go_back(self):
@@ -1989,6 +2007,7 @@ class walletguiApp(App):
     current_wallet_balance = StringProperty()
     
     current_wallet = None
+    current_corpacc = [[None]]
     db = Sqlite3Wallet()
     res =  db.does_table_exist("Wallets")
     if len(res)>0:

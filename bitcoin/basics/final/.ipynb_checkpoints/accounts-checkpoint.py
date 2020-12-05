@@ -262,6 +262,44 @@ class SHMAccount(Xtended_pubkey):
         self.addr_type = addr_type.lower()
         self.privkey_index = index
         
+        
+    
+    def get_address_from_path(self,path):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        date_account = self.xtended_pubkey.get_child_from_path(path)
+        all_public_keys = self.public_keys + [date_account.public_key]
+        redeem_script = Script([self.m+80, *all_public_keys, self.n + 80, 174])
+        serialized_redeem = redeem_script.raw_serialize()
+        address = self.get_address(serialized_redeem)
+        return address
+    
+    def get_account_from_path(self,path):
+        """
+        date: Integer. Must be YYMMDD format
+        index: index of the deposit address.
+        """
+        date_account = self.xtended_pubkey.get_child_from_path(path)
+        
+        all_public_keys = self.public_keys + [date_account.public_key]
+        
+        if self.master_privkey is None and self.privkey is not None: 
+            privkey = self.privkey
+        elif self.master_privkey is not None and self.privkey is None:
+            xtended_privkey = self.master_privkey.get_child_from_path(path)
+            privkey = xtended_privkey.private_key_obj
+            
+        else: raise Exception("A private key is necessary to create a deposit account")
+            
+        account = MultSigAccount(self.m, privkey.secret, all_public_keys, self.addr_type, self.testnet)
+        return account
+
+
+    
+    
+    
     def get_deposit_address(self,index=0):
         """
         date: Integer. Must be YYMMDD format
@@ -467,7 +505,7 @@ class FHMAccount(Xtended_pubkey):
         
         
     def __repr__(self):
-        return f"Single-Herarchical Multisignature account: master_pubkey {self.xtended_pubkey}"
+        return f"Single-Herarchical Multisignature account: master_pubkey {self.xtended_pubkey_list}"
         
     
     @classmethod

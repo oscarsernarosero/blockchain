@@ -437,6 +437,7 @@ class MultiSigTransaction(Transaction):
         transaction: must be Tx object.
         account: must be Multisignature object.
         """
+        print(f"sign1by1_with_wallet account: {account}")
         
         for tx_input in range(len(transaction.tx_ins)):
             
@@ -445,13 +446,19 @@ class MultiSigTransaction(Transaction):
             addr_index = utxo_list[tx_input][4]
             print(f"Address trying to spend from: {utxo_list[tx_input][5]}, path {utxo_list[tx_input][3]}{addr_index}")
             
-            if utxo_list[tx_input][3] == "m/1/": 
-                print(f"change account index {addr_index}")
-                signing_account = account.get_change_account(index=addr_index) 
-            else: 
-                print(f"Deposit account index {addr_index}")
-                signing_account =  account.get_deposit_account(index=addr_index)
-                
+            try: 
+                path = utxo_list[tx_input][3] + str(addr_index)
+                signing_account = account.get_account_from_path(path) 
+                print(f"about to sign with account.\nAddress of the account: {signing_account.address}.\npath: {path}")
+            except Exception as e:
+                print(f"using get_account_from_path() failed {e}")
+                if utxo_list[tx_input][3] == "m/1/": 
+                    print(f"change account index {addr_index}")
+                    signing_account = account.get_change_account(index=addr_index) 
+                else: 
+                    print(f"Deposit account index {addr_index}")
+                    signing_account =  account.get_deposit_account(index=addr_index)
+
             print(signing_account.address)
             
             if utxo_list[tx_input][6] == P2SH_P2WPKH:

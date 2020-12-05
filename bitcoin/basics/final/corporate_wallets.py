@@ -133,7 +133,7 @@ class MultiSignatureWallet(Wallet):
         #utxos = coins["utxos"]
         if tx_response[1]: 
             #if it is ready, we broadcast the transaction
-            self.broadcast_tx(tx_response[0],coins["utxos"])
+            self.broadcast_tx(tx_response[0].transaction,coins["utxos"])
             
         self.close_conn()  
         #share it with the other participants of the multi-signature wallet. For now:
@@ -178,6 +178,22 @@ class MultiSignatureWallet(Wallet):
         
         self.close_conn()
         return tx_response
+    
+    def open_partial_tx(self, tx_id):
+        """
+        Opens the new partial transaction in the database, and reconstructs the MultiSigTransaction object \
+        to pass it to the sign_received_tx() method.
+        tx_id: str. The tx id of the new partial tx in the database.
+        """
+        self.start_conn()
+        tx = Tx.parse(BytesIO(bytes.fromhex(self.db.get_partial_tx_hex(tx_id)[0][0])), self.testnet)
+        print(f"tx {tx}")
+        tx_ins = tx.tx_ins
+        print(f"tx_ins {tx.tx_ins}")
+        ms_tx = MultiSigTransaction(tx,None,tx_ins,None,tx.tx_outs,None,None,self.testnet,None)
+        self.close_conn()
+        return self.sign_received_tx(ms_tx)
+        
 
 
 class CorporateSuperWallet(Wallet):
@@ -267,7 +283,7 @@ class CorporateSuperWallet(Wallet):
         year_account = self.get_child_from_path(path)
         return year_account
     
-    def accept_corporate_safe_invite(self,invite, name):
+    def accept_corporate_safe_invite(self,invite):
         """
         accepts the invitation from a SuperCorporateWallet to participate in a daily-safe wallet.
         The acceptance must be through a private key that matches one of the public keys that are
@@ -276,14 +292,15 @@ class CorporateSuperWallet(Wallet):
         """
         path = "m/44H/0H/3H"
         year_safe_acc = self.get_child_from_path(path)
-        print(f"accept_safe_wallet_invite: priv: {year_safe_acc.xtended_key}; pubkey: {{year_safe_acc.xtended_public_key}}")
+        print(f"accept_safe_wallet_invite: priv: {year_safe_acc.xtended_key}; pubkey: {year_safe_acc.xtended_public_key}")
 
-        master_pubkey_list = invite["master_pubkey_list"]
+        master_pubkey_list = [Xtended_pubkey.parse(x) for x in invite["master_pubkey_list"]] 
         m = invite["m"]
         n = invite["n"]
         addr_type = invite["addr_type"]
         segwit = invite["segwit"]
         testnet = invite["testnet"]
+        name = invite["name"]+":"+str(year_safe_acc.xtended_public_key)[-4:]
    
             
         safe_wallet = HDMWallet( name, master_pubkey_list, year_safe_acc,m, n, addr_type, testnet,segwit)
@@ -691,7 +708,7 @@ class SHDSafeWallet(MultiSignatureWallet):
     
     def share(self):
         if self.safe_index >= 0: raise Exception ("Only master wallets can be shared.")
-        return {"public_key_list":self.public_key_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
+        return {"name": self.name,"public_key_list":self.public_key_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
                 "master_pubkey":f"{self.master_pubkey}","testnet":self.testnet, "segwit":self.segwit,
                 "level1pubkeys":self.level1pubkeys }
     
@@ -716,21 +733,7 @@ class SHDSafeWallet(MultiSignatureWallet):
             
         return account
         
-    def open_partial_tx(self, tx_id):
-        """
-        Opens the new partial transaction in the database, and reconstructs the MultiSigTransaction object \
-        to pass it to the sign_received_tx() method.
-        tx_id: str. The tx id of the new partial tx in the database.
-        """
-        self.start_conn()
-        tx = Tx.parse(BytesIO(bytes.fromhex(self.db.get_partial_tx_hex(tx_id)[0][0])), self.testnet)
-        print(f"tx {tx}")
-        tx_ins = tx.tx_ins
-        print(f"tx_ins {tx.tx_ins}")
-        ms_tx = MultiSigTransaction(tx,None,tx_ins,None,tx.tx_outs,None,None,self.testnet,None)
-        self.close_conn()
-        return self.sign_received_tx(ms_tx)
-        
+    
         
 class HDMWallet(MultiSignatureWallet):
     """
@@ -742,7 +745,7 @@ class HDMWallet(MultiSignatureWallet):
     def __init__(self, name, master_pubkey_list,master_privkey, m=2, n=6,addr_type="p2wsh",  
                   testnet=False, segwit=True, parent_name=None, safe_index=-1):
         """
-        public_key_list: List of public keys. Must be in bytes.
+        master_pubkey_list: List of public keys. Must be in bytes.
         m: integer
         n: integer
         _privkey: PrivateKey object. If you provide a Private key, don't provide a master_privkey.
@@ -841,6 +844,16 @@ class HDMWallet(MultiSignatureWallet):
         child_xtended_privkey = self.master_privkey.get_child_from_path(full_path)
         
         child_pubkey_list = [x.get_child_from_path(full_path) for x in self.xtended_pubkey_list]
+        
+        print(f"types: child_pubkey_list[0]: {type(child_pubkey_list[0])}\nchild_xtended_privkey.xtended_public_key: {type(child_xtended_privkey.xtended_public_key)}")
+        
+        str_my_pubkey = str(child_xtended_privkey.xtended_public_key)
+        str_pubkey_list= [str(x) for x in child_pubkey_list]
+        
+        if str_my_pubkey in str_pubkey_list :
+             print(f"Success! priv key IS in public key list {child_xtended_privkey.xtended_public_key}")
+        else: 
+            print(f"priv key in NOT public key list? {child_xtended_privkey.xtended_public_key}")
             
         child_wallet = HDMWallet( str(index)+"_"+self.name,  child_pubkey_list,
                                  child_xtended_privkey,  self.m,  self.n,  self.addr_type,
@@ -944,6 +957,8 @@ class HDMWallet(MultiSignatureWallet):
         
         
         address = account.get_address_from_path(path)
+        address_from_acc = account.get_account_from_path(path)
+        print(f"address: {address}; from account: {address_from_acc.address}")
         self.start_conn()
         self.db.new_address(address,receiving_path,i,FALSE, _type, self.name, self.safe_index)
         self.close_conn()
@@ -957,20 +972,20 @@ class HDMWallet(MultiSignatureWallet):
         """
         if self.safe_index < 0: raise Exception ("Only child wallets can create addresses.")
         
-        
-        i = self.get_i(self.name,receiving_path, index)
-        
         if account_index is None: 
             receiving_path = "m/1/"
         else: 
             if account_index < 2: raise Exception("Acount indeces 0 and 1 are reserved.")
             receiving_path = f"m/{account_index}/1/"
+            
+        i = self.get_i(self.name,receiving_path, index)
         
         path = receiving_path + str(i)
         print(f"Change address's Path: {path}")
         
         account = FHMAccount(self.m, self.xtended_pubkey_list, self.master_privkey, self.addr_type,
                              self.testnet, self.segwit)
+        
         
         change_account = account.get_account_from_path(path)
         self.start_conn()
@@ -981,8 +996,8 @@ class HDMWallet(MultiSignatureWallet):
     
     def share(self):
         if self.safe_index >= 0: raise Exception ("Only master wallets can be shared.")
-        return {"master_pubkey_list":self.xtended_pubkey_list,"m":self.m, "n":self.n, "addr_type":self.addr_type,
-                "testnet":self.testnet, "segwit":self.segwit }
+        return {"name": self.name,"master_pubkey_list":[f"{x}" for x in self.xtended_pubkey_list],"m":self.m, "n":self.n,
+                "addr_type":self.addr_type,"testnet":self.testnet, "segwit":self.segwit }
     
 
     def new_account(self, index, name):
@@ -1016,7 +1031,7 @@ class HDMWallet(MultiSignatureWallet):
         return coins_from_account
     
         
-    def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False):
+    def get_coins(self, to_address_amount_list, send_all=None, segwit=True, account_index=None, total=False, min_fee_per_byte=70):
         """
         Returns a dictionary with the utxos, fee, and change.
         to_address_amount_list: List of tuples [(address1,amount1),(address2,amount2),...]
@@ -1068,7 +1083,7 @@ class HDMWallet(MultiSignatureWallet):
         to_address_amount_list: List of tuples [(address1,amount1),...]
         """
         #First let's get ready the inputs for the transaction
-        coins = self.get_coins(to_address_amount_list, send_all=send_all, acc_index=acc_index,
+        coins = self.get_coins(to_address_amount_list, send_all=send_all, account_index=acc_index,
                                          segwit=segwit,min_fee_per_byte=min_fee_per_byte)
         print(f"coins from coin-selector: {coins}")
         
@@ -1076,10 +1091,10 @@ class HDMWallet(MultiSignatureWallet):
         tx_response = self.build_tx(coins,to_address_amount_list, segwit)
         self.start_conn()
         consigners_reply = {}
-        [consigners_reply.update({f"{int.from_bytes(pubkey,'big')}":None}) for pubkey in self.public_key_list]
-        consigners_reply.update({f'{self.master_pubkey}':None})
-        if   self.wallet_type=="main"  : consigners_reply.update({f"{self.master_pubkey}":True})
-        elif self.wallet_type=="simple": consigners_reply.update({f"{int.from_bytes(self.pubkey,'big')}":True})
+        [consigners_reply.update({f"{pubkey}":None}) for pubkey in self.xtended_pubkey_list]
+        consigners_reply.update({str(self.master_privkey.xtended_public_key):True})
+        print(f"consigners_reply: {consigners_reply}")
+        
         
         tx_id = tx_response[0].transaction.id()
         tx_hex = tx_response[0].transaction.serialize().hex()
@@ -1108,5 +1123,45 @@ class HDMWallet(MultiSignatureWallet):
                              self.testnet, self.segwit)
         
         return account
+    
+    def sign_received_tx(self, tx):
+        """
+        tx: Tx object. The transaction object that needs to be signed.
+        """
+        
+        #to do: we need to get the utxo list from the database using the transaction to be able to sign
+        utxos = []
+        self.start_conn()
+        for _in in tx.tx_ins:
+            res = self.db.get_utxo_info(_in.prev_tx.hex(), _in.prev_index)
+            print(res)
+            utxos.append(res[0])
+            
+        self.close_conn()
+        #We create the multisignature account to sign the transaction.
+        account = self.get_signing_account()
+        
+        tx_response = MultiSigTransaction.sign_received_tx_with_wallet(utxos,tx,account)
+        
+        tx_id = tx_response[0].transaction.id()
+        print(f"tx_id: {tx_id}")
+        
+        if tx_response[1]: self.broadcast_tx(tx_response[0].transaction,utxos)
+        else:
+            #update the cosigners_reply
+            pubkey = self.master_privkey.xtended_public_key
+            self.start_conn()
+            self.db.update_cosigners_reply(tx_id, pubkey, reply=True,m=self.m,n=self.n)
+            #update the tx_ins in the partial-tx database
+            new_tx_hex = tx_response[0].transaction.serialize().hex()
+            self.db.update_partial_tx(tx_id, new_tx_hex)
+            #share it with the other participants of the multi-signature wallet. For now:
+            print(f"##### This is the partially signed tx #####:\n{tx_response[0].transaction.serialize().hex()}\ntx_in: \
+            {tx_response[0].tx_ins}")
+        
+        self.close_conn()
+            
+        return tx_response
+            
         
     
