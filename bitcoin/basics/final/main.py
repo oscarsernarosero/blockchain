@@ -317,10 +317,36 @@ class SelectPayment(SelectRV):
     def go_to_store(self,obj): 
         self.selected = False
         
-class SelectContact(SelectRV):
+#class SelectContact(SelectRV):
+class SelectContact(RecycleDataViewBehavior,BoxLayout):
+    
+    ''' Add selection support to the Label '''
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
 
+    def refresh_view_attrs(self, rv, index, data):
+        ''' Catch and handle the view changes '''
+        self.index = index
+        return super(SelectContact, self).refresh_view_attrs(
+            rv, index, data)
+
+    def on_touch_down(self, touch):
+        ''' Add selection on touch down '''
+        if super(SelectContact, self).on_touch_down(touch):
+            return True
+        if self.collide_point(*touch.pos) and self.selectable:
+            return self.parent.select_with_touch(self.index, touch)
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+        self.app = App.get_running_app()
+        if is_selected: self.if_selected( rv, index)
+        else: print("selection removed for {0}".format(rv.data[index]))
+    
     def if_selected(self, rv, index):
-        if "You don't have" in rv.data[index]["text"]: return
+        if "You don't have" in rv.data[index]["_name"]: return
         contact_xpub = rv.data[index]["xpub"]
         print(f"self.app.caller: {self.app.caller}")
         print(f"self.app.last_caller: {self.app.last_caller}")
@@ -1336,15 +1362,15 @@ class MyContactsScreen(Screen):
         for x in contact_list_raw:
             if x[1].lower().startswith(search_for.lower()) or x[0].lower().startswith(search_for.lower()):
                 space = " "
-                for i in range(20 - len(x[1])-len(x[0])): space += " "
-                contact_list.append(("[b]"+x[1]+" "+x[0]+ space +  "[color=002266]"+x[4][:6]+\
-                              "...."+x[4][-5:]+"[/color][/b]", x[4]))
+                #for i in range(20 - len(x[1])-len(x[0])): space += " "
+                contact_list.append(("[b][color=002277][size=18sp]"+x[1]+" "+x[0]+"[/size][/color][/b]", "[b][color=CCCCCC]"+x[4][:4]+\
+                              "..."+x[4][-5:]+"[/color][/b]", x[4]))
              
         no_data_msg ="No results found." 
         if len(contact_list)>0:
-            self.ids.contact_list.data = [{'text': x[0],"xpub":x[1], "markup":True} for x in contact_list]
+            self.ids.contact_list.data = [{"_name": x[0],"_xpub":x[1],"xpub":x[2], "markup":True} for x in contact_list]
         else:
-            self.ids.contact_list.data = [{'text': no_data_msg}]
+            self.ids.contact_list.data = [{'_name': no_data_msg}]
        
     
     def select_contact(self):

@@ -511,7 +511,7 @@ class Sqlite3Wallet:
                     return self.delete_failed_partial_tx(tx_id)
             
         #if it hasn't been declined, then we proceed to update the reply in the database
-        query = f"UPDATE PartialTransactions \nSET consigners_reply = '{str(consigners_reply)}' WHERE tx_id = '{tx_id}'"
+        query = f"UPDATE PartialTransactions \nSET consigners_reply = '{consigners_reply}' WHERE tx_id = '{tx_id}'"
         print(f"query from update_cosigners_reply\n{query}")
         return self.execute(query)
     
