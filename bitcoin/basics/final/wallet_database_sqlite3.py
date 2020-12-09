@@ -2,11 +2,13 @@ import sqlite3
 from sqlite3 import Error
 import time
 import ast
+import traceback
 
 class Sqlite3Wallet:
     
     def __init__(self):
-        self.conn = self.create_connection(r"database/wallet_db.db")
+        #self.conn = self.create_connection(r"./database/wallet_db.db")
+        self.conn = self.create_connection(r".\\database\\wallet_db.db")
         print("connection with database made.")
         
     def create_connection(self,db_file):
@@ -18,6 +20,7 @@ class Sqlite3Wallet:
 
         except Error as e:
             print(e)
+            print(traceback.format_exc())
 
     def close_database(self):
         if self.conn:

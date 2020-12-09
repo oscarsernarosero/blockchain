@@ -91,9 +91,25 @@ conda activate walletenv
     - zbarcam ```pip install zbarcam```
 3. Run:
 
-     ```$ cd blockchain```
+``` cd blockchain/bitcoin/basics/final```
 
-    ```$ python3 bitcoin/basics/final/main.py ```
+Make sure that the database is accessable from anywhere, or else you will have an error saying "Unable to open database file". To fix this do:
+
+For windows:
+
+``` icacls "\<absolute\\path\\to\\the\\final\\folder\>\\database" /grant:r "Users:F" /t ```
+
+*Note: make sure you have backslash in the path "\\" instead of regular slash. Some times this is a problem. Notice that the path is pointing to the folder "database" inside of the folder "final". That is the folder we are trying to grant permissions. If "Users:F" doesn't work, try with your current user name: "\<yourusername\>:F".*
+
+For MacOS:
+
+``` chmod ugo+wrx database database/env.db database/wallet_db.db ```
+
+And that's it! You are all set to start using the wallet. So, now, simply call the main file:
+
+``` python3 main.py ```
+
+*Note: In Windows, simply use "python" instead of "python3"
 
 
 
